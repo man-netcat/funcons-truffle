@@ -1,7 +1,8 @@
+import argparse
 import glob
 import os
 
-from icecream import ic
+from icecream import ic  # NOTE: Debug library, remove me!
 from pyparsing import (
     Group,
     Keyword,
@@ -26,8 +27,8 @@ ALIAS = Keyword("Alias")
 RULE = Keyword("Rule")
 KEYWORD = FUNCON | TYPE | DATATYPE | ENTITY | METAVARIABLES
 
-FUNCON_NAME = Word(alphas, alphanums + "-")
-IDENTIFIER = Word(alphas, alphanums + "-'") | "_"
+IDENTIFIER = Word(alphas, alphanums + "-")
+TYPEORVAR = Word(alphas, alphanums + "-'") | "_"
 MODIFIER = oneOf("* + ?")
 
 COMPUTES = "=>"
@@ -37,7 +38,7 @@ REWRITES_TO = "~>"
 # Temp name
 inner_type = (
     Optional(COMPUTES)
-    + (IDENTIFIER | (Optional(Suppress("(")) + IDENTIFIER + Optional(Suppress(")"))))
+    + (TYPEORVAR | (Optional(Suppress("(")) + TYPEORVAR + Optional(Suppress(")"))))
     + Optional(MODIFIER)
 )
 type = Group(
@@ -46,15 +47,19 @@ type = Group(
 )
 
 value = Group(
-    IDENTIFIER + Optional(MODIFIER),
+    TYPEORVAR + Optional(MODIFIER),
 )
 
 
 def funcon_rule_parser():
-    args = Group(delimitedList(IDENTIFIER + Optional(MODIFIER))).setResultsName("args*")
+    args = delimitedList(
+        Group(
+            TYPEORVAR + Optional(MODIFIER),
+        ).setResultsName("args*")
+    )
     entity = Group(
         Suppress("--")
-        + IDENTIFIER
+        + TYPEORVAR
         + Optional(MODIFIER)
         + Suppress("(")
         + value.setResultsName("value")
@@ -62,13 +67,15 @@ def funcon_rule_parser():
         + Suppress(")")
     ).setResultsName("entity")
     rewrite = Group(
-        IDENTIFIER
+        Group(TYPEORVAR).setResultsName("identifier")
         + Suppress("(")
         + args
         + Suppress(")")
         + Optional(entity)
         + REWRITES_TO
-        + IDENTIFIER,
+        + Group(
+            TYPEORVAR + Optional(MODIFIER),
+        ).setResultsName("rewrites_to"),
     ).setResultsName("rules*")
 
     rule = RULE + rewrite
@@ -77,21 +84,23 @@ def funcon_rule_parser():
 
 
 def funcon_def_parser():
-    values = delimitedList(
+    params = delimitedList(
         Group(
-            value.setResultsName("value") + Suppress(":") + type.setResultsName("type"),
-        ).setResultsName("values*")
+            value.setResultsName("param") + Suppress(":") + type.setResultsName("type"),
+        ).setResultsName("params*")
     )
     alias = ALIAS + Group(
-        IDENTIFIER + "=" + IDENTIFIER,
+        IDENTIFIER.setResultsName("alias")
+        + Suppress("=")
+        + IDENTIFIER.setResultsName("original"),
     ).setResultsName("aliases*")
 
     rule = funcon_rule_parser()
 
     funcon = FUNCON + Group(
-        FUNCON_NAME
+        IDENTIFIER.setResultsName("name")
         + Suppress("(")
-        + values
+        + params
         + Suppress(")")
         + Suppress(":")
         + type.setResultsName("returns")
@@ -103,11 +112,17 @@ def funcon_def_parser():
 
 
 def entity_parser():
-    pass
+    # TODO
+    entity = ENTITY + ... + KEYWORD
+
+    return entity
 
 
-def type_parser():
-    pass
+def type_def_parser():
+    # TODO
+    type = TYPE + ... + KEYWORD
+
+    return type
 
 
 def metavariables_parser():
@@ -121,22 +136,28 @@ def metavariables_parser():
 
 
 def build_parser():
-    file = Group(
-        Suppress("###") + IDENTIFIER,
-    ).setResultsName("filename")
+    file = OneOrMore("#") + TYPEORVAR.setResultsName("filename")
     section = Group(
-        Suppress("####") + IDENTIFIER,
+        Suppress("####") + TYPEORVAR,
     )
-    index_line = Group(KEYWORD + IDENTIFIER + Optional(ALIAS + IDENTIFIER))
+    index_line = Group(KEYWORD + TYPEORVAR + Optional(ALIAS + TYPEORVAR))
     index = Group(
         Suppress("[") + OneOrMore(index_line) + Suppress("]"),
     ).setResultsName("index")
     multiline_comment = Suppress("/*") + ... + Suppress("*/")
     metavariables = metavariables_parser()
     funcon_definitions = funcon_def_parser()
+    entity = entity_parser()
+    type_definition = type_def_parser()
 
     parser = OneOrMore(
-        file | Suppress(index) | Suppress(section) | metavariables | funcon_definitions
+        file
+        | Suppress(index)
+        | Suppress(section)
+        | metavariables
+        | funcon_definitions
+        | entity
+        | type_definition
     )
     return parser.ignore(multiline_comment)
 
@@ -145,24 +166,42 @@ def parse_file(file):
     try:
         parser = build_parser()
         result = parser.parseFile(file)
-        ic(result.asList())
+        ic(result.asDict())
     except ParseException as e:
         ic(ParseException.explain(e))
 
 
 def main():
-    # funcondir = "/home/rick/workspace/thesis/CBS-beta/Funcons-beta/Computations/Normal"
-    # pattern = os.path.join(funcondir, "**/*.cbs")
-    # cbs_files = glob.glob(pattern, recursive=True)
-    # for path in cbs_files:
-    #     print(path)
-    #     with open(path) as file:
-    #         parse_file(file)
-    #     print()
-    with open(
-        "/home/rick/workspace/thesis/CBS-beta/Funcons-beta/Computations/Normal/test.cbs"
-    ) as f:
-        parse_file(f)
+    parser = argparse.ArgumentParser(description="Parse .cbs files.")
+    parser.add_argument(
+        "-d",
+        "--directory",
+        help="Parse all .cbs files in the specified directory",
+    )
+    parser.add_argument(
+        "-f",
+        "--file",
+        help="Parse the specified .cbs file",
+    )
+    args = parser.parse_args()
+
+    if args.directory and args.file:
+        raise ValueError("Specify either -d/--directory or -f/--file, not both.")
+
+    if args.directory:
+        pattern = os.path.join(args.directory, "**/*.cbs")
+        cbs_files = glob.glob(pattern, recursive=True)
+        for path in cbs_files:
+            print(path)
+            with open(path) as file:
+                parse_file(file)
+            print()
+    elif args.file:
+        print(args.file)
+        with open(args.file) as file:
+            parse_file(file)
+    else:
+        raise ValueError("Specify either -d/--directory or -f/--file.")
 
 
 if __name__ == "__main__":
