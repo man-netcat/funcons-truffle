@@ -1,5 +1,6 @@
 import argparse
 import glob
+import json
 import os
 
 from icecream import ic  # NOTE: Debug library, remove me!
@@ -142,8 +143,6 @@ def metavariables_parser():
 
 
 def build_parser():
-    file = OneOrMore("#") + TYPEORVAR.setResultsName("filename")
-
     index_line = Group(KEYWORD + TYPEORVAR + Optional(ALIAS + TYPEORVAR))
 
     index = Group(
@@ -152,7 +151,7 @@ def build_parser():
 
     multiline_comment = Suppress("/*") + ... + Suppress("*/")
 
-    section = OneOrMore("#") + TYPEORVAR
+    header = Suppress(OneOrMore("#")) + TYPEORVAR.setResultsName("filename")
 
     metavariables = metavariables_parser()
 
@@ -162,22 +161,30 @@ def build_parser():
 
     type_definition = type_def_parser()
 
-    parser = OneOrMore(
-        file | metavariables | funcon_definitions | entity | type_definition
+    parser = header + OneOrMore(
+        metavariables | funcon_definitions | entity | type_definition | Suppress(header)
     )
-    return parser.ignore(multiline_comment | section | index)
+
+    return parser.ignore(multiline_comment | index)
 
 
 def parse_file(file):
     try:
         parser = build_parser()
         result = parser.parseFile(file)
-        ic(result.asDict())
+        resasdict = result.asDict()
+        with open(f"out/{resasdict['filename']}.json", "w") as f:
+            json.dump(resasdict, f, indent=2)
+        ic(resasdict)
+
     except ParseException as e:
         print(ParseException.explain(e))
 
 
 def main():
+    if not os.path.isdir("out"):
+        os.mkdir("out")
+
     parser = argparse.ArgumentParser(description="Parse .cbs files.")
     parser.add_argument(
         "-d",
