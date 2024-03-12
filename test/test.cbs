@@ -26,6 +26,15 @@ Meta-variables
 #### TestSection
 
 Funcon
+  print(_:values*) : =>null-type
+/*
+  `print(X*)` evaluates the arguments `X*` and emits the resulting sequence of
+  values on the standard-out channel. `print( )` has no effect.
+*/
+Rule
+  print(V*:values*) -- standard-out!(V*) -> null-value
+
+Funcon
   choice(_:(=>T)+) : =>T
 /*
   `choice(Y, ...)` selects one of its arguments, then computes it.
@@ -70,12 +79,3 @@ Rule
   left-to-right(V*:(T)*, Y, Z*) ---> left-to-right(V*, Y', Z*)
 Rule
   left-to-right(V*:(T)*) ~> V*
-
-Funcon
-  print(_:values*) : =>null-type
-/*
-  `print(X*)` evaluates the arguments `X*` and emits the resulting sequence of
-  values on the standard-out channel. `print( )` has no effect.
-*/
-Rule
-  print(V*:values*) -- standard-out!(V*) -> null-value

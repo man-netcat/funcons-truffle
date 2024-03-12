@@ -4,6 +4,7 @@ import os
 
 from icecream import ic  # NOTE: Debug library, remove me!
 from pyparsing import (
+    Forward,
     Group,
     Keyword,
     OneOrMore,
@@ -15,6 +16,7 @@ from pyparsing import (
     alphanums,
     alphas,
     delimitedList,
+    nestedExpr,
     oneOf,
 )
 
@@ -25,57 +27,58 @@ ENTITY = Keyword("Entity")
 METAVARIABLES = Keyword("Meta-variables")
 ALIAS = Keyword("Alias")
 RULE = Keyword("Rule")
+BUILTINFUNCON = Keyword("Built-in Funcon")
 KEYWORD = FUNCON | TYPE | DATATYPE | ENTITY | METAVARIABLES
 
 IDENTIFIER = Word(alphas, alphanums + "-")
 TYPEORVAR = Word(alphas, alphanums + "-'") | "_"
-MODIFIER = oneOf("* + ?")
+
+SUFFIX = oneOf("* + ?")
+ENTITYMODIFIER = oneOf("! ?")
+PREFIX = oneOf("~")
 
 COMPUTES = "=>"
-REWRITES_TO = "~>"
+REWRITES_TO = oneOf("~> ->")
+
+ENTITYSIGNIFIER = "--"
 
 
 # Temp name
 inner_type = (
     Optional(COMPUTES)
-    + (TYPEORVAR | (Optional(Suppress("(")) + TYPEORVAR + Optional(Suppress(")"))))
-    + Optional(MODIFIER)
+    + (TYPEORVAR | (nestedExpr(content=TYPEORVAR)))
+    + Optional(SUFFIX)
 )
 type = Group(
-    (inner_type | (Optional(Suppress("(")) + inner_type + Optional(Suppress(")"))))
-    + Optional(MODIFIER),
+    (inner_type | (nestedExpr(content=inner_type))) + Optional(SUFFIX),
 )
 
 value = Group(
-    TYPEORVAR + Optional(MODIFIER),
+    TYPEORVAR + Optional(SUFFIX),
 )
+
+param = value.setResultsName("value") + Optional(
+    Suppress(":") + type.setResultsName("type")
+)
+
+params = Suppress("(") + delimitedList(Group(param)) + Suppress(")")
+
+entitysig = Group(
+    Suppress(ENTITYSIGNIFIER)
+    + IDENTIFIER.setResultsName("name")
+    + Optional(ENTITYMODIFIER)
+    + params.setResultsName("params*"),
+).setResultsName("entity")
 
 
 def funcon_rule_parser():
-    args = delimitedList(
-        Group(
-            TYPEORVAR + Optional(MODIFIER),
-        ).setResultsName("args*")
-    )
-    entity = Group(
-        Suppress("--")
-        + TYPEORVAR
-        + Optional(MODIFIER)
-        + Suppress("(")
-        + value.setResultsName("value")
-        + Optional(Suppress(":") + type.setResultsName("type"))
-        + Suppress(")")
-    ).setResultsName("entity")
+
     rewrite = Group(
-        Group(TYPEORVAR).setResultsName("identifier")
-        + Suppress("(")
-        + args
-        + Suppress(")")
-        + Optional(entity)
+        IDENTIFIER.setResultsName("identifier")
+        + params.setResultsName("args*")
+        + Optional(entitysig)
         + REWRITES_TO
-        + Group(
-            TYPEORVAR + Optional(MODIFIER),
-        ).setResultsName("rewrites_to"),
+        + value.setResultsName("rewrites_to"),
     ).setResultsName("rules*")
 
     rule = RULE + rewrite
@@ -84,11 +87,16 @@ def funcon_rule_parser():
 
 
 def funcon_def_parser():
-    params = delimitedList(
-        Group(
-            value.setResultsName("param") + Suppress(":") + type.setResultsName("type"),
-        ).setResultsName("params*")
+    fsig = (
+        params.setResultsName("params*")
+        + Suppress(":")
+        + type.setResultsName("returns")
     )
+
+    funcon = FUNCON + Group(
+        IDENTIFIER.setResultsName("name") + fsig,
+    ).setResultsName("funcon")
+
     alias = ALIAS + Group(
         IDENTIFIER.setResultsName("alias")
         + Suppress("=")
@@ -97,14 +105,6 @@ def funcon_def_parser():
 
     rule = funcon_rule_parser()
 
-    funcon = FUNCON + Group(
-        IDENTIFIER.setResultsName("name")
-        + Suppress("(")
-        + params
-        + Suppress(")")
-        + Suppress(":")
-        + type.setResultsName("returns")
-    ).setResultsName("funcon")
     funcon_definition = Group(
         funcon + ZeroOrMore(alias | rule),
     ).setResultsName("funcon_definitions*")
@@ -113,14 +113,20 @@ def funcon_def_parser():
 
 def entity_parser():
     # TODO
-    entity = ENTITY + ... + KEYWORD
+    contextual = Forward()
+    mutable = Forward()
+    input = Forward()
+    output = Forward()
+    control = Forward()
+
+    entity = contextual | mutable | input | output | control
 
     return entity
 
 
 def type_def_parser():
     # TODO
-    type = TYPE + ... + KEYWORD
+    type = Forward()
 
     return type
 
@@ -128,38 +134,38 @@ def type_def_parser():
 def metavariables_parser():
     return METAVARIABLES + OneOrMore(
         Group(
-            delimitedList(type.setResultsName("types*"))
+            delimitedList(type).setResultsName("types*")
             + Suppress("<:")
-            + Group(IDENTIFIER + Optional(MODIFIER)).setResultsName("varname"),
+            + Group(IDENTIFIER + Optional(SUFFIX)).setResultsName("varname"),
         ).setResultsName("metavariables*")
     )
 
 
 def build_parser():
     file = OneOrMore("#") + TYPEORVAR.setResultsName("filename")
-    section = Group(
-        Suppress("####") + TYPEORVAR,
-    )
+
     index_line = Group(KEYWORD + TYPEORVAR + Optional(ALIAS + TYPEORVAR))
+
     index = Group(
         Suppress("[") + OneOrMore(index_line) + Suppress("]"),
     ).setResultsName("index")
+
     multiline_comment = Suppress("/*") + ... + Suppress("*/")
+
+    section = OneOrMore("#") + TYPEORVAR
+
     metavariables = metavariables_parser()
+
     funcon_definitions = funcon_def_parser()
+
     entity = entity_parser()
+
     type_definition = type_def_parser()
 
     parser = OneOrMore(
-        file
-        | Suppress(index)
-        | Suppress(section)
-        | metavariables
-        | funcon_definitions
-        | entity
-        | type_definition
+        file | metavariables | funcon_definitions | entity | type_definition
     )
-    return parser.ignore(multiline_comment)
+    return parser.ignore(multiline_comment | section | index)
 
 
 def parse_file(file):
@@ -168,7 +174,7 @@ def parse_file(file):
         result = parser.parseFile(file)
         ic(result.asDict())
     except ParseException as e:
-        ic(ParseException.explain(e))
+        print(ParseException.explain(e))
 
 
 def main():
