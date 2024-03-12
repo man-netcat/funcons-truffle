@@ -2,6 +2,7 @@ import argparse
 import glob
 import json
 import os
+from pathlib import Path
 
 from icecream import ic  # NOTE: Debug library, remove me!
 from pyparsing import (
@@ -46,29 +47,26 @@ ENTITYSIGNIFIER = "--"
 
 # Temp name
 inner_type = (
-    Optional(COMPUTES)
-    + (TYPEORVAR | (nestedExpr(content=TYPEORVAR)))
-    + Optional(SUFFIX)
+    Optional(COMPUTES) + (TYPEORVAR | nestedExpr(content=TYPEORVAR)) + Optional(SUFFIX)
 )
-type = Group(
-    (inner_type | (nestedExpr(content=inner_type))) + Optional(SUFFIX),
-)
+type = (inner_type | nestedExpr(content=inner_type)) + Optional(SUFFIX)
 
 value = Group(
     TYPEORVAR + Optional(SUFFIX),
 )
 
-param = value.setResultsName("value") + Optional(
-    Suppress(":") + type.setResultsName("type")
+param = Group(
+    value.setResultsName("value")
+    + Optional(Suppress(":") + type.setResultsName("type"))
 )
 
-params = Suppress("(") + delimitedList(Group(param)) + Suppress(")")
+params = Suppress("(") + delimitedList(param) + Suppress(")")
 
 entitysig = Group(
     Suppress(ENTITYSIGNIFIER)
     + IDENTIFIER.setResultsName("name")
     + Optional(ENTITYMODIFIER)
-    + params.setResultsName("params*"),
+    + params.setResultsName("params"),
 ).setResultsName("entity")
 
 
@@ -76,7 +74,7 @@ def funcon_rule_parser():
 
     rewrite = Group(
         IDENTIFIER.setResultsName("identifier")
-        + params.setResultsName("args*")
+        + params.setResultsName("args")
         + Optional(entitysig)
         + REWRITES_TO
         + value.setResultsName("rewrites_to"),
@@ -89,9 +87,7 @@ def funcon_rule_parser():
 
 def funcon_def_parser():
     fsig = (
-        params.setResultsName("params*")
-        + Suppress(":")
-        + type.setResultsName("returns")
+        params.setResultsName("params") + Suppress(":") + type.setResultsName("returns")
     )
 
     funcon = FUNCON + Group(
@@ -168,17 +164,18 @@ def build_parser():
     return parser.ignore(multiline_comment | index)
 
 
-def parse_file(file):
-    try:
-        parser = build_parser()
-        result = parser.parseFile(file)
-        resasdict = result.asDict()
-        with open(f"out/{resasdict['filename']}.json", "w") as f:
-            json.dump(resasdict, f, indent=2)
-        ic(resasdict)
+def parse_file(filename):
+    with open(filename) as file:
+        try:
+            parser = build_parser()
+            result = parser.parseFile(file)
+            resasdict = result.asDict()
+            with open(f"out/{Path(filename).stem}.json", "w") as f:
+                json.dump(resasdict, f, indent=2)
+            ic(resasdict)
 
-    except ParseException as e:
-        print(ParseException.explain(e))
+        except ParseException as e:
+            print(ParseException.explain(e))
 
 
 def main():
@@ -206,13 +203,11 @@ def main():
         cbs_files = glob.glob(pattern, recursive=True)
         for path in cbs_files:
             print(path)
-            with open(path) as file:
-                parse_file(file)
+            parse_file(path)
             print()
     elif args.file:
         print(args.file)
-        with open(args.file) as file:
-            parse_file(file)
+        parse_file(args.file)
     else:
         raise ValueError("Specify either -d/--directory or -f/--file.")
 
