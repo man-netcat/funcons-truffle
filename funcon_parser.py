@@ -33,10 +33,10 @@ BUILTINFUNCON = Keyword("Built-in Funcon")
 KEYWORD = FUNCON | TYPE | DATATYPE | ENTITY | METAVARIABLES
 
 IDENTIFIER = Word(alphas, alphanums + "-")
-TYPEORVAR = Word(alphas, alphanums + "-'") | "_"
+VARIABLE = Word(alphas, alphanums + "-'") | "_"
 
 SUFFIX = oneOf("* + ?")
-ENTITYMODIFIER = oneOf("! ?")
+POLARITY = oneOf("! ?")
 PREFIX = oneOf("~")
 
 COMPUTES = "=>"
@@ -44,79 +44,88 @@ REWRITES_TO = oneOf("~> ->")
 
 ENTITYSIGNIFIER = "--"
 
+COLON = Suppress(":")
+LPAR = Suppress("(")
+RPAR = Suppress(")")
 
-# Temp name
-inner_type = (
-    Optional(COMPUTES) + (TYPEORVAR | nestedExpr(content=TYPEORVAR)) + Optional(SUFFIX)
-)
-type = (inner_type | nestedExpr(content=inner_type)) + Optional(SUFFIX)
+expr = Forward()
+nested_expr = LPAR + expr + RPAR
+atom = nested_expr | VARIABLE
+expr <<= Optional(COMPUTES) + Optional(PREFIX) + atom + Optional(SUFFIX)
 
-value = Group(
-    TYPEORVAR + Optional(SUFFIX),
-)
+param = Group(expr("value") + Optional(COLON + expr("type")))
 
-param = Group(
-    value.setResultsName("value")
-    + Optional(Suppress(":") + type.setResultsName("type"))
-)
-
-params = Suppress("(") + delimitedList(param) + Suppress(")")
+params = delimitedList(param)
 
 entitysig = Group(
-    Suppress(ENTITYSIGNIFIER)
-    + IDENTIFIER.setResultsName("name")
-    + Optional(ENTITYMODIFIER)
-    + params.setResultsName("params"),
-).setResultsName("entity")
+    Optional(ENTITYSIGNIFIER)
+    + IDENTIFIER("name")
+    + Optional(POLARITY)
+    + params("params"),
+)("entity")
 
 
 def funcon_rule_parser():
-
     rewrite = Group(
-        IDENTIFIER.setResultsName("identifier")
-        + params.setResultsName("args")
+        IDENTIFIER("identifier")
+        + Optional(params("args"))
         + Optional(entitysig)
         + REWRITES_TO
-        + value.setResultsName("rewrites_to"),
-    ).setResultsName("rules*")
+        + expr("rewrites_to"),
+    )("rules*")
 
     rule = RULE + rewrite
 
     return rule
 
 
-def funcon_def_parser():
-    fsig = (
-        params.setResultsName("params") + Suppress(":") + type.setResultsName("returns")
+def funcon_alias_parser():
+    return ALIAS + Group(
+        IDENTIFIER("alias") + Suppress("=") + IDENTIFIER("original"),
     )
 
-    funcon = FUNCON + Group(
-        IDENTIFIER.setResultsName("name") + fsig,
-    ).setResultsName("funcon")
 
-    alias = ALIAS + Group(
-        IDENTIFIER.setResultsName("alias")
-        + Suppress("=")
-        + IDENTIFIER.setResultsName("original"),
-    ).setResultsName("aliases*")
+def funcon_def_parser():
+    fsig = Optional(LPAR + params("params") + RPAR) + Suppress(":") + expr("returns")
+
+    funcon = FUNCON + Group(
+        IDENTIFIER("name") + fsig,
+    )
+
+    alias = funcon_alias_parser()
 
     rule = funcon_rule_parser()
 
     funcon_definition = Group(
-        funcon + ZeroOrMore(alias | rule),
-    ).setResultsName("funcon_definitions*")
+        funcon("funcon") + ZeroOrMore(alias("aliases*") | rule),
+    )("funcons*")
+
     return funcon_definition
 
 
 def entity_parser():
     # TODO
     contextual = Forward()
-    mutable = Forward()
-    input = Forward()
-    output = Forward()
-    control = Forward()
+    mutable = (
+        Suppress("<")
+        + VARIABLE
+        + Suppress(",")
+        + IDENTIFIER
+        + params
+        + Suppress(">")
+        + Suppress("--->")
+        + Suppress("<")
+        + VARIABLE
+        + Suppress(",")
+        + IDENTIFIER
+        + params
+        + Suppress(">")
+    )
 
-    entity = contextual | mutable | input | output | control
+    # input, output and control
+    ioc = "_" + entitysig + REWRITES_TO + "_"
+
+    entity = ENTITY + Group(contextual | mutable | ioc)("entities*")
 
     return entity
 
@@ -128,50 +137,57 @@ def type_def_parser():
     return type
 
 
+def datatype_parser():
+    return DATATYPE + IDENTIFIER + Optional("::=") + IDENTIFIER
+
+
 def metavariables_parser():
     return METAVARIABLES + OneOrMore(
         Group(
-            delimitedList(type).setResultsName("types*")
+            delimitedList(expr)("types*")
             + Suppress("<:")
-            + Group(IDENTIFIER + Optional(SUFFIX)).setResultsName("varname"),
-        ).setResultsName("metavariables*")
+            + Group(IDENTIFIER + Optional(SUFFIX))("varname"),
+        )("metavariables*")
     )
 
 
 def build_parser():
-    index_line = Group(KEYWORD + TYPEORVAR + Optional(ALIAS + TYPEORVAR))
+    index_line = Group(KEYWORD + VARIABLE + Optional(ALIAS + VARIABLE))
 
     index = Group(
         Suppress("[") + OneOrMore(index_line) + Suppress("]"),
-    ).setResultsName("index")
+    )("index")
 
     multiline_comment = Suppress("/*") + ... + Suppress("*/")
 
-    header = Suppress(OneOrMore("#")) + TYPEORVAR.setResultsName("filename")
+    header = Suppress(OneOrMore("#")) + VARIABLE("filename")
 
     metavariables = metavariables_parser()
 
-    funcon_definitions = funcon_def_parser()
+    funcons = funcon_def_parser()
 
     entity = entity_parser()
 
     type_definition = type_def_parser()
 
-    parser = header + OneOrMore(
-        metavariables | funcon_definitions | entity | type_definition | Suppress(header)
+    datatype = datatype_parser()
+
+    parser = OneOrMore(
+        metavariables | funcons | entity | type_definition | datatype | Suppress(header)
     )
 
     return parser.ignore(multiline_comment | index)
 
 
-def parse_file(filename):
+def parse_file(filename, dump_json=False):
     with open(filename) as file:
         try:
             parser = build_parser()
             result = parser.parseFile(file)
             resasdict = result.asDict()
-            with open(f"out/{Path(filename).stem}.json", "w") as f:
-                json.dump(resasdict, f, indent=2)
+            if dump_json:
+                with open(f"out/{Path(filename).stem}.json", "w") as f:
+                    json.dump(resasdict, f, indent=2)
             ic(resasdict)
 
         except ParseException as e:
@@ -193,6 +209,12 @@ def main():
         "--file",
         help="Parse the specified .cbs file",
     )
+    parser.add_argument(
+        "-j",
+        "--json",
+        help="Dump parsed data to JSON",
+        action="store_true",
+    )
     args = parser.parse_args()
 
     if args.directory and args.file:
@@ -203,11 +225,11 @@ def main():
         cbs_files = glob.glob(pattern, recursive=True)
         for path in cbs_files:
             print(path)
-            parse_file(path)
+            parse_file(path, args.json)
             print()
     elif args.file:
         print(args.file)
-        parse_file(args.file)
+        parse_file(args.file, args.json)
     else:
         raise ValueError("Specify either -d/--directory or -f/--file.")
 
