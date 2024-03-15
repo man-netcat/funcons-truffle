@@ -29,7 +29,7 @@ ENTITY = Keyword("Entity")
 METAVARIABLES = Keyword("Meta-variables")
 ALIAS = Keyword("Alias")
 RULE = Keyword("Rule")
-BUILTINFUNCON = Keyword("Built-in Funcon")
+BUILTIN = Keyword("Built-in")
 
 IDENTIFIER = Word(alphas + "_", alphanums + "_-") + ZeroOrMore("'")
 
@@ -38,10 +38,8 @@ POLARITY = oneOf("! ?")
 PREFIX = oneOf("~")
 
 COMPUTES = "=>"
-REWRITES_TO = oneOf("~> ->")
-TRANSITION = Suppress("--->")
-
-ENTITYSIGNIFIER = "--"
+REWRITES_TO = Suppress("~>")
+CONTEXTUALENTITY = Suppress("|-")
 
 COLON = Suppress(":")
 LPAR = Suppress("(")
@@ -50,10 +48,12 @@ LANG = Suppress("<")
 RANG = Suppress(">")
 COMMA = Suppress(",")
 
+# Define forward expressions for recursion
 expr = Forward()
 params = Forward()
+
 nested_expr = LPAR + Group(expr) + RPAR
-fun_call = IDENTIFIER + params
+fun_call = IDENTIFIER("name") + params("params")
 expr <<= (
     Optional(COMPUTES)
     + Optional(PREFIX)
@@ -64,62 +64,53 @@ expr <<= (
 value = expr("value")
 type = COLON + expr("type")
 param = Group(value + Optional(type))
-
 params <<= LPAR + Optional(delimitedList(param)) + RPAR
 
-entitysig = Group(
-    Optional(ENTITYSIGNIFIER)
-    + IDENTIFIER("name")
-    + Optional(POLARITY)
-    + params("params"),
-)("entity")
+entitysig = (IDENTIFIER("name") + Optional(POLARITY)("polarity") + params("params"))(
+    "entity"
+)
+withentity = delimitedList(entitysig)
+STEP = Suppress("--->") | (Suppress("--") + withentity + Suppress("->"))
+
+mutableentitypart = Group(LANG + expr("expr1") + COMMA + expr("expr2") + RANG)
+mutableentity = Group(mutableentitypart("before") + STEP + mutableentitypart("after"))
+
+contextualentity = Group(
+    expr("contextualentity") + CONTEXTUALENTITY + expr("before") + STEP + expr("after")
+)
 
 
 def funcon_rule_parser():
-    rewrite = Group(
-        IDENTIFIER("identifier")
-        + Optional(params("args"))
-        + Optional(entitysig)
-        + REWRITES_TO
-        + expr("rewrites_to"),
+    rewrite = Group(expr("before") + (REWRITES_TO | STEP) + expr("after"))
+
+    transition = Group(
+        rewrite("original") + Suppress(OneOrMore("-")) + rewrite("rewritten")
     )
 
-    step = Group(
-        IDENTIFIER("identifier")
-        + Optional(params("args"))
-        + TRANSITION
-        + IDENTIFIER("identifier")
-        + Optional(params("args"))
-    )
-
-    transition = Group(step("before") + OneOrMore("-") + step("after"))
-
-    rule = Suppress(RULE) + (rewrite | transition)
+    rule = Suppress(RULE) + (transition | rewrite)
 
     return rule
 
 
-def funcon_alias_parser():
+def alias_parser():
     return Suppress(ALIAS) + Group(
         IDENTIFIER("alias") + Suppress("=") + IDENTIFIER("original"),
     )
 
 
 def funcon_def_parser():
-    funcon = Suppress(FUNCON) + Group(
-        IDENTIFIER("name")
-        + Optional(params("params"))
-        + Suppress(":")
-        + expr("returns")
-        + Optional(
-            REWRITES_TO
-            + Group(
-                IDENTIFIER("name") + Optional(params("params")),
-            )("rewrites_to")
-        ),
+    funcon = (
+        Suppress(Optional(BUILTIN))
+        + Suppress(FUNCON)
+        + Group(
+            expr
+            + Suppress(":")
+            + expr("returns")
+            + Optional(REWRITES_TO + expr("rewrites_to"))
+        )
     )
 
-    alias = funcon_alias_parser()
+    alias = alias_parser()
 
     rule = funcon_rule_parser()
 
@@ -131,24 +122,28 @@ def funcon_def_parser():
 
 
 def entity_parser():
-    # TODO
-    contextual = Forward()
-    entitypart = Group(LANG + IDENTIFIER + COMMA + IDENTIFIER + params + RANG)
-    mutable = entitypart + TRANSITION + entitypart
+    ioc = expr + STEP + expr
 
-    # input, output and control
-    ioc = IDENTIFIER + entitysig + REWRITES_TO + IDENTIFIER
-
-    entity = Suppress(ENTITY) + Group(contextual | mutable | ioc)("entities*")
+    entity = Suppress(ENTITY) + Group(contextualentity | mutableentity | ioc)(
+        "entities*"
+    )
 
     return entity
 
 
 def type_def_parser():
-    # TODO
-    type = Forward()
+    alias = alias_parser()
 
-    return type
+    type = IDENTIFIER("name") + Optional(Suppress(REWRITES_TO) + expr("value"))
+
+    types = Group(
+        Optional(Suppress(BUILTIN))
+        + Suppress(TYPE)
+        + type("definition")
+        + ZeroOrMore(alias("aliases*")),
+    )("types*")
+
+    return types
 
 
 def datatype_parser():
@@ -160,7 +155,7 @@ def datatype_parser():
 def metavariables_parser():
     return Suppress(METAVARIABLES) + OneOrMore(
         Group(
-            delimitedList(expr("types*"), ",")
+            delimitedList(expr("types*"))
             + Suppress("<:")
             + Group(IDENTIFIER + Optional(SUFFIX))("varname"),
         )("metavariables*")

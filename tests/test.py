@@ -3,10 +3,11 @@ from unittest import TestCase, main
 from funcon_parser import (
     datatype_parser,
     entity_parser,
-    funcon_alias_parser,
+    alias_parser,
     funcon_def_parser,
     funcon_rule_parser,
     metavariables_parser,
+    type_def_parser,
 )
 from pyparsing import ParseException
 
@@ -26,21 +27,25 @@ test_cases = {
         "Funcon finalise-abrupting(X:=>T) : =>T|null-type ~> handle-abrupt(X, null-value)",
     ],
     funcon_rule_parser: [
+        "Rule read -- standard-in?(V:~null-type) -> V",
+        "Rule read -- standard-in?(null-value) -> fail",
         "Rule atomic(V:T) ~> V",
         "Rule Y ---> Y' ---- left-to-right(V*:(T)*, Y, Z*) ---> left-to-right(V*, Y', Z*)",
         "Rule force(thunk(abstraction(X))) ~> no-given(X)",
-        "Rule X ---> X' ---- sequential(X, Y+) ---> sequential(X', Y+)"
-        "Rule sequential(null-value, Y+) ~> sequential(Y+)"
+        "Rule X ---> X' ---- sequential(X, Y+) ---> sequential(X', Y+)",
+        "Rule sequential(null-value, Y+) ~> sequential(Y+)",
         "Rule sequential(Y) ~> Y",
         "Rule X --abrupt(V:T),yielded(_?)-> X' ---- yield-on-abrupt(X) --abrupt(V),yielded(signal)-> yield-on-abrupt(X')",
+        "Rule element-not-in(atoms, SA) ~> A ---- < use-atom-not-in(SA:sets(atoms)) , used-atom-set(SA') > ---> < A , used-atom-set(set-insert(A, SA')) >",
     ],
-    funcon_alias_parser: [
+    alias_parser: [
         "Alias env = environment",
     ],
     entity_parser: [
         "Entity < _ , used-atom-set(_:sets(atoms)) > ---> < _ , used-atom-set(_:sets(atoms)) >",
         "Entity _ --yielded(_:yielding?)-> _",
         "Entity _ --abrupted(_:values?)-> _",
+        "Entity given-value(_:values?) |- _ ---> _",
     ],
     datatype_parser: [
         "Datatype yielding ::= signal",
@@ -48,6 +53,9 @@ test_cases = {
     ],
     metavariables_parser: [
         "Meta-variables T, T', T'' <: values",
+    ],
+    type_def_parser: [
+        "Type locations ~> atoms",
     ],
 }
 
