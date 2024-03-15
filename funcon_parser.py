@@ -9,6 +9,7 @@ from pyparsing import (
     Forward,
     Group,
     Keyword,
+    LineEnd,
     OneOrMore,
     Optional,
     ParseException,
@@ -29,9 +30,8 @@ METAVARIABLES = Keyword("Meta-variables")
 ALIAS = Keyword("Alias")
 RULE = Keyword("Rule")
 BUILTINFUNCON = Keyword("Built-in Funcon")
-KEYWORD = FUNCON | TYPE | DATATYPE | ENTITY | METAVARIABLES
 
-IDENTIFIER = Word(alphas + "_", alphanums + "_'-")
+IDENTIFIER = Word(alphas + "_", alphanums + "_-") + ZeroOrMore("'")
 
 SUFFIX = oneOf("* + ?")
 POLARITY = oneOf("! ?")
@@ -53,8 +53,13 @@ COMMA = Suppress(",")
 expr = Forward()
 params = Forward()
 nested_expr = LPAR + Group(expr) + RPAR
-atom = (IDENTIFIER + params) | nested_expr | IDENTIFIER
-expr <<= Optional(COMPUTES) + Optional(PREFIX) + atom + Optional(SUFFIX)
+fun_call = IDENTIFIER + params
+expr <<= (
+    Optional(COMPUTES)
+    + Optional(PREFIX)
+    + (fun_call | nested_expr | IDENTIFIER)
+    + Optional(SUFFIX)
+)
 
 value = expr("value")
 type = COLON + expr("type")
@@ -74,10 +79,10 @@ def funcon_rule_parser():
     rewrite = Group(
         IDENTIFIER("identifier")
         + Optional(params("args"))
-        + Optional(entitysig("with_entity"))
+        + Optional(entitysig)
         + REWRITES_TO
         + expr("rewrites_to"),
-    )("rules*")
+    )
 
     step = Group(
         IDENTIFIER("identifier")
@@ -87,7 +92,7 @@ def funcon_rule_parser():
         + Optional(params("args"))
     )
 
-    transition = Group(step + OneOrMore("-") + step)
+    transition = Group(step("before") + OneOrMore("-") + step("after"))
 
     rule = Suppress(RULE) + (rewrite | transition)
 
@@ -118,11 +123,11 @@ def funcon_def_parser():
 
     rule = funcon_rule_parser()
 
-    funcon_definition = Group(
-        funcon("definition") + ZeroOrMore(alias("aliases*") | rule),
+    funcons = Group(
+        funcon("definition") + ZeroOrMore(alias("aliases*") | rule("rules*")),
     )("funcons*")
 
-    return funcon_definition
+    return funcons
 
 
 def entity_parser():
@@ -155,7 +160,7 @@ def datatype_parser():
 def metavariables_parser():
     return Suppress(METAVARIABLES) + OneOrMore(
         Group(
-            delimitedList(expr)("types*")
+            delimitedList(expr("types*"), ",")
             + Suppress("<:")
             + Group(IDENTIFIER + Optional(SUFFIX))("varname"),
         )("metavariables*")
@@ -163,15 +168,11 @@ def metavariables_parser():
 
 
 def build_parser():
-    index_line = Group(KEYWORD + IDENTIFIER + Optional(ALIAS + IDENTIFIER))
-
-    index = Group(
-        Suppress("[") + OneOrMore(index_line) + Suppress("]"),
-    )("index")
+    index = Suppress("[") + ... + Suppress("]")
 
     multiline_comment = Suppress("/*") + ... + Suppress("*/")
 
-    header = Suppress(OneOrMore("#") + IDENTIFIER)
+    header = Suppress(OneOrMore("#") + ... + LineEnd())
 
     metavariables = metavariables_parser()
 
@@ -179,27 +180,24 @@ def build_parser():
 
     entity = entity_parser()
 
-    type_definition = type_def_parser()
+    typedef = type_def_parser()
 
     datatype = datatype_parser()
 
-    parser = OneOrMore(
-        metavariables | funcons | entity | type_definition | datatype | header
-    )
+    parser = OneOrMore(metavariables | funcons | entity | typedef | datatype)
 
-    return parser.ignore(multiline_comment | index)
+    return parser.ignore(multiline_comment | index | header)
 
 
-def parse_file(filename, dump_json=False):
+def parse_file(filename, dump_json=False) -> dict:
     with open(filename) as file:
         try:
             parser = build_parser()
-            result = parser.parseFile(file)
-            resasdict = result.asDict()
+            res: dict = parser.parseFile(file).asDict()
             if dump_json:
                 with open(f"out/{Path(filename).stem}.json", "w") as f:
-                    json.dump(resasdict, f, indent=2)
-            ic(resasdict)
+                    json.dump(res, f, indent=2)
+            return res
 
         except ParseException as e:
             print(ParseException.explain(e))
@@ -236,11 +234,13 @@ def main():
         cbs_files = glob.glob(pattern, recursive=True)
         for path in cbs_files:
             print(path)
-            parse_file(path, args.json)
+            res = parse_file(path, args.json)
+            ic(res)
             print()
     elif args.file:
         print(args.file)
-        parse_file(args.file, args.json)
+        res = parse_file(args.file, args.json)
+        ic(res)
     else:
         raise ValueError("Specify either -d/--directory or -f/--file.")
 
