@@ -18,7 +18,6 @@ from pyparsing import (
     alphanums,
     alphas,
     delimitedList,
-    nestedExpr,
     oneOf,
 )
 
@@ -32,8 +31,7 @@ RULE = Keyword("Rule")
 BUILTINFUNCON = Keyword("Built-in Funcon")
 KEYWORD = FUNCON | TYPE | DATATYPE | ENTITY | METAVARIABLES
 
-IDENTIFIER = Word(alphas, alphanums + "-")
-VARIABLE = Word(alphas, alphanums + "-'") | "_"
+IDENTIFIER = Word(alphas + "_", alphanums + "_'-")
 
 SUFFIX = oneOf("* + ?")
 POLARITY = oneOf("! ?")
@@ -53,13 +51,16 @@ RANG = Suppress(">")
 COMMA = Suppress(",")
 
 expr = Forward()
+params = Forward()
 nested_expr = LPAR + Group(expr) + RPAR
-atom = (IDENTIFIER + nested_expr) | nested_expr | VARIABLE
+atom = (IDENTIFIER + params) | nested_expr | IDENTIFIER
 expr <<= Optional(COMPUTES) + Optional(PREFIX) + atom + Optional(SUFFIX)
 
-param = Group(expr("value") + Optional(COLON + expr("type")))
+value = expr("value")
+type = COLON + expr("type")
+param = Group(value + Optional(type))
 
-params = delimitedList(param)
+params <<= LPAR + Optional(delimitedList(param)) + RPAR
 
 entitysig = Group(
     Optional(ENTITYSIGNIFIER)
@@ -73,7 +74,7 @@ def funcon_rule_parser():
     rewrite = Group(
         IDENTIFIER("identifier")
         + Optional(params("args"))
-        + Optional(entitysig)
+        + Optional(entitysig("with_entity"))
         + REWRITES_TO
         + expr("rewrites_to"),
     )("rules*")
@@ -100,10 +101,17 @@ def funcon_alias_parser():
 
 
 def funcon_def_parser():
-    fsig = Optional(LPAR + params("params") + RPAR) + Suppress(":") + expr("returns")
-
     funcon = Suppress(FUNCON) + Group(
-        IDENTIFIER("name") + fsig,
+        IDENTIFIER("name")
+        + Optional(params("params"))
+        + Suppress(":")
+        + expr("returns")
+        + Optional(
+            REWRITES_TO
+            + Group(
+                IDENTIFIER("name") + Optional(params("params")),
+            )("rewrites_to")
+        ),
     )
 
     alias = funcon_alias_parser()
@@ -120,11 +128,11 @@ def funcon_def_parser():
 def entity_parser():
     # TODO
     contextual = Forward()
-    entitypart = Group(LANG + VARIABLE + COMMA + IDENTIFIER + params + RANG)
+    entitypart = Group(LANG + IDENTIFIER + COMMA + IDENTIFIER + params + RANG)
     mutable = entitypart + TRANSITION + entitypart
 
     # input, output and control
-    ioc = "_" + entitysig + REWRITES_TO + "_"
+    ioc = IDENTIFIER + entitysig + REWRITES_TO + IDENTIFIER
 
     entity = Suppress(ENTITY) + Group(contextual | mutable | ioc)("entities*")
 
@@ -155,7 +163,7 @@ def metavariables_parser():
 
 
 def build_parser():
-    index_line = Group(KEYWORD + VARIABLE + Optional(ALIAS + VARIABLE))
+    index_line = Group(KEYWORD + IDENTIFIER + Optional(ALIAS + IDENTIFIER))
 
     index = Group(
         Suppress("[") + OneOrMore(index_line) + Suppress("]"),
@@ -163,7 +171,7 @@ def build_parser():
 
     multiline_comment = Suppress("/*") + ... + Suppress("*/")
 
-    header = Suppress(OneOrMore("#")) + VARIABLE("filename")
+    header = Suppress(OneOrMore("#") + IDENTIFIER)
 
     metavariables = metavariables_parser()
 
@@ -176,7 +184,7 @@ def build_parser():
     datatype = datatype_parser()
 
     parser = OneOrMore(
-        metavariables | funcons | entity | type_definition | datatype | Suppress(header)
+        metavariables | funcons | entity | type_definition | datatype | header
     )
 
     return parser.ignore(multiline_comment | index)
