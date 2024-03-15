@@ -47,7 +47,6 @@ class TestParserFunction(TestCase):
 for func, cases in test_cases.items():
 
     for i, case in enumerate(cases, 1):
-        print(func, case)
 
         def generate_test_function(func, case):
             def test_function(_):
