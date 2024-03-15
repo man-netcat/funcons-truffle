@@ -1,5 +1,9 @@
 WIP project for master's thesis.
 
+Installation:
+
+`python3 -m pip install -r requirements.txt`
+
 For funcon_parser.py:
 
 `python3 funcon_parser.py -f <file.cbs>` performs parsing of a singular file.
