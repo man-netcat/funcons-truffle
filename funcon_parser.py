@@ -41,16 +41,20 @@ PREFIX = oneOf("~")
 
 COMPUTES = "=>"
 REWRITES_TO = oneOf("~> ->")
+TRANSITION = Suppress("--->")
 
 ENTITYSIGNIFIER = "--"
 
 COLON = Suppress(":")
 LPAR = Suppress("(")
 RPAR = Suppress(")")
+LANG = Suppress("<")
+RANG = Suppress(">")
+COMMA = Suppress(",")
 
 expr = Forward()
-nested_expr = LPAR + expr + RPAR
-atom = nested_expr | VARIABLE
+nested_expr = LPAR + Group(expr) + RPAR
+atom = (IDENTIFIER + nested_expr) | nested_expr | VARIABLE
 expr <<= Optional(COMPUTES) + Optional(PREFIX) + atom + Optional(SUFFIX)
 
 param = Group(expr("value") + Optional(COLON + expr("type")))
@@ -74,13 +78,23 @@ def funcon_rule_parser():
         + expr("rewrites_to"),
     )("rules*")
 
-    rule = RULE + rewrite
+    step = Group(
+        IDENTIFIER("identifier")
+        + Optional(params("args"))
+        + TRANSITION
+        + IDENTIFIER("identifier")
+        + Optional(params("args"))
+    )
+
+    transition = Group(step + OneOrMore("-") + step)
+
+    rule = Suppress(RULE) + (rewrite | transition)
 
     return rule
 
 
 def funcon_alias_parser():
-    return ALIAS + Group(
+    return Suppress(ALIAS) + Group(
         IDENTIFIER("alias") + Suppress("=") + IDENTIFIER("original"),
     )
 
@@ -88,7 +102,7 @@ def funcon_alias_parser():
 def funcon_def_parser():
     fsig = Optional(LPAR + params("params") + RPAR) + Suppress(":") + expr("returns")
 
-    funcon = FUNCON + Group(
+    funcon = Suppress(FUNCON) + Group(
         IDENTIFIER("name") + fsig,
     )
 
@@ -97,7 +111,7 @@ def funcon_def_parser():
     rule = funcon_rule_parser()
 
     funcon_definition = Group(
-        funcon("funcon") + ZeroOrMore(alias("aliases*") | rule),
+        funcon("definition") + ZeroOrMore(alias("aliases*") | rule),
     )("funcons*")
 
     return funcon_definition
@@ -106,26 +120,13 @@ def funcon_def_parser():
 def entity_parser():
     # TODO
     contextual = Forward()
-    mutable = (
-        Suppress("<")
-        + VARIABLE
-        + Suppress(",")
-        + IDENTIFIER
-        + params
-        + Suppress(">")
-        + Suppress("--->")
-        + Suppress("<")
-        + VARIABLE
-        + Suppress(",")
-        + IDENTIFIER
-        + params
-        + Suppress(">")
-    )
+    entitypart = Group(LANG + VARIABLE + COMMA + IDENTIFIER + params + RANG)
+    mutable = entitypart + TRANSITION + entitypart
 
     # input, output and control
     ioc = "_" + entitysig + REWRITES_TO + "_"
 
-    entity = ENTITY + Group(contextual | mutable | ioc)("entities*")
+    entity = Suppress(ENTITY) + Group(contextual | mutable | ioc)("entities*")
 
     return entity
 
@@ -138,11 +139,13 @@ def type_def_parser():
 
 
 def datatype_parser():
-    return DATATYPE + IDENTIFIER + Optional("::=") + IDENTIFIER
+    return Suppress(DATATYPE) + Group(
+        expr("name") + Optional("::=") + expr("definition")
+    )("datatypes*")
 
 
 def metavariables_parser():
-    return METAVARIABLES + OneOrMore(
+    return Suppress(METAVARIABLES) + OneOrMore(
         Group(
             delimitedList(expr)("types*")
             + Suppress("<:")

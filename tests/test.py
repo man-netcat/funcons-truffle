@@ -1,51 +1,66 @@
 from unittest import TestCase, main
 
 from funcon_parser import (
+    datatype_parser,
     entity_parser,
     funcon_alias_parser,
     funcon_def_parser,
     funcon_rule_parser,
-    datatype_parser,
 )
 from pyparsing import ParseException
 
+test_cases = {
+    funcon_def_parser: [
+        "Funcon print(_:values*) : =>null-type",
+        "Funcon left-to-right(_:(=>(T)*)*) : =>(T)*",
+        "Funcon right-to-left(_:(=>(T)*)*) : =>(T)*",
+        "Funcon sequential(_:(=>null-type)*, _:=>T) : =>T",
+        "Funcon effect(V*:T*) : =>null-type ~> null-value",
+        "Funcon choice(_:(=>T)+) : =>T",
+        "Funcon yield : =>null-type ~> yield-on-value(null-value)",
+        "Funcon stuck : =>empty-type",
+    ],
+    funcon_rule_parser: [
+        "Rule atomic(V:T) ~> V",
+        "Rule Y ---> Y' ---- left-to-right(V*:(T)*, Y, Z*) ---> left-to-right(V*, Y', Z*)",
+        "Rule force(thunk(abstraction(X))) ~> no-given(X)",
+    ],
+    funcon_alias_parser: [
+        "Alias env = environment",
+    ],
+    entity_parser: [
+        "Entity < _ , used-atom-set(_:sets(atoms)) > ---> < _ , used-atom-set(_:sets(atoms)) >",
+        "Entity _ --yielded(_:yielding?)-> _",
+    ],
+    datatype_parser: [
+        "Datatype yielding ::= signal",
+        "Datatype thunks(T) ::= thunk(_:abstractions(()=>T))",
+    ],
+}
 
-def parse_with_parser(parser_func, strings):
-    for string in strings:
-        try:
-            parser_func().parseString(string)
-        except ParseException as e:
-            raise ParseException("\n" + ParseException.explain(e)) from None
+
+class TestParserFunction(TestCase):
+    pass
 
 
-class TestPyParsingRules(TestCase):
-    def test_funcon_parser(self):
-        strs = [
-            "Funcon print(_:values*) : =>null-type",
-            "Funcon left-to-right(_:(=>(T)*)*) : =>(T)*",
-            "Funcon right-to-left(_:(=>(T)*)*) : =>(T)*",
-            "Funcon sequential(_:(=>null-type)*, _:=>T) : =>T",
-            "Funcon effect(V*:T*) : =>null-type ~> null-value",
-            "Funcon choice(_:(=>T)+) : =>T",
-            "Funcon yield : =>null-type ~> yield-on-value(null-value)",
-        ]
-        parse_with_parser(funcon_def_parser, strs)
+# Dynamically generate test functions for each test case
+for func, cases in test_cases.items():
 
-    def test_funcon_rule(self):
-        strs = ["Rule atomic(V:T) ~> V"]
-        parse_with_parser(funcon_rule_parser, strs)
+    for i, case in enumerate(cases, 1):
+        print(func, case)
 
-    def test_funcon_alias(self):
-        strs = ["Alias env = environment"]
-        parse_with_parser(funcon_alias_parser, strs)
+        def generate_test_function(func, case):
+            def test_function(_):
+                try:
+                    func().parseString(case)
+                except ParseException as e:
+                    errstr = f"\n{'-'*70}\n{ParseException.explain(e)}"
+                    raise ParseException(errstr) from None
 
-    def test_entity(self):
-        strs = ["Entity _ --yielded(_:yielding?)-> _"]
-        parse_with_parser(entity_parser, strs)
+            return test_function
 
-    def test_datatype(self):
-        strs = ["Datatype yielding ::= signal"]
-        parse_with_parser(datatype_parser, strs)
+        test_func = generate_test_function(func, case)
+        setattr(TestParserFunction, f"test_{func.__name__}_{i}", test_func)
 
 
 if __name__ == "__main__":
