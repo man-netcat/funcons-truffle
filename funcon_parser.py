@@ -15,12 +15,15 @@ from pyparsing import (
     Optional,
     ParseException,
     Suppress,
+    White,
     Word,
     ZeroOrMore,
     alphanums,
     alphas,
     delimitedList,
+    infixNotation,
     oneOf,
+    opAssoc,
 )
 
 FUNCON = Keyword("Funcon")
@@ -34,11 +37,11 @@ BUILTIN = Keyword("Built-in")
 
 IDENTIFIER = Combine(Word(alphas + "_", alphanums + "_-") + ZeroOrMore("'"))
 
-SUFFIX = oneOf("* + ?")
 POLARITY = oneOf("! ?")
-PREFIX = oneOf("~")
+SUFFIX = oneOf("* + ?")
+PREFIX = oneOf("~ =>")
+INFIX = oneOf("=>")
 
-COMPUTES = "=>"
 REWRITES_TO = Suppress("~>")
 CONTEXTUALENTITY = Suppress("|-")
 
@@ -49,26 +52,26 @@ LANG = Suppress("<")
 RANG = Suppress(">")
 COMMA = Suppress(",")
 BAR = Suppress(OneOrMore("-"))
-EMPTY = LPAR + RPAR
+EMPTY = Group(LPAR + RPAR)
 
-# Define forward expressions for recursion
+# Define forward expression for recursion
 expr = Forward()
-params = Forward()
 
-nested_expr = LPAR + Group(expr) + RPAR
+param = Group(expr("value") + Optional(COLON + expr("type")))
+params = LPAR + Optional(delimitedList(param)) + RPAR
 fun_call = Group(IDENTIFIER("fun") + params("params"))
-expr <<= (
-    Optional(EMPTY)
-    + Optional(COMPUTES)
-    + Optional(PREFIX)
-    + (nested_expr | fun_call | IDENTIFIER)
-    + Optional(SUFFIX)
+
+operands = fun_call | IDENTIFIER
+
+expr <<= infixNotation(
+    operands,
+    [
+        (SUFFIX, 1, opAssoc.LEFT),
+        (PREFIX, 1, opAssoc.RIGHT),
+        (INFIX, 2, opAssoc.LEFT),
+    ],
 )
 
-value = expr("value")
-type = COLON + ((expr + COMPUTES + expr) | expr)("type")
-param = Group(value + Optional(type))
-params <<= LPAR + Optional(delimitedList(param)) + RPAR
 
 entitysig = Group(
     IDENTIFIER("name") + Optional(POLARITY)("polarity") + params("params"),
@@ -112,7 +115,7 @@ def funcon_def_parser():
         + Optional(
             params("params"),
         )
-        + Suppress(":")
+        + COLON
         + expr("returns")
         + Optional(
             REWRITES_TO + expr("rewrites_to"),
@@ -143,12 +146,12 @@ def entity_parser():
 def type_def_parser():
     alias = alias_parser()
 
-    type = IDENTIFIER("name") + Optional(Suppress(REWRITES_TO) + expr("value"))
+    typedef = IDENTIFIER("name") + Optional(Suppress(REWRITES_TO) + expr("value"))
 
     types = Group(
         Optional(Suppress(BUILTIN))
         + Suppress(TYPE)
-        + type("definition")
+        + typedef("definition")
         + ZeroOrMore(alias("aliases*")),
     )("types*")
 
