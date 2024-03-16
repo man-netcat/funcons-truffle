@@ -23,7 +23,6 @@ from pyparsing import (
     Suppress,
     White,
     ZeroOrMore,
-    cStyleComment,
     oneOf,
     restOfLine,
     LineEnd,
@@ -53,10 +52,8 @@ component_start = Optional(OPTKEYWORD) + KEYWORD + ~oneOf("# /* */ [ ]") + restO
 component = Combine(component_start + OneOrMore(indented_line), " ")
 
 parser = ZeroOrMore(component)
-parser = parser.ignore(multiline_comment | index | header)
-
 # TODO Fix comments ending up in parsed result anyway
-print(parser)
+parser = parser.ignore(multiline_comment | index | header)
 
 
 # Function to parse file and extract components
@@ -92,8 +89,6 @@ for path in cbs_files:
 
 # Dynamically generate test functions for each test case
 for keyword, cases in allcases.items():
-    for case in cases:
-        print(case)
     func = funcs[keyword]
 
     for i, case in enumerate(cases, 1):
