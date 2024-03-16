@@ -6,6 +6,7 @@ from pathlib import Path
 
 from icecream import ic  # NOTE: Debug library, remove me!
 from pyparsing import (
+    Combine,
     Forward,
     Group,
     Keyword,
@@ -31,7 +32,7 @@ ALIAS = Keyword("Alias")
 RULE = Keyword("Rule")
 BUILTIN = Keyword("Built-in")
 
-IDENTIFIER = Word(alphas + "_", alphanums + "_-") + ZeroOrMore("'")
+IDENTIFIER = Combine(Word(alphas + "_", alphanums + "_-") + ZeroOrMore("'"))
 
 SUFFIX = oneOf("* + ?")
 POLARITY = oneOf("! ?")
@@ -47,75 +48,83 @@ RPAR = Suppress(")")
 LANG = Suppress("<")
 RANG = Suppress(">")
 COMMA = Suppress(",")
+BAR = Suppress(OneOrMore("-"))
+EMPTY = LPAR + RPAR
 
 # Define forward expressions for recursion
 expr = Forward()
 params = Forward()
 
 nested_expr = LPAR + Group(expr) + RPAR
-fun_call = IDENTIFIER("name") + params("params")
+fun_call = Group(IDENTIFIER("fun") + params("params"))
 expr <<= (
-    Optional(COMPUTES)
+    Optional(EMPTY)
+    + Optional(COMPUTES)
     + Optional(PREFIX)
-    + (fun_call | nested_expr | IDENTIFIER)
+    + (nested_expr | fun_call | IDENTIFIER)
     + Optional(SUFFIX)
 )
 
 value = expr("value")
-type = COLON + expr("type")
+type = COLON + ((expr + COMPUTES + expr) | expr)("type")
 param = Group(value + Optional(type))
 params <<= LPAR + Optional(delimitedList(param)) + RPAR
 
-entitysig = (IDENTIFIER("name") + Optional(POLARITY)("polarity") + params("params"))(
-    "entity"
-)
-withentity = delimitedList(entitysig)
-STEP = Suppress("--->") | (Suppress("--") + withentity + Suppress("->"))
+entitysig = Group(
+    IDENTIFIER("name") + Optional(POLARITY)("polarity") + params("params"),
+)("control*")
+STEP = Suppress("--->") | (Suppress("--") + delimitedList(entitysig) + Suppress("->"))
 
 mutableentitypart = Group(LANG + expr("expr1") + COMMA + expr("expr2") + RANG)
-mutableentity = Group(mutableentitypart("before") + STEP + mutableentitypart("after"))
+mutableentity = Group(
+    mutableentitypart("before") + STEP + mutableentitypart("after"),
+)("mutables*")
 
-contextualentity = Group(
-    expr("contextualentity") + CONTEXTUALENTITY + expr("before") + STEP + expr("after")
+context = expr("context") + CONTEXTUALENTITY
+contextualentity = Group(context + expr("before") + STEP + expr("after"))(
+    "contextuals*"
 )
 
 
 def funcon_rule_parser():
-    rewrite = Group(expr("before") + (REWRITES_TO | STEP) + expr("after"))
-
-    transition = Group(
-        rewrite("original") + Suppress(OneOrMore("-")) + rewrite("rewritten")
+    rewrite = Group(
+        Optional(context) + expr("before") + (REWRITES_TO | STEP) + expr("after")
     )
 
-    rule = Suppress(RULE) + (transition | rewrite)
+    transition = rewrite("original") + BAR + rewrite("rewritten")
 
-    return rule
+    rule = Group(Suppress(RULE) + (transition | rewrite))
+
+    return rule("rules*")
 
 
 def alias_parser():
-    return Suppress(ALIAS) + Group(
-        IDENTIFIER("alias") + Suppress("=") + IDENTIFIER("original"),
-    )
+    return Group(
+        Suppress(ALIAS) + IDENTIFIER("alias") + Suppress("=") + IDENTIFIER("original"),
+    )("aliases*")
 
 
 def funcon_def_parser():
-    funcon = (
+    funcon = Group(
         Suppress(Optional(BUILTIN))
         + Suppress(FUNCON)
-        + Group(
-            expr
-            + Suppress(":")
-            + expr("returns")
-            + Optional(REWRITES_TO + expr("rewrites_to"))
+        + IDENTIFIER("name")
+        + Optional(
+            params("params"),
         )
-    )
+        + Suppress(":")
+        + expr("returns")
+        + Optional(
+            REWRITES_TO + expr("rewrites_to"),
+        )
+    )("definition")
 
     alias = alias_parser()
 
     rule = funcon_rule_parser()
 
     funcons = Group(
-        funcon("definition") + ZeroOrMore(alias("aliases*") | rule("rules*")),
+        funcon + ZeroOrMore(alias) + ZeroOrMore(rule),
     )("funcons*")
 
     return funcons
@@ -124,7 +133,7 @@ def funcon_def_parser():
 def entity_parser():
     ioc = expr + STEP + expr
 
-    entity = Suppress(ENTITY) + Group(contextualentity | mutableentity | ioc)(
+    entity = Group(Suppress(ENTITY) + (contextualentity | mutableentity | ioc))(
         "entities*"
     )
 
@@ -147,8 +156,8 @@ def type_def_parser():
 
 
 def datatype_parser():
-    return Suppress(DATATYPE) + Group(
-        expr("name") + Optional("::=") + expr("definition")
+    return Group(
+        Suppress(DATATYPE) + expr("name") + Optional("::=") + expr("definition")
     )("datatypes*")
 
 

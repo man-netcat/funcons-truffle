@@ -19,12 +19,15 @@ test_cases = {
         "Funcon sequential(_:(=>null-type)*, _:=>T) : =>T",
         "Funcon effect(V*:T*) : =>null-type ~> null-value",
         "Funcon choice(_:(=>T)+) : =>T",
+        "Funcon initialise-giving(X:( )=>T') : ( )=>T' ~> no-given(X)",
         "Funcon yield : =>null-type ~> yield-on-value(null-value)",
         "Funcon stuck : =>empty-type",
         "Funcon yield-on-abrupt(_:=>T) : =>T",
         "Funcon yield-on-value(_:T) : =>T",
         "Funcon stuck : =>empty-type",
         "Funcon finalise-abrupting(X:=>T) : =>T|null-type ~> handle-abrupt(X, null-value)",
+        "Funcon give(_:T, _:T=>T') : =>T'",
+        "Funcon given : T=>T",
     ],
     funcon_rule_parser: [
         "Rule read -- standard-in?(V:~null-type) -> V",
@@ -37,6 +40,7 @@ test_cases = {
         "Rule sequential(Y) ~> Y",
         "Rule X --abrupt(V:T),yielded(_?)-> X' ---- yield-on-abrupt(X) --abrupt(V),yielded(signal)-> yield-on-abrupt(X')",
         "Rule element-not-in(atoms, SA) ~> A ---- < use-atom-not-in(SA:sets(atoms)) , used-atom-set(SA') > ---> < A , used-atom-set(set-insert(A, SA')) >",
+        "Rule given-value(V) |- Y ---> Y' ---- given-value(_?) |- give(V:T, Y) ---> give(V, Y')",
     ],
     alias_parser: [
         "Alias env = environment",
