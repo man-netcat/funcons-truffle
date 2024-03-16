@@ -52,7 +52,7 @@ LANG = Suppress("<")
 RANG = Suppress(">")
 COMMA = Suppress(",")
 BAR = Suppress(OneOrMore("-"))
-EMPTY = Group(LPAR + RPAR)
+EMPTY = Group(LPAR + White() + RPAR)
 
 # Define forward expression for recursion
 expr = Forward()
@@ -61,7 +61,7 @@ param = Group(expr("value") + Optional(COLON + expr("type")))
 params = LPAR + Optional(delimitedList(param)) + RPAR
 fun_call = Group(IDENTIFIER("fun") + params("params"))
 
-operands = fun_call | IDENTIFIER
+operands = EMPTY | fun_call | IDENTIFIER
 
 expr <<= infixNotation(
     operands,
