@@ -6,6 +6,7 @@ from unittest import TestCase, main
 
 from funcon_parser import (
     alias_parser,
+    assert_parser,
     datatype_parser,
     entity_parser,
     funcon_def_parser,
@@ -16,6 +17,7 @@ from funcon_parser import (
 from pyparsing import (
     Combine,
     Keyword,
+    LineEnd,
     OneOrMore,
     Optional,
     Or,
@@ -25,7 +27,6 @@ from pyparsing import (
     ZeroOrMore,
     oneOf,
     restOfLine,
-    LineEnd,
 )
 
 funcs = {
@@ -36,7 +37,7 @@ funcs = {
     "Datatype": datatype_parser,
     "Funcon": funcon_def_parser,
     "Rule": funcon_rule_parser,
-    "Assert": lambda: None,
+    "Assert": assert_parser,
 }
 
 KEYWORD = Or([Keyword(keyword) for keyword in funcs.keys()])

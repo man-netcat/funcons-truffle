@@ -26,6 +26,7 @@ from pyparsing import (
     opAssoc,
 )
 
+ASSERT = Keyword("Assert")
 FUNCON = Keyword("Funcon")
 TYPE = Keyword("Type")
 DATATYPE = Keyword("Datatype")
@@ -45,6 +46,7 @@ INFIX = oneOf("=>")
 REWRITES_TO = Suppress("~>")
 CONTEXTUALENTITY = Suppress("|-")
 
+EQUALS = Suppress("==")
 COLON = Suppress(":")
 LPAR = Suppress("(")
 RPAR = Suppress(")")
@@ -172,6 +174,12 @@ def metavariables_parser():
             + Group(IDENTIFIER + Optional(SUFFIX))("varname"),
         )("metavariables*")
     )
+
+
+def assert_parser():
+    return Group(
+        Suppress(ASSERT) + expr("expr") + Suppress(EQUALS) + expr("equals"),
+    )("assertions*")
 
 
 def build_parser():
