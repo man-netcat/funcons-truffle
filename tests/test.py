@@ -46,14 +46,16 @@ OPTKEYWORD = Or([Keyword(keyword) for keyword in ["Auxiliary", "Built-in"]])
 index = Suppress("[") + ... + Suppress("]")
 header = OneOrMore("#") + ... + LineEnd()
 multiline_comment = Suppress("/*") + ... + Suppress("*/")
+IGNORE = multiline_comment | index | header
 
-indented_line = Suppress(White(min=2)) + restOfLine
-component_start = Optional(OPTKEYWORD) + KEYWORD + ~oneOf("# /* */ [ ]") + restOfLine
+indented_line = Suppress(White(min=2)) + restOfLine.ignore(IGNORE)
+component_start = (
+    Optional(OPTKEYWORD) + KEYWORD + ~oneOf("# /* */ [ ]") + restOfLine.ignore(IGNORE)
+)
 component = Combine(component_start + OneOrMore(indented_line), " ")
 
 parser = ZeroOrMore(component)
-# TODO Fix comments ending up in parsed result anyway
-parser = parser.ignore(multiline_comment | index | header)
+parser = parser.ignore(IGNORE)
 
 
 # Function to parse file and extract components
@@ -81,6 +83,7 @@ cbs_files = glob.glob(pattern, recursive=True)
 for path in cbs_files:
     res = parse_components(path)
     for line in res:
+        # print(line)
         splitline = line.split()
         keyword = splitline[0]
         if keyword in ["Auxiliary", "Built-in"]:
