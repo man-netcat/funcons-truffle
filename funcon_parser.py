@@ -199,7 +199,11 @@ def build_parser():
 
     datatype = datatype_parser()
 
-    parser = OneOrMore(metavariables | funcons | entity | typedef | datatype)
+    assertion = assert_parser()
+
+    parser = OneOrMore(
+        metavariables | funcons | entity | typedef | datatype | assertion
+    )
 
     return parser.ignore(multiline_comment | index | header)
 
