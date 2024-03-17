@@ -35,6 +35,7 @@ METAVARIABLES = Keyword("Meta-variables")
 ALIAS = Keyword("Alias")
 RULE = Keyword("Rule")
 BUILTIN = Keyword("Built-in")
+KEYWORD = ASSERT | FUNCON | TYPE | DATATYPE | ENTITY | METAVARIABLES | ALIAS | RULE
 
 IDENTIFIER = Combine(Word(alphas + "_", alphanums + "_-") + ZeroOrMore("'"))
 
@@ -169,9 +170,7 @@ def datatype_parser():
 def metavariables_parser():
     return Suppress(METAVARIABLES) + OneOrMore(
         Group(
-            delimitedList(expr("types*"))
-            + Suppress("<:")
-            + Group(IDENTIFIER + Optional(SUFFIX))("varname"),
+            delimitedList(expr("types*")) + Suppress("<:") + expr("definition"),
         )("metavariables*")
     )
 
@@ -183,7 +182,9 @@ def assert_parser():
 
 
 def build_parser():
-    index = Suppress("[") + ... + Suppress("]")
+    indexlines = KEYWORD + IDENTIFIER + Optional(ALIAS + IDENTIFIER)
+
+    index = Suppress("[") + OneOrMore(indexlines) + Suppress("]")
 
     multiline_comment = Suppress("/*") + ... + Suppress("*/")
 
@@ -201,7 +202,7 @@ def build_parser():
 
     assertion = assert_parser()
 
-    parser = OneOrMore(
+    parser = ZeroOrMore(
         metavariables | funcons | entity | typedef | datatype | assertion
     )
 

@@ -24,7 +24,10 @@ from pyparsing import (
     ParseException,
     Suppress,
     White,
+    Word,
     ZeroOrMore,
+    alphas,
+    alphanums,
     oneOf,
     restOfLine,
 )
@@ -40,12 +43,14 @@ funcs = {
     "Assert": assert_parser,
 }
 
+ALIAS = Keyword("Alias")
+IDENTIFIER = Combine(Word(alphas + "_", alphanums + "_-") + ZeroOrMore("'"))
 KEYWORD = Or([Keyword(keyword) for keyword in funcs.keys()])
 OPTKEYWORD = Or([Keyword(keyword) for keyword in ["Auxiliary", "Built-in"]])
 
-
-index = Suppress("[") + ... + Suppress("]")
-header = OneOrMore("#") + ... + LineEnd()
+indexlines = KEYWORD + IDENTIFIER + Optional(ALIAS + IDENTIFIER)
+index = Suppress("[") + OneOrMore(indexlines) + Suppress("]")
+header = Suppress(OneOrMore("#") + ... + LineEnd())
 multiline_comment = Suppress("/*") + ... + Suppress("*/")
 IGNORE = multiline_comment | index | header
 
