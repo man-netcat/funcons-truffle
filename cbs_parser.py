@@ -35,6 +35,8 @@ METAVARIABLES = Keyword("Meta-variables")
 ALIAS = Keyword("Alias")
 RULE = Keyword("Rule")
 BUILTIN = Keyword("Built-in")
+AUXILIARY = Keyword("Auxiliary")
+OPTKEYWORD = Optional(AUXILIARY | BUILTIN)
 KEYWORD = ASSERT | FUNCON | TYPE | DATATYPE | ENTITY | METAVARIABLES | ALIAS | RULE
 
 IDENTIFIER = Combine(Word(alphanums + "_-") + ZeroOrMore("'"))
@@ -114,8 +116,7 @@ def alias_parser():
 
 def funcon_def_parser():
     funcon = Group(
-        Suppress(Optional(BUILTIN))
-        + Suppress(FUNCON)
+        Suppress(OPTKEYWORD + FUNCON)
         + IDENTIFIER("name")
         + Optional(
             params("params"),
@@ -141,9 +142,9 @@ def funcon_def_parser():
 def entity_parser():
     ioc = expr + STEP + expr
 
-    entity = Group(Suppress(ENTITY) + (contextualentity | mutableentity | ioc))(
-        "entities*"
-    )
+    entity = Group(
+        Suppress(OPTKEYWORD + ENTITY) + (contextualentity | mutableentity | ioc),
+    )("entities*")
 
     return entity
 
@@ -154,16 +155,16 @@ def type_def_parser():
     typedef = IDENTIFIER("name") + Optional(Suppress(REWRITES_TO) + expr("value"))
 
     return Group(
-        Optional(Suppress(BUILTIN))
-        + Suppress(TYPE)
-        + typedef
-        + ZeroOrMore(alias("aliases*")),
+        Suppress(OPTKEYWORD + TYPE) + typedef + ZeroOrMore(alias("aliases*")),
     )("types*")
 
 
 def datatype_parser():
     return Group(
-        Suppress(DATATYPE) + expr("name") + Optional("::=") + expr("definition")
+        Suppress(OPTKEYWORD + DATATYPE)
+        + expr("name")
+        + Optional("::=")
+        + expr("definition")
     )("datatypes*")
 
 
