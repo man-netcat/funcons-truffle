@@ -14,12 +14,12 @@ from pyparsing import (
     OneOrMore,
     Optional,
     ParseException,
+    ParserElement,
     Suppress,
     White,
     Word,
     ZeroOrMore,
     alphanums,
-    alphas,
     delimitedList,
     infixNotation,
     oneOf,
@@ -37,7 +37,7 @@ RULE = Keyword("Rule")
 BUILTIN = Keyword("Built-in")
 KEYWORD = ASSERT | FUNCON | TYPE | DATATYPE | ENTITY | METAVARIABLES | ALIAS | RULE
 
-IDENTIFIER = Combine(Word(alphas + "_", alphanums + "_-") + ZeroOrMore("'"))
+IDENTIFIER = Combine(Word(alphanums + "_-") + ZeroOrMore("'"))
 
 POLARITY = oneOf("! ?")
 SUFFIX = oneOf("* + ?")
@@ -66,6 +66,7 @@ fun_call = Group(IDENTIFIER("fun") + params("params"))
 
 operands = EMPTY | fun_call | IDENTIFIER
 
+ParserElement.enablePackrat()
 expr <<= infixNotation(
     operands,
     [
@@ -81,7 +82,7 @@ entitysig = Group(
 )("control*")
 STEP = Suppress("--->") | (Suppress("--") + delimitedList(entitysig) + Suppress("->"))
 
-mutableentitypart = Group(LANG + expr("expr1") + COMMA + expr("expr2") + RANG)
+mutableentitypart = Group(LANG + delimitedList(expr) + RANG)
 mutableentity = Group(
     mutableentitypart("before") + STEP + mutableentitypart("after"),
 )("mutables*")
@@ -94,14 +95,15 @@ contextualentity = Group(context + expr("before") + STEP + expr("after"))(
 
 def funcon_rule_parser():
     rewrite = Group(
-        Optional(context) + expr("before") + (REWRITES_TO | STEP) + expr("after")
+        Optional(context)
+        + expr("before")
+        + (REWRITES_TO | STEP)
+        + (params | expr)("after")
     )
 
     transition = rewrite("original") + BAR + rewrite("rewritten")
 
-    rule = Group(Suppress(RULE) + (transition | rewrite))
-
-    return rule("rules*")
+    return Suppress(RULE) + Group(transition | rewrite)("rules*")
 
 
 def alias_parser():
@@ -151,14 +153,12 @@ def type_def_parser():
 
     typedef = IDENTIFIER("name") + Optional(Suppress(REWRITES_TO) + expr("value"))
 
-    types = Group(
+    return Group(
         Optional(Suppress(BUILTIN))
         + Suppress(TYPE)
-        + typedef("definition")
+        + typedef
         + ZeroOrMore(alias("aliases*")),
     )("types*")
-
-    return types
 
 
 def datatype_parser():
