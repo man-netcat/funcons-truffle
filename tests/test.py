@@ -5,7 +5,7 @@ from collections import defaultdict
 from pprint import pprint
 from unittest import TestCase, main
 
-from funcon_parser import (
+from cbs_parser import (
     alias_parser,
     assert_parser,
     datatype_parser,
@@ -29,7 +29,6 @@ from pyparsing import (
     ZeroOrMore,
     alphanums,
     alphas,
-    oneOf,
     restOfLine,
 )
 
