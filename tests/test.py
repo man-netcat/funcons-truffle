@@ -10,7 +10,7 @@ from cbs_parser import (
     assert_parser,
     datatype_parser,
     entity_parser,
-    funcon_def_parser,
+    funcon_parser,
     funcon_rule_parser,
     metavariables_parser,
     type_def_parser,
@@ -38,7 +38,7 @@ funcs = {
     "Type": type_def_parser,
     "Alias": alias_parser,
     "Datatype": datatype_parser,
-    "Funcon": funcon_def_parser,
+    "Funcon": funcon_parser,
     "Rule": funcon_rule_parser,
     "Assert": assert_parser,
 }
@@ -97,11 +97,15 @@ for path in cbs_files:
 
 def generate_test_function(func, case):
     def test_function(_):
+        # print(case)
         try:
             res = func().parseString(case)
+            # print(res.asDict())
         except ParseException as e:
             errstr = f"\n{'-'*70}\n{ParseException.explain(e)}"
             raise ParseException(errstr) from None
+        except RecursionError as e:
+            raise ParseException("Recursionerror :(") from None
 
     return test_function
 

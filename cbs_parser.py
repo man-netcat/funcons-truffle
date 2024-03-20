@@ -10,7 +10,7 @@ from pyparsing import (
     Forward,
     Group,
     Keyword,
-    LineEnd,
+    Literal,
     OneOrMore,
     Optional,
     ParseException,
@@ -24,6 +24,7 @@ from pyparsing import (
     infixNotation,
     oneOf,
     opAssoc,
+    restOfLine,
 )
 
 ASSERT = Keyword("Assert")
@@ -44,31 +45,60 @@ IDENTIFIER = Combine(Word(alphanums + "_-") + ZeroOrMore("'"))
 POLARITY = oneOf("! ?")
 SUFFIX = oneOf("* + ?")
 PREFIX = oneOf("~ =>")
-INFIX = oneOf("=>")
+INFIX = oneOf("=> == =/=")
 
 REWRITES_TO = Suppress("~>")
 CONTEXTUALENTITY = Suppress("|-")
+MAPSTO = Suppress("|->")
 
 EQUALS = Suppress("==")
+NOTEQUALS = Suppress("=/=")
 COLON = Suppress(":")
 LPAR = Suppress("(")
 RPAR = Suppress(")")
 LANG = Suppress("<")
 RANG = Suppress(">")
+LCUR = Suppress("{")
+RCUR = Suppress("}")
+LBRA = Suppress("[")
+RBRA = Suppress("]")
 COMMA = Suppress(",")
 BAR = Suppress(OneOrMore("-"))
 EMPTY = Group(LPAR + White() + RPAR)
+BOOL = Literal("true") | Literal("false")
+STRING = Suppress('"') + IDENTIFIER + Literal('"')
 
 # Define forward expression for recursion
 expr = Forward()
 
 param = Group(expr("value") + Optional(COLON + expr("type")))
-params = LPAR + Optional(delimitedList(param)) + RPAR
-fun_call = Group(IDENTIFIER("fun") + params("params"))
+params = LPAR + Optional(delimitedList(param("params*"))) + RPAR
+fun_call = Group(IDENTIFIER("fun") + params)
+mapexpr = LCUR + Optional((expr("value") + MAPSTO + expr("mapsto")) | param) + RCUR
+listexpr = LBRA + Optional(delimitedList(param("indices*"))) + RBRA
+listindex = Group(IDENTIFIER("identifier") + listexpr)
 
-operands = EMPTY | fun_call | IDENTIFIER
+entitysig = Group(IDENTIFIER("name") + Optional(POLARITY("polarity")) + params)
 
-ParserElement.enablePackrat()
+STEP = (
+    Suppress("--") + delimitedList(entitysig("entities*")) + Suppress("->")
+) | Suppress("--->")
+
+mutableentity = Group(LANG + delimitedList(expr) + RANG)
+
+operands = (
+    listindex
+    | listexpr
+    | mapexpr
+    | mutableentity
+    | fun_call
+    | EMPTY
+    | BOOL
+    | STRING
+    | IDENTIFIER
+)
+
+ParserElement.enablePackrat(None)
 expr <<= infixNotation(
     operands,
     [
@@ -79,33 +109,17 @@ expr <<= infixNotation(
 )
 
 
-entitysig = Group(
-    IDENTIFIER("name") + Optional(POLARITY)("polarity") + params("params"),
-)("control*")
-STEP = Suppress("--->") | (Suppress("--") + delimitedList(entitysig) + Suppress("->"))
-
-mutableentitypart = Group(LANG + delimitedList(expr) + RANG)
-mutableentity = Group(
-    mutableentitypart("before") + STEP + mutableentitypart("after"),
-)("mutables*")
-
-context = expr("context") + CONTEXTUALENTITY
-contextualentity = Group(context + expr("before") + STEP + expr("after"))(
-    "contextuals*"
+contextualentity = Group(
+    Optional(expr("context") + CONTEXTUALENTITY)
+    + (expr("before") + (STEP | REWRITES_TO) + expr("after"))
 )
 
 
 def funcon_rule_parser():
-    rewrite = Group(
-        Optional(context)
-        + expr("before")
-        + (REWRITES_TO | STEP)
-        + (params | expr)("after")
-    )
+    premise = (expr("value") + COLON + expr("type")) | contextualentity
+    transition = OneOrMore(premise("premises*")) + BAR + premise("rewritten")
 
-    transition = rewrite("original") + BAR + rewrite("rewritten")
-
-    return Suppress(RULE) + Group(transition | rewrite)("rules*")
+    return Group(Suppress(RULE) + Group(transition | premise))("rules*")
 
 
 def alias_parser():
@@ -115,7 +129,7 @@ def alias_parser():
 
 
 def funcon_def_parser():
-    funcon = Group(
+    return Group(
         Suppress(OPTKEYWORD + FUNCON)
         + IDENTIFIER("name")
         + Optional(
@@ -128,25 +142,23 @@ def funcon_def_parser():
         )
     )("definition")
 
+
+def funcon_parser():
+    funcon = funcon_def_parser()
+
     alias = alias_parser()
 
     rule = funcon_rule_parser()
 
-    funcons = Group(
+    return Group(
         funcon + ZeroOrMore(alias) + ZeroOrMore(rule),
     )("funcons*")
 
-    return funcons
-
 
 def entity_parser():
-    ioc = expr + STEP + expr
-
-    entity = Group(
-        Suppress(OPTKEYWORD + ENTITY) + (contextualentity | mutableentity | ioc),
+    return Group(
+        Suppress(OPTKEYWORD + ENTITY) + (contextualentity | mutableentity),
     )("entities*")
-
-    return entity
 
 
 def type_def_parser():
@@ -189,11 +201,11 @@ def build_parser():
 
     multiline_comment = Suppress("/*") + ... + Suppress("*/")
 
-    header = Suppress(OneOrMore("#") + ... + LineEnd())
+    header = Suppress(OneOrMore("#") + restOfLine)
 
     metavariables = metavariables_parser()
 
-    funcons = funcon_def_parser()
+    funcons = funcon_parser()
 
     entity = entity_parser()
 
@@ -222,6 +234,8 @@ def parse_file(filename, dump_json=False) -> dict:
 
         except ParseException as e:
             print(ParseException.explain(e))
+        except RecursionError as e:
+            print("recursion error :(")
 
 
 def main():
