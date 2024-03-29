@@ -252,28 +252,11 @@ def clean_text(string):
     return "".join(remove.transformString(string))
 
 
-def parse_str(parser, str, print_res=False):
-    try:
-        res = parser.parseString(str, parseAll=True)
-        if print_res:
-            pprint(res.asDict())
-        return res
-    except ParseException as e:
-        e: ParseException
-        sep = "~" * 70
-        errstr = f"\n{sep}\n{e.args[0]}\n{sep}\n{ParseException.explain(e)}"
-        raise ParseException(errstr) from None
-    except RecursionError as e:
-        raise ParseException("Recursionerror :(") from None
-
-
-def parse_file_components(path) -> dict:
-    cases = defaultdict(lambda: [])
-    with open(path, "r") as file:
-        text = file.read()
+def exception_handler(func):
+    def wrapper(*args, **kwargs):
         try:
-            cleaned = clean_text(text)
-            res = component_parser.parseString(cleaned, parseAll=True)
+            result = func(*args, **kwargs)
+            return result
         except ParseException as e:
             e: ParseException
             sep = "~" * 70
@@ -281,6 +264,25 @@ def parse_file_components(path) -> dict:
             raise ParseException(errstr) from None
         except RecursionError as e:
             raise ParseException("Recursionerror :(") from None
+
+    return wrapper
+
+
+@exception_handler
+def parse_str(parser, str, print_res=False):
+    res = parser.parseString(str, parseAll=True)
+    if print_res:
+        pprint(res.asDict())
+    return res
+
+
+@exception_handler
+def parse_file_components(path) -> dict:
+    cases = defaultdict(lambda: [])
+    with open(path, "r") as file:
+        text = file.read()
+        cleaned = clean_text(text)
+        res = component_parser.parseString(cleaned, parseAll=True)
     for line in res:
         splitline = line.split()
         keyword = splitline[0]
