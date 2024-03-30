@@ -1,9 +1,11 @@
 import json
+import re
 from collections import defaultdict
 from pprint import pprint
 
 from pyparsing import (
     Combine,
+    FollowedBy,
     Forward,
     Group,
     Keyword,
@@ -13,8 +15,8 @@ from pyparsing import (
     Or,
     ParseException,
     ParserElement,
+    StringEnd,
     Suppress,
-    White,
     Word,
     ZeroOrMore,
     alphanums,
@@ -34,19 +36,19 @@ def encapsulate(expr, left, right):
 
 ASSERT = Keyword("Assert")
 TYPE = (Keyword("Type") | Keyword("Built-in Type")).setName("Type")
-DATATYPE = (Keyword("Datatype") | Keyword("Built-in Datatype")).setName("Datatype")
+DATATYPE = (Keyword("Built-in Datatype") | Keyword("Datatype")).setName("Datatype")
 ENTITY = Keyword("Entity")
 METAVARIABLES = Keyword("Meta-variables")
 ALIAS = Keyword("Alias")
 RULE = Keyword("Rule")
 FUNCON = (
-    Keyword("Funcon") | Keyword("Built-in Funcon") | Keyword("Auxiliary Funcon")
+    Keyword("Built-in Funcon") | Keyword("Auxiliary Funcon") | Keyword("Funcon")
 ).setName("Funcon")
 
 
-KEYWORD = (
-    ASSERT | FUNCON | TYPE | DATATYPE | ENTITY | METAVARIABLES | ALIAS | RULE
-).setName("keyword")
+KEYWORD = (ASSERT | FUNCON | TYPE | DATATYPE | ENTITY | METAVARIABLES).setName(
+    "keyword"
+)
 
 
 IDENTIFIER = Combine(
@@ -55,7 +57,7 @@ IDENTIFIER = Combine(
         bodyChars=alphanums + "-",
     )
     + ZeroOrMore("'")
-).setName("identifier")
+).setName("id")
 
 POLARITY = oneOf("! ?").setName("polarity")
 SUFFIX = oneOf("* + ?").setName("suffix")
@@ -84,6 +86,8 @@ param = Group(
 )
 
 params = encapsulate(delimitedList(param("params*")), "(", ")")
+
+nestedexpr = encapsulate(expr, "(", ")")
 
 fun_call = Group(IDENTIFIER("fun") + params).setName("fun_call")
 
@@ -116,9 +120,10 @@ operands = Or(
         listexpr,
         mapping,
         mutableentity,
-        params,
         fun_call,
         # chain,
+        nestedexpr,
+        params,
         STRING,
         IDENTIFIER,
     ]
@@ -140,29 +145,32 @@ contextualentity = Group(
 )
 
 
-typeexpr = (expr("value") + COLON + expr("type")).setName("typeexpr")
-boolexpr = (expr("value") + EQUALITY + (expr | BOOL | STRING | EMPTYMAP)).setName(
+typeexpr = Group(expr("value") + COLON + expr("type")).setName("typeexpr")
+boolexpr = Group(expr("value") + EQUALITY + (expr | BOOL | STRING | EMPTYMAP)).setName(
     "boolexpr"
 )
-rewrite = (expr("value") + REWRITES_TO + expr("rewrites_to")).setName("rewriteexpr")
-premise = rewrite | boolexpr | typeexpr | contextualentity
+rewrite = Group(expr("value") + REWRITES_TO + expr("rewrites_to")).setName(
+    "rewriteexpr"
+)
+premise = Group(rewrite | boolexpr | typeexpr | contextualentity)
+premises = OneOrMore(premise)
 
-transition = OneOrMore(premise)("premises*") + BAR + premise("rewritten")
+transition = premises("premises*") + BAR + premise("rewritten")
 
-rule_def = transition | premise
+rule_def = Group(transition)("transition") | premise("premise")
 
-funcon_rule_parser = Group(Suppress(RULE) + rule_def)("rules*")
+rule = Suppress(RULE) + Group(rule_def)("rules*")
+rules = ZeroOrMore(rule)
 
-alias_parser = Group(
-    Suppress(ALIAS) + IDENTIFIER("alias") + Suppress("=") + IDENTIFIER("original"),
+alias = Suppress(ALIAS) + Group(
+    IDENTIFIER("alias") + Suppress("=") + IDENTIFIER("original")
 )("aliases*")
+aliases = ZeroOrMore(alias)
 
-
-funcon_def_parser = Group(
-    Suppress(FUNCON)
-    + IDENTIFIER("name")
+funcon_def = Group(
+    IDENTIFIER("name")
     + Optional(
-        params("params"),
+        params,
     )
     + COLON
     + expr("returns")
@@ -170,86 +178,61 @@ funcon_def_parser = Group(
         REWRITES_TO + expr("rewrites_to"),
     )
 )("definition")
+funcon_parser = Suppress(FUNCON) + funcon_def + aliases + rules
 
-funcon_parser = Group(
-    funcon_def_parser + ZeroOrMore(alias_parser) + ZeroOrMore(funcon_rule_parser),
-)("funcons*")
+entitydef = contextualentity | mutableentity
+entity_parser = Suppress(ENTITY) + entitydef + aliases
 
-entity_parser = Group(
-    Suppress(ENTITY) + (contextualentity | mutableentity),
-)("entities*")
-
-typedef = (
+type_def = (
     expr("type")
     + Optional(METAVARASSIGN + expr("assigns"))
     + Optional(REWRITES_TO + expr("value"))
 )
+type_parser = Suppress(TYPE) + type_def + aliases
 
-type_def_parser = Group(
-    Suppress(TYPE) + typedef + ZeroOrMore(alias_parser("aliases*")),
-)("types*")
-
-datatype_parser = Group(
-    Suppress(DATATYPE)
-    + expr("name")
-    + Suppress(DATATYPEASSIGN | METAVARASSIGN)
-    + expr("definition")
-)("datatypes*")
-
-var = infixNotation(
-    fun_call | IDENTIFIER,
-    [(SUFFIX, 1, opAssoc.LEFT)],
+datatypedef = (
+    expr("name") + Suppress(DATATYPEASSIGN | METAVARASSIGN) + expr("definition")
 )
+datatype_parser = Suppress(DATATYPE) + datatypedef + aliases
 
-metavardef = Group(delimitedList(var("types*"))) + METAVARASSIGN + var("definition")
+metavar_type = expr("types*")
+metavar_types = delimitedList(metavar_type)
+metavar_def = metavar_types + METAVARASSIGN + expr("definition")
+metavar_defs = OneOrMore(metavar_def)
+metavar_parser = Suppress(METAVARIABLES) + metavar_defs
 
-metavariables_parser = Suppress(METAVARIABLES) + OneOrMore(metavardef("metavariables*"))
-
-assert_parser = Group(
-    Suppress(ASSERT) + expr("expr") + Suppress(EQUALS) + expr("equals"),
-)("assertions*")
+assert_def = expr("expr") + Suppress(EQUALS) + expr("equals")
+assert_parser = Suppress(ASSERT) + assert_def
 
 
 parsers = {
     "Entity": entity_parser,
-    "Meta-variables": metavariables_parser,
-    "Type": type_def_parser,
-    "Alias": alias_parser,
+    "Meta-variables": metavar_parser,
+    "Type": type_parser,
     "Datatype": datatype_parser,
     "Funcon": funcon_parser,
-    "Rule": funcon_rule_parser,
     "Assert": assert_parser,
 }
 
-indented_line = Suppress(White(min=2)) + restOfLine
-indented_lines = OneOrMore(indented_line, stopOn=KEYWORD)
-
-funcon_component = (
-    (FUNCON + restOfLine + indented_lines)
-    + OneOrMore(ALIAS + restOfLine + indented_lines)
-    + OneOrMore(RULE + restOfLine + indented_lines)
+componentparser = ZeroOrMore(
+    Combine(KEYWORD + ... + Suppress(FollowedBy(KEYWORD | StringEnd())), "\n")
 )
-type_component = (TYPE + restOfLine + indented_lines) + OneOrMore(
-    ALIAS + restOfLine + indented_lines
-)
-misc_component = KEYWORD + restOfLine + indented_lines
-
-component = Combine(funcon_component | type_component | misc_component, "\n")
-
-component_parser = ZeroOrMore(component)
 
 
 def clean_text(string):
-    indexlines = KEYWORD + IDENTIFIER + Optional(ALIAS + IDENTIFIER)
+    indexline = KEYWORD + IDENTIFIER + Optional(ALIAS + IDENTIFIER)
+    indexlines = OneOrMore(indexline)
 
-    index = Suppress("[" + OneOrMore(indexlines) + "]")
+    index = Suppress("[" + indexlines + "]")
 
     multiline_comment = Suppress(Literal("/*") + ... + Literal("*/"))
 
     header = Suppress(OneOrMore("#") + restOfLine)
 
     remove = multiline_comment | index | header
-    return "".join(remove.transformString(string))
+
+    return remove.transformString(string).strip()
+
 
 
 def exception_handler(func):
@@ -278,28 +261,28 @@ def parse_str(parser, str, print_res=False):
 
 @exception_handler
 def parse_file_components(path) -> dict:
-    cases = defaultdict(lambda: [])
+    components = defaultdict(lambda: [])
     with open(path, "r") as file:
         text = file.read()
         cleaned = clean_text(text)
-        res = component_parser.parseString(cleaned, parseAll=True)
-    for line in res:
-        splitline = line.split()
+        strings = componentparser.parseString(cleaned, parseAll=True)
+    for component in strings:
+        splitline = component.split()
         keyword = splitline[0]
         if keyword in ["Auxiliary", "Built-in"]:
             keyword = splitline[1]
-        cases[keyword].append(line)
-    return cases
+        components[keyword].append(component)
+    return components
 
 
 def parse_file(path, dump_json=False, print_res=False):
     data = defaultdict(lambda: [])
-    typecases = parse_file_components(path)
-    for keyword, cases in typecases.items():
-        for case in cases:
-            res = parse_str(parsers[keyword], case, print_res)
-
+    file_components = parse_file_components(path)
+    for keyword, components in file_components.items():
+        for component in components:
+            res = parse_str(parsers[keyword], component, print_res)
+            data[keyword].append(res.asDict())
     if print_res:
-        print(data.asDict())
+        pprint(data)
     if dump_json:
         json.dump(data)

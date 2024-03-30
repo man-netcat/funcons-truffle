@@ -35,6 +35,7 @@ def main():
         pattern = os.path.join(args.directory, "**/*.cbs")
         cbs_files = glob.glob(pattern, recursive=True)
         for path in cbs_files:
+            print(path)
             parse_file(path, dump_json=args.json, print_res=True)
     elif args.file:
         print(args.file)
