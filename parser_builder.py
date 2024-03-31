@@ -105,7 +105,9 @@ entitysig = Group(IDENTIFIER("name") + Optional(POLARITY("polarity")) + params).
 
 step = encapsulate(delimitedList(entitysig("entities*")), "--", "->").setName("step")
 
-mutableentity = encapsulate(delimitedList(expr("mutables*")), "<", ">")
+mutableentity = Group(encapsulate(delimitedList(expr("mutables*")), "<", ">"))(
+    "mutableentities*"
+)
 
 # chain = Forward()
 # chain <<= Group(
@@ -160,7 +162,6 @@ transition = premises("premises*") + BAR + premise("rewritten")
 rule_def = Group(transition)("transition") | premise("premise")
 
 rule = Suppress(RULE) + Group(rule_def)("rules*")
-rules = ZeroOrMore(rule)
 
 alias = Suppress(ALIAS) + Group(
     IDENTIFIER("alias") + Suppress("=") + IDENTIFIER("original")
@@ -178,9 +179,9 @@ funcon_def = Group(
         REWRITES_TO + expr("rewrites_to"),
     )
 )("definition")
-funcon_parser = Suppress(FUNCON) + funcon_def + aliases + rules
+funcon_parser = Suppress(FUNCON) + funcon_def + ZeroOrMore(alias | rule)
 
-entitydef = contextualentity | mutableentity
+entitydef = contextualentity("rewrite") | mutableentity
 entity_parser = Suppress(ENTITY) + entitydef + aliases
 
 type_def = (
@@ -215,7 +216,7 @@ parsers = {
 }
 
 componentparser = ZeroOrMore(
-    Combine(KEYWORD + ... + Suppress(FollowedBy(KEYWORD | StringEnd())), "\n")
+    Combine(KEYWORD + ... + Suppress(FollowedBy(KEYWORD | StringEnd())))
 )
 
 
@@ -231,8 +232,11 @@ def clean_text(string):
 
     remove = multiline_comment | index | header
 
-    return remove.transformString(string).strip()
+    removed = remove.transformString(string).strip()
 
+    newlines_stripped = re.sub(r"\n+", "\n", removed)
+
+    return newlines_stripped
 
 
 def exception_handler(func):
@@ -265,7 +269,11 @@ def parse_file_components(path) -> dict:
     with open(path, "r") as file:
         text = file.read()
         cleaned = clean_text(text)
-        strings = componentparser.parseString(cleaned, parseAll=True)
+        try:
+            strings = componentparser.parseString(cleaned, parseAll=True)
+        except:
+            print("componentparser broken?")
+            exit()
     for component in strings:
         splitline = component.split()
         keyword = splitline[0]
@@ -280,7 +288,10 @@ def parse_file(path, dump_json=False, print_res=False):
     file_components = parse_file_components(path)
     for keyword, components in file_components.items():
         for component in components:
-            res = parse_str(parsers[keyword], component, print_res)
+            try:
+                res = parse_str(parsers[keyword], component)
+            except:
+                pass
             data[keyword].append(res.asDict())
     if print_res:
         pprint(data)
