@@ -26,6 +26,12 @@ def main():
         help="Dump parsed data to JSON",
         action="store_true",
     )
+    parser.add_argument(
+        "-p",
+        "--print",
+        help="Dump parsed data to JSON",
+        action="store_true",
+    )
     args = parser.parse_args()
 
     if args.directory and args.file:
@@ -36,10 +42,10 @@ def main():
         cbs_files = glob.glob(pattern, recursive=True)
         for path in cbs_files:
             print(path)
-            parse_file(path, dump_json=args.json, print_res=True)
+            parse_file(path, dump_json=args.json, print_res=args.print)
     elif args.file:
         print(args.file)
-        parse_file(args.file, dump_json=args.json, print_res=True)
+        parse_file(args.file, dump_json=args.json, print_res=args.print)
     else:
         raise ValueError("Specify either -d/--directory or -f/--file.")
 

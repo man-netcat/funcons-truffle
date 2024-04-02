@@ -3,7 +3,7 @@ import re
 from collections import defaultdict
 from pprint import pprint
 from string import ascii_lowercase
-
+from pathlib import Path
 from pyparsing import (
     Combine,
     FollowedBy,
@@ -33,65 +33,61 @@ ParserElement.enablePackrat(None)
 
 
 def encapsulate(expr, left, right):
-    return (
-        Suppress(left).setName(left) + Optional(expr) + Suppress(right).setName(right)
-    )
+    return Suppress(left) + Optional(expr) + Suppress(right)
 
 
-BAR = Suppress(Literal("---") + OneOrMore("-")).setName("---")
+BAR = Suppress(Literal("---") + OneOrMore("-"))
 ASSERT = Keyword("Assert")
-TYPE = (Keyword("Type") | Keyword("Built-in Type")).setName("Type")
-DATATYPE = (Keyword("Built-in Datatype") | Keyword("Datatype")).setName("Datatype")
+TYPE = Keyword("Type") | Keyword("Built-in Type")
+DATATYPE = Keyword("Built-in Datatype") | Keyword("Datatype")
 ENTITY = Keyword("Entity")
 METAVARIABLES = Keyword("Meta-variables")
 ALIAS = Keyword("Alias")
 RULE = Keyword("Rule")
-FUNCON = (
-    Keyword("Built-in Funcon") | Keyword("Auxiliary Funcon") | Keyword("Funcon")
-).setName("Funcon")
+FUNCON = Keyword("Built-in Funcon") | Keyword("Auxiliary Funcon") | Keyword("Funcon")
 
 
-BASEKEYWORD = (ASSERT | FUNCON | TYPE | DATATYPE | ENTITY | METAVARIABLES).setName(
-    "basekeyword"
-)
-EXTKEYWORD = (ALIAS | RULE).setName("extkeyword")
-KEYWORD = (BASEKEYWORD | EXTKEYWORD).setName("keyword")
+BASEKEYWORD = ASSERT | FUNCON | TYPE | DATATYPE | ENTITY | METAVARIABLES
+
+EXTKEYWORD = ALIAS | RULE
+KEYWORD = BASEKEYWORD | EXTKEYWORD
 
 IDENTIFIER = ~(KEYWORD | BAR) + Combine(
-    Word(
-        initChars=alphanums + "_",
-        bodyChars=alphanums + '-"',
-    )
-    + ZeroOrMore("'")
-).setName("id")
+    Word(initChars=alphanums + '_"', bodyChars=alphanums + '-"') + ZeroOrMore("'")
+)
+FUNIDENTIFIER = ~(KEYWORD | BAR) + Word(ascii_lowercase + "-", asKeyword=True)
 NUMBER = Combine(Optional("-") + Word(nums))
 
-POLARITY = oneOf("! ?").setName("polarity")
-SUFFIX = oneOf("* + ? ^N").setName("suffix")
-PREFIX = oneOf("~ =>").setName("prefix")
-INFIX = oneOf("=> | &").setName("infix")
+POLARITY = oneOf("! ?")
+SUFFIX = oneOf("* + ? ^N")
+PREFIX = oneOf("~ =>")
+INFIX = oneOf("=> | &")
 
-REWRITES_TO = Suppress("~>").setName("~>")
-CONTEXTUALENTITY = Suppress("|-").setName("|-")
-MAPSTO = Suppress("|->").setName("|->")
-METAVARASSIGN = Suppress("<:").setName("<:")
-DATATYPEASSIGN = Suppress("::=").setName("::=")
-EQUALS = Suppress("==").setName("==")
-NOTEQUALS = Suppress("=/=").setName("=/=")
-EQUALITY = (EQUALS | NOTEQUALS).setName("equality")
-COLON = Suppress(":").setName(":")
-COMMA = Suppress(",").setName(",")
+REWRITES_TO = Suppress("~>")
+CONTEXTUALENTITY = Suppress("|-")
+MAPSTO = Suppress("|->")
+METAVARASSIGN = Suppress("<:")
+DATATYPEASSIGN = Suppress("::=")
+EQUALS = Suppress("==")
+NOTEQUALS = Suppress("=/=")
+EQUALITY = EQUALS | NOTEQUALS
+COLON = Suppress(":")
+COMMA = Suppress(",")
+SEMICOLON = Suppress(";")
 
 # Define forward expression for recursion
-expr = Forward().setName("expr")
+expr = Forward()
 
 param = Group(
-    expr("value").setName("value") + Optional(COLON + expr("type").setName("type")),
+    expr("value") + Optional(COLON + expr("type")),
 )
 
-params = encapsulate(delimitedList(param("params*")), "(", ")")
+params = Group(encapsulate(delimitedList(param("params*")), "(", ")"))
 
-fun_call = Group(IDENTIFIER("fun") + params).setName("fun_call")
+fun_call = Forward()
+fun_call <<= Group(
+    FUNIDENTIFIER("name") + (params | fun_call | IDENTIFIER),
+)("fun_call")
 
 mapexpr = expr("value") + MAPSTO + expr("mapsto")
 
@@ -101,11 +97,7 @@ listexpr = encapsulate(delimitedList(param("indices*")), "[", "]")
 
 listindex = Group(IDENTIFIER("identifier") + listexpr)
 
-entitysig = Group(IDENTIFIER("name") + Optional(POLARITY("polarity")) + params).setName(
-    "entity"
-)
-
-computation = encapsulate(delimitedList(entitysig("ioc*")), "--", "->").setName("step")
+nested = encapsulate(expr, "(", ")")
 
 operands = Or(
     [
@@ -113,6 +105,7 @@ operands = Or(
         listexpr,
         mapping,
         fun_call,
+        nested,
         params,
         NUMBER,
         IDENTIFIER,
@@ -124,51 +117,65 @@ expr <<= infixNotation(
     [
         (SUFFIX, 1, opAssoc.LEFT),
         (PREFIX, 1, opAssoc.RIGHT),
-        (IDENTIFIER, 1, opAssoc.RIGHT),
         (INFIX, 2, opAssoc.LEFT),
     ],
 )
 
 # Rules
 
+# Input, Output and Control
+ioc = Group(IDENTIFIER("name") + Optional(POLARITY("polarity")) + params)
+
+computation = encapsulate(delimitedList(ioc), "--", "->")("ioc*") + Optional(
+    NUMBER("sequence_number")
+)
+
 mutablentitysig = Group(
     encapsulate(expr("source") + COMMA + expr("target"), "<", ">"),
 )("mutableentity")
-mutableentity = mutablentitysig("before") + computation + mutablentitysig("after")
+mutableentity = Group(
+    mutablentitysig("before") + computation + mutablentitysig("after")
+)("mutableentityrewrite")
 
 
 # Input/Output/Control entities (with optional context)
 context = expr("context") + CONTEXTUALENTITY
-ioc_entity = Group(Optional(context) + expr("before") + computation + expr("after"))(
-    "rewrite"
-)
+ioc_entity = Group(
+    Optional(context)
+    + expr("before")
+    + delimitedList(computation("computations*"), ";")
+    + expr("after"),
+)("rewrite")
 
 # Type premise
-typeexpr = Group(expr("value") + COLON + expr("type")).setName("typeexpr")
+typeexpr = Group(
+    expr("value") + COLON + expr("type"),
+)("typeexpr")
 
 # Boolean premise
 boolexpr = Group(
     expr("value") + ((EQUALS + expr("equals")) | (NOTEQUALS + expr("notequals")))
-).setName("boolexpr")
+)("boolexpr")
 
 #
-rewrite = Group(expr("value") + REWRITES_TO + expr("rewrites_to")).setName(
-    "rewriteexpr"
-)
-premise = ioc_entity | mutableentity | rewrite | boolexpr | typeexpr
+rewriteexpr = Group(
+    expr("value") + REWRITES_TO + expr("rewrites_to"),
+)("rewriteexpr")
+
+premise = ioc_entity | mutableentity | rewriteexpr | boolexpr | typeexpr
 premises = OneOrMore(premise)
 
-transition = premises("premises*") + BAR + premise("rewritten")
+transition = Group(premises("premises*") + BAR + premise("rewritten"))
 
-rule_def = Group(transition)("transition") | premise("premise")
-
-rule = Suppress(RULE) + Group(rule_def)("rules*")
+rule_def = transition | premise
+rule = Group(Suppress(RULE) + rule_def("rules*"))
 
 # Aliases
 
-alias = Suppress(ALIAS) + Group(
-    IDENTIFIER("alias") + Suppress("=") + IDENTIFIER("original")
-)("aliases*")
+alias = Group(
+    Suppress(ALIAS)
+    + Group(IDENTIFIER("alias") + Suppress("=") + IDENTIFIER("original"))("aliases*")
+)
 aliases = ZeroOrMore(alias)
 
 # Funcons
@@ -182,12 +189,14 @@ funcon_def = Group(
         REWRITES_TO + expr("rewrites_to"),
     )
 )("definition")
-funcon_parser = Suppress(FUNCON) + funcon_def + ZeroOrMore(alias) + ZeroOrMore(rule)
+funcon_parser = Group(
+    Suppress(FUNCON) + funcon_def + ZeroOrMore(alias) + ZeroOrMore(rule)
+)("funcons*")
 
 # Entities
 
 entitydef = mutableentity | ioc_entity
-entity_parser = Suppress(ENTITY) + entitydef + aliases
+entity_parser = Group(Suppress(ENTITY) + entitydef + aliases)("entities*")
 
 # Types
 
@@ -196,31 +205,34 @@ type_def = (
     + Optional(METAVARASSIGN + expr("assigns"))
     + Optional(REWRITES_TO + expr("rewrites_to"))
 )
-type_parser = Suppress(TYPE) + type_def + aliases
+type_parser = Group(Suppress(TYPE) + type_def + aliases)("types*")
 
 # Datatypes
 
 datatypedef = (
     expr("name") + Suppress(DATATYPEASSIGN | METAVARASSIGN) + expr("definition")
 )
-datatype_parser = Suppress(DATATYPE) + datatypedef + aliases
+datatype_parser = Group(Suppress(DATATYPE) + datatypedef + aliases)("datatypes*")
 
 
 # Metavars
 
-metavar_type = infixNotation(
-    fun_call | IDENTIFIER,
-    [
-        (SUFFIX, 1, opAssoc.LEFT),
-    ],
-)
+metavar_type = IDENTIFIER + Optional(SUFFIX)
 metavar_types = delimitedList(metavar_type)
-metavar_def = metavar_types("names*") + METAVARASSIGN + metavar_types("definition")
-metavar_defs = OneOrMore(metavar_def)
+metavar_def = Group(
+    metavar_types("types*")
+    + METAVARASSIGN
+    + metavar_types("definition")
+    + Optional(params)
+)
+
+metavar_defs = OneOrMore(metavar_def("metavars*"))
 metavar_parser = Suppress(METAVARIABLES) + metavar_defs
 
-assert_def = expr("expr") + Suppress(EQUALS) + expr("equals")
-assert_parser = Suppress(ASSERT) + assert_def
+# Assertions
+
+assert_def = expr("expr") + Optional(mapping) + Suppress(EQUALS) + expr("equals")
+assert_parser = Group(Suppress(ASSERT) + assert_def)("assertions*")
 
 
 parsers = {
@@ -232,22 +244,33 @@ parsers = {
     "Assert": assert_parser,
 }
 
+indexline = BASEKEYWORD + IDENTIFIER + Optional(ALIAS + IDENTIFIER)
+
+indexlines = OneOrMore(indexline)
+
+index = Suppress("[" + indexlines + "]")
+
+multiline_comment = Suppress(Literal("/*") + ... + Literal("*/"))
+
+header = Suppress(OneOrMore("#") + restOfLine)
+
+remove = multiline_comment | index | header
+
+file_parser = ZeroOrMore(
+    entity_parser
+    | metavar_parser
+    | type_parser
+    | datatype_parser
+    | funcon_parser
+    | assert_parser
+).ignore(remove)
+
 componentparser = ZeroOrMore(
     Combine(BASEKEYWORD + ... + Suppress(FollowedBy(BASEKEYWORD | StringEnd())))
 )
 
 
 def clean_text(string):
-    indexline = BASEKEYWORD + IDENTIFIER + Optional(ALIAS + IDENTIFIER)
-    indexlines = OneOrMore(indexline)
-
-    index = Suppress("[" + indexlines + "]")
-
-    multiline_comment = Suppress(Literal("/*") + ... + Literal("*/"))
-
-    header = Suppress(OneOrMore("#") + restOfLine)
-
-    remove = multiline_comment | index | header
 
     removed = remove.transformString(string).strip()
 
@@ -300,30 +323,15 @@ def parse_file_components(path) -> dict:
     return components
 
 
+@exception_handler
 def parse_file(path, dump_json=False, print_res=False):
-    data = defaultdict(lambda: [])
-    file_components = parse_file_components(path)
-    for keyword, components in file_components.items():
-        for component in components:
-            try:
-                res = parse_str(parsers[keyword], component)
-                data[keyword].append(res.asDict())
-            except:
-                pass
+    res = file_parser.parseFile(path, parseAll=True)
+    data = res.asDict()
     if print_res:
         pprint(data)
     if dump_json:
-        json.dump(data)
-
-
-parse_str(
-    funcon_parser,
-    """
-Funcon
-  read : =>values
-Rule
-  read -- standard-in?(V:~null-type) -> V
-Rule
-  read -- standard-in?(null-value) -> fail
-""",
-)
+        filename = Path(path).stem
+        json_path = f"out/{filename}.json"
+        with open(json_path, "w") as f:
+            json.dump(data, f)
+            print(f"Exported to {json_path}")

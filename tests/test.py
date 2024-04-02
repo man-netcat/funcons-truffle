@@ -18,27 +18,28 @@ pattern = os.path.join(funcon_dir, "**/*.cbs")
 cbs_files = glob.glob(pattern, recursive=True)
 
 
-def generate_test_function(parser, case):
+def generate_test_function(parser, component):
     def test_function(self):
-        parse_str(parser, case)
+        parse_str(parser, component)
 
     return test_function
 
 
-allcases = defaultdict(lambda: [])
+keyword_counters = defaultdict(lambda: 1)
+
 for file in cbs_files:
-    cases = parse_file_components(file)
-    for keyword, case in cases.items():
-        allcases[keyword].extend(case)
+    file_components = parse_file_components(file)
+    for keyword, component in file_components.items():
+        parser = parsers[keyword]
 
+        for comp in component:
+            test_func = generate_test_function(parser, comp)
+            setattr(
+                TestParserFunction,
+                f"test_{keyword.lower()}_{keyword_counters[keyword]}",
+                test_func,
+            )
 
-# Dynamically generate test functions for each test case
-for keyword, cases in allcases.items():
-    parser = parsers[keyword]
-
-    for i, case in enumerate(cases, 1):
-        test_func = generate_test_function(parser, case)
-        setattr(TestParserFunction, f"test_{keyword.lower()}_{i}", test_func)
-
+        keyword_counters[keyword] += 1
 if __name__ == "__main__":
     main()
