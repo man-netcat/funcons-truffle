@@ -326,7 +326,10 @@ def parse_file_components(path) -> dict:
 
 @exception_handler
 def parse_file(path, dump_json=False, print_res=False):
-    res = file_parser.parseFile(path, parseAll=True)
+    with open(path, "r") as f:
+        text = f.read()
+    cleaned = clean_text(text)
+    res = file_parser.parseString(cleaned, parseAll=True)
     data = res.asDict()
     if print_res:
         pprint(data)
