@@ -29,7 +29,7 @@ def main():
     parser.add_argument(
         "-p",
         "--print",
-        help="Dump parsed data to JSON",
+        help="Print parsed data",
         action="store_true",
     )
     args = parser.parse_args()
