@@ -37,7 +37,7 @@ def encapsulate(expr, left, right):
     return Suppress(left) + Optional(expr) + Suppress(right)
 
 
-BAR = Suppress(Literal("---") + OneOrMore("-"))
+BAR = Suppress(Literal("---") + OneOrMore("-")).setName("---")
 ASSERT = Keyword("Assert")
 TYPE = Keyword("Type") | Keyword("Built-in Type")
 DATATYPE = Keyword("Built-in Datatype") | Keyword("Datatype")
@@ -51,18 +51,22 @@ FUNCON = Keyword("Built-in Funcon") | Keyword("Auxiliary Funcon") | Keyword("Fun
 BASEKEYWORD = ASSERT | FUNCON | TYPE | DATATYPE | ENTITY | METAVARIABLES
 
 EXTKEYWORD = ALIAS | RULE
-KEYWORD = BASEKEYWORD | EXTKEYWORD
+KEYWORD = (BASEKEYWORD | EXTKEYWORD).setName("keyword")
 
-IDENTIFIER = ~(KEYWORD | BAR) + Combine(
-    Word(initChars=alphanums + '_"', bodyChars=alphanums + '-"') + ZeroOrMore("'")
-)
-FUNIDENTIFIER = ~(KEYWORD | BAR) + Word(ascii_lowercase + "-", asKeyword=True)
-NUMBER = Combine(Optional("-") + Word(nums))
+IDENTIFIER = Combine(
+    ~(KEYWORD | BAR)
+    + Word(initChars=alphanums + '_"', bodyChars=alphanums + '-"')
+    + ZeroOrMore("'")
+).setName("identifier")
+FUNIDENTIFIER = Combine(
+    ~(KEYWORD | BAR) + Word(ascii_lowercase + "-", asKeyword=True)
+).setName("funidentifier")
+NUMBER = Combine(Optional("-") + Word(nums)).setName("number")
 
-POLARITY = oneOf("! ?")
-SUFFIX = oneOf("* + ? ^N")
-PREFIX = oneOf("~ =>")
-INFIX = oneOf("=> | &")
+POLARITY = oneOf("! ?").setName("polarity")
+SUFFIX = oneOf("* + ? ^N").setName("suffix")
+PREFIX = oneOf("~ =>").setName("prefix")
+INFIX = oneOf("=> | &").setName("infix")
 
 REWRITES_TO = Suppress("~>")
 CONTEXTUALENTITY = Suppress("|-")
@@ -79,20 +83,18 @@ SEMICOLON = Suppress(";")
 # Define forward expression for recursion
 expr = Forward()
 
-param = Group(
-    expr("value") + Optional(COLON + expr("type")),
-)
+param = Group(expr("value") + Optional(COLON + expr("type")))
 
-params = Group(encapsulate(delimitedList(param("params*")), "(", ")"))
+params = encapsulate(delimitedList(param("params*")), "(", ")")
 
 fun_call = Forward()
 fun_call <<= Group(
-    FUNIDENTIFIER("name") + (params | fun_call | IDENTIFIER),
-)("fun_call")
+    FUNIDENTIFIER("fun") + (params | fun_call | IDENTIFIER),
+)
 
 mapexpr = expr("value") + MAPSTO + expr("mapsto")
 
-mapping = encapsulate(mapexpr | delimitedList(param("params*")), "{", "}")
+mapping = encapsulate(mapexpr | delimitedList(param), "{", "}")
 
 listexpr = encapsulate(delimitedList(param("indices*")), "[", "]")
 
@@ -127,49 +129,43 @@ expr <<= infixNotation(
 # Input, Output and Control
 ioc = Group(IDENTIFIER("name") + Optional(POLARITY("polarity")) + params)
 
-computation = encapsulate(delimitedList(ioc), "--", "->")("ioc*") + Optional(
-    NUMBER("sequence_number")
+computation = Group(
+    encapsulate(delimitedList(ioc("ioc*")), "--", "->")
+    + Optional(NUMBER("sequence_number"))
 )
 
-mutablentitysig = Group(
-    encapsulate(expr("source") + COMMA + expr("target"), "<", ">"),
-)("mutableentity")
-mutableentity = Group(
-    mutablentitysig("before") + computation + mutablentitysig("after")
-)("mutableentityrewrite")
+mutablentitysig = encapsulate(expr("source") + COMMA + expr("target"), "<", ">")
+mutableentity = mutablentitysig("before") + computation + mutablentitysig("after")
 
 
 # Input/Output/Control entities (with optional context)
-context = expr("context") + CONTEXTUALENTITY
-ioc_entity = Group(
-    Optional(context)
+context = expr + CONTEXTUALENTITY
+ioc_entity = (
+    Optional(context("context"))
     + expr("before")
     + delimitedList(computation("computations*"), ";")
-    + expr("after"),
-)("rewrite")
+    + expr("after")
+)
+
 
 # Type premise
-typeexpr = Group(
-    expr("value") + COLON + expr("type"),
-)("typeexpr")
+typeexpr = expr("value") + COLON + expr("type")
+
 
 # Boolean premise
-boolexpr = Group(
-    expr("value") + ((EQUALS + expr("equals")) | (NOTEQUALS + expr("notequals")))
-)("boolexpr")
+boolexpr = expr("value") + ((EQUALS + expr("equals")) | (NOTEQUALS + expr("notequals")))
 
-#
-rewriteexpr = Group(
-    expr("value") + REWRITES_TO + expr("rewrites_to"),
-)("rewriteexpr")
 
-premise = ioc_entity | mutableentity | rewriteexpr | boolexpr | typeexpr
-premises = OneOrMore(premise)
+# Rewrite premise
+rewriteexpr = expr("value") + REWRITES_TO + expr("rewrites_to")
 
-transition = Group(premises("premises*") + BAR + premise("rewritten"))
+premise = Group(ioc_entity | mutableentity | rewriteexpr | boolexpr | typeexpr)
+premises = OneOrMore(premise("premises*"))
 
-rule_def = transition | premise
-rule = Group(Suppress(RULE) + rule_def("rules*"))
+transition = premises + BAR + premise("rewritten")
+
+rule_def = Group(transition("transition")) | premise("premise")
+rule = Group(Suppress(RULE) + rule_def)("rules*")
 
 # Aliases
 
@@ -219,11 +215,10 @@ datatype_parser = Group(Suppress(DATATYPE) + datatypedef + aliases)("datatypes*"
 # Metavars
 
 metavar_type = IDENTIFIER + Optional(SUFFIX)
-metavar_types = delimitedList(metavar_type)
 metavar_def = Group(
-    metavar_types("types*")
+    delimitedList(metavar_type("types*"))
     + METAVARASSIGN
-    + metavar_types("definition")
+    + metavar_type("definition")
     + Optional(params)
 )
 
