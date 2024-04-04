@@ -12,6 +12,7 @@ from pyparsing import (
     Group,
     Keyword,
     Literal,
+    MatchFirst,
     OneOrMore,
     Optional,
     Or,
@@ -28,6 +29,7 @@ from pyparsing import (
     oneOf,
     opAssoc,
     restOfLine,
+    White,
 )
 
 ParserElement.enablePackrat(None)
@@ -79,31 +81,37 @@ EQUALITY = EQUALS | NOTEQUALS
 COLON = Suppress(":")
 COMMA = Suppress(",")
 SEMICOLON = Suppress(";")
+EMPTY = Combine(Group(Suppress("(") + Optional(White()) + Suppress(")")))
+EMPTYMAP = Combine(Group(Suppress("{") + Optional(White()) + Suppress("}")))
+EMPTYLIST = Combine(Group(Suppress("[") + Optional(White()) + Suppress("]")))
 
 # Define forward expression for recursion
 expr = Forward()
 
 param = Group(expr("value") + Optional(COLON + expr("type")))
 
-params = encapsulate(delimitedList(param("params*")), "(", ")")
+params = EMPTY("params") | encapsulate(delimitedList(param("params*")), "(", ")")
 
 fun_call = Forward()
 fun_call <<= Group(
-    FUNIDENTIFIER("fun") + (params | fun_call | IDENTIFIER),
+    FUNIDENTIFIER("fun") + (EMPTY | params | fun_call | IDENTIFIER),
 )
 
 mapexpr = expr("value") + MAPSTO + expr("mapsto")
 
-mapping = encapsulate(mapexpr | delimitedList(param), "{", "}")
+mapping = EMPTYMAP | encapsulate(mapexpr | delimitedList(param), "{", "}")
 
-listexpr = encapsulate(delimitedList(param("indices*")), "[", "]")
+listexpr = EMPTYLIST | encapsulate(delimitedList(param("indices*")), "[", "]")
 
 listindex = Group(IDENTIFIER("identifier") + listexpr)
 
 nested = encapsulate(expr, "(", ")")
 
-operands = Or(
+operands = MatchFirst(
     [
+        EMPTY,
+        EMPTYMAP,
+        EMPTYLIST,
         listindex,
         listexpr,
         mapping,
@@ -164,21 +172,23 @@ premises = OneOrMore(premise("premises*"))
 
 transition = premises + BAR + premise("rewritten")
 
-rule_def = Group(transition("transition")) | premise("premise")
-rule = Group(Suppress(RULE) + rule_def)("rules*")
+rule_def = transition | premise("premise")
+rule_parser = Group(Suppress(RULE) + rule_def)("rules*")
+rules = ZeroOrMore(rule_parser)
 
 # Aliases
 
-alias = Group(
+alias_parser = Group(
     Suppress(ALIAS)
     + Group(IDENTIFIER("alias") + Suppress("=") + IDENTIFIER("original"))("aliases*")
 )
-aliases = ZeroOrMore(alias)
+aliases = ZeroOrMore(alias_parser)
 
 # Funcons
 
-funcon_def = Group(
-    IDENTIFIER("name")
+funcon_parser = Group(
+    Suppress(FUNCON)
+    + IDENTIFIER("name")
     + Optional(params)
     + COLON
     + expr("returns")
@@ -186,9 +196,7 @@ funcon_def = Group(
         REWRITES_TO + expr("rewrites_to"),
     )
 )("definition")
-funcon_parser = Group(
-    Suppress(FUNCON) + funcon_def + ZeroOrMore(alias) + ZeroOrMore(rule)
-)("funcons*")
+funcon_parser = Group(funcon_parser + aliases + rules)("funcons*")
 
 # Entities
 
@@ -238,6 +246,8 @@ parsers = {
     "Datatype": datatype_parser,
     "Funcon": funcon_parser,
     "Assert": assert_parser,
+    "Rule": rule_parser,
+    "Alias": alias_parser,
 }
 
 indexline = BASEKEYWORD + IDENTIFIER + Optional(ALIAS + IDENTIFIER)
@@ -262,7 +272,7 @@ file_parser = ZeroOrMore(
 ).ignore(remove)
 
 componentparser = ZeroOrMore(
-    Combine(BASEKEYWORD + ... + Suppress(FollowedBy(BASEKEYWORD | StringEnd())))
+    Combine(KEYWORD + ... + Suppress(FollowedBy(KEYWORD | StringEnd())))
 )
 
 
@@ -277,16 +287,18 @@ def clean_text(string):
 
 def exception_handler(func):
     def wrapper(*args, **kwargs):
+        sep = "~" * 70
         try:
             result = func(*args, **kwargs)
             return result
         except ParseException as e:
             e: ParseException
-            sep = "~" * 70
             errstr = f"\n{sep}\n{e.args[0]}\n{sep}\n{ParseException.explain(e)}"
             raise ParseException(errstr) from None
         except RecursionError as e:
-            raise ParseException("Recursionerror :(") from None
+            raise ParseException(
+                f"\n{sep}\nRecursion error in component:\n{args[1]}"
+            ) from None
 
     return wrapper
 
@@ -294,6 +306,7 @@ def exception_handler(func):
 @exception_handler
 def parse_str(parser, str, print_res=False):
     res = parser.parseString(str, parseAll=True)
+    res.asDict()
     if print_res:
         pprint(res.asDict())
     return res
