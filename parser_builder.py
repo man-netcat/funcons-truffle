@@ -15,11 +15,11 @@ from pyparsing import (
     MatchFirst,
     OneOrMore,
     Optional,
-    Or,
     ParseException,
     ParserElement,
     StringEnd,
     Suppress,
+    White,
     Word,
     ZeroOrMore,
     alphanums,
@@ -29,17 +29,16 @@ from pyparsing import (
     oneOf,
     opAssoc,
     restOfLine,
-    White,
 )
 
 ParserElement.enablePackrat(None)
 
 
-def encapsulate(expr, left, right):
+def encapsulate(expr, left="(", right=")"):
     return Suppress(left) + Optional(expr) + Suppress(right)
 
 
-BAR = Suppress(Literal("---") + OneOrMore("-")).setName("---")
+BAR = Suppress(Combine(Literal("---") + OneOrMore("-"))).setName("---")
 ASSERT = Keyword("Assert")
 TYPE = Keyword("Type") | Keyword("Built-in Type")
 DATATYPE = Keyword("Built-in Datatype") | Keyword("Datatype")
@@ -81,16 +80,16 @@ EQUALITY = EQUALS | NOTEQUALS
 COLON = Suppress(":")
 COMMA = Suppress(",")
 SEMICOLON = Suppress(";")
-EMPTY = Combine(Group(Suppress("(") + Optional(White()) + Suppress(")")))
-EMPTYMAP = Combine(Group(Suppress("{") + Optional(White()) + Suppress("}")))
-EMPTYLIST = Combine(Group(Suppress("[") + Optional(White()) + Suppress("]")))
+EMPTY = Combine(Group(encapsulate(White())))
+EMPTYMAP = Combine(Group(encapsulate(White(), "{", "}")))
+EMPTYLIST = Combine(Group(encapsulate(White(), "[", "]")))
 
 # Define forward expression for recursion
 expr = Forward()
 
 param = Group(expr("value") + Optional(COLON + expr("type")))
 
-params = EMPTY("params") | encapsulate(delimitedList(param("params*")), "(", ")")
+params = EMPTY("params") | encapsulate(delimitedList(param("params*")))
 
 fun_call = Forward()
 fun_call <<= Group(
@@ -105,7 +104,7 @@ listexpr = EMPTYLIST | encapsulate(delimitedList(param("indices*")), "[", "]")
 
 listindex = Group(IDENTIFIER("identifier") + listexpr)
 
-nested = encapsulate(expr, "(", ")")
+nested = encapsulate(expr)
 
 operands = MatchFirst(
     [
@@ -306,7 +305,6 @@ def exception_handler(func):
 @exception_handler
 def parse_str(parser, str, print_res=False):
     res = parser.parseString(str, parseAll=True)
-    res.asDict()
     if print_res:
         pprint(res.asDict())
     return res

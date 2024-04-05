@@ -20,7 +20,8 @@ cbs_files = glob.glob(pattern, recursive=True)
 
 def generate_test_function(parser, case):
     def test_function(self):
-        parse_str(parser, case)
+        res = parse_str(parser, case)
+        res.asDict()
 
     return test_function
 
