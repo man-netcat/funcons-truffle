@@ -2,7 +2,7 @@ import argparse
 import glob
 import os
 
-from parser_builder import parse_file
+from parser_builder import parse_file, cbs_file_parser
 
 
 def main():
@@ -42,10 +42,12 @@ def main():
         cbs_files = glob.glob(pattern, recursive=True)
         for path in cbs_files:
             print(path)
-            parse_file(path, dump_json=args.json, print_res=args.print)
+            parse_file(cbs_file_parser, path, dump_json=args.json, print_res=args.print)
     elif args.file:
         print(args.file)
-        parse_file(args.file, dump_json=args.json, print_res=args.print)
+        parse_file(
+            cbs_file_parser, args.file, dump_json=args.json, print_res=args.print
+        )
     else:
         raise ValueError("Specify either -d/--directory or -f/--file.")
 

@@ -62,7 +62,11 @@ IDENTIFIER = Combine(
 FUNIDENTIFIER = Combine(
     ~(KEYWORD | BAR) + Word(ascii_lowercase + "-", asKeyword=True)
 ).setName("funidentifier")
-NUMBER = Combine(Optional("-") + Word(nums)).setName("number")
+NUMBER = (
+    Combine(Optional("-") + Word(nums))
+    .setName("number")
+    .setParseAction(lambda toks: int(toks[0]))
+)
 
 POLARITY = oneOf("! ?").setName("polarity")
 SUFFIX = oneOf("* + ? ^N").setName("suffix")
@@ -80,20 +84,26 @@ EQUALITY = EQUALS | NOTEQUALS
 COLON = Suppress(":")
 COMMA = Suppress(",")
 SEMICOLON = Suppress(";")
-EMPTY = Combine(Group(encapsulate(White())))
-EMPTYMAP = Combine(Group(encapsulate(White(), "{", "}")))
-EMPTYLIST = Combine(Group(encapsulate(White(), "[", "]")))
+EMPTY = Combine(
+    Group(encapsulate(White())),
+).setParseAction(lambda toks: "empty")
+EMPTYMAP = Combine(
+    Group(encapsulate(White(), "{", "}")),
+).setParseAction(lambda toks: "empty_map")
+EMPTYLIST = Combine(
+    Group(encapsulate(White(), "[", "]")),
+).setParseAction(lambda toks: "empty_list")
 
 # Define forward expression for recursion
 expr = Forward()
 
 param = Group(expr("value") + Optional(COLON + expr("type")))
 
-params = EMPTY("params") | encapsulate(delimitedList(param("params*")))
+params = encapsulate(delimitedList(param("params*")))
 
 fun_call = Forward()
 fun_call <<= Group(
-    FUNIDENTIFIER("fun") + (EMPTY | params | fun_call | IDENTIFIER),
+    FUNIDENTIFIER("fun") + (EMPTY("params") | params | fun_call | IDENTIFIER),
 )
 
 mapexpr = expr("value") + MAPSTO + expr("mapsto")
@@ -237,18 +247,6 @@ metavar_parser = Suppress(METAVARIABLES) + metavar_defs
 assert_def = expr("expr") + Optional(mapping) + Suppress(EQUALS) + expr("equals")
 assert_parser = Group(Suppress(ASSERT) + assert_def)("assertions*")
 
-
-parsers = {
-    "Entity": entity_parser,
-    "Meta-variables": metavar_parser,
-    "Type": type_parser,
-    "Datatype": datatype_parser,
-    "Funcon": funcon_parser,
-    "Assert": assert_parser,
-    "Rule": rule_parser,
-    "Alias": alias_parser,
-}
-
 indexline = BASEKEYWORD + IDENTIFIER + Optional(ALIAS + IDENTIFIER)
 
 indexlines = OneOrMore(indexline)
@@ -258,10 +256,11 @@ index = Suppress("[" + indexlines + "]")
 multiline_comment = Suppress(Literal("/*") + ... + Literal("*/"))
 
 header = Suppress(OneOrMore("#") + restOfLine)
+slashcomment = Suppress(Literal("//") + restOfLine)
 
-remove = multiline_comment | index | header
+remove = multiline_comment | index | header | slashcomment
 
-file_parser = ZeroOrMore(
+cbs_file_parser = ZeroOrMore(
     entity_parser
     | metavar_parser
     | type_parser
@@ -272,6 +271,23 @@ file_parser = ZeroOrMore(
 
 componentparser = ZeroOrMore(
     Combine(KEYWORD + ... + Suppress(FollowedBy(KEYWORD | StringEnd())))
+)
+
+
+# .config file parser
+def config_component(name):
+    return Keyword(name) + COLON + expr(name) + SEMICOLON
+
+
+config_file_parser = (
+    Keyword("general")
+    + encapsulate(config_component("funcon-term"), "{", "}")
+    + Keyword("tests")
+    + encapsulate(
+        config_component("result-term") + config_component("standard-out"),
+        "{",
+        "}",
+    )
 )
 
 
@@ -318,7 +334,8 @@ def parse_file_components(path) -> dict:
         cleaned = clean_text(text)
         try:
             strings = componentparser.parseString(cleaned, parseAll=True)
-        except:
+        except Exception as e:
+            print(e)
             print("componentparser broken?")
             exit()
     for component in strings:
@@ -331,17 +348,34 @@ def parse_file_components(path) -> dict:
 
 
 @exception_handler
-def parse_file(path, dump_json=False, print_res=False):
+def parse_file(parser, path, dump_json=False, print_res=False):
     with open(path, "r") as f:
         text = f.read()
     cleaned = clean_text(text)
-    res = file_parser.parseString(cleaned, parseAll=True)
-    data = res.asDict()
+    res = parser.parseString(cleaned, parseAll=True)
     if print_res:
+        data = res.asDict()
         pprint(data)
     if dump_json:
+        data = res.asDict()
         filename = Path(path).stem
         json_path = f"out/{filename}.json"
         with open(json_path, "w") as f:
             json.dump(data, f)
             print(f"Exported to {json_path}")
+    return res
+
+
+def get_parser(keyword):
+    parsers = {
+        "Entity": entity_parser,
+        "Meta-variables": metavar_parser,
+        "Type": type_parser,
+        "Datatype": datatype_parser,
+        "Funcon": funcon_parser,
+        "Assert": assert_parser,
+        "Rule": rule_parser,
+        "Alias": alias_parser,
+    }
+
+    return parsers[keyword]
