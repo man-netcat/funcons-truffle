@@ -34,6 +34,16 @@ from pyparsing import (
 ParserElement.enablePackrat(None)
 
 
+# Adds custom values to a pyparsing result object
+def add_result_values(parse_result, values):
+    def parseAction(toks, values: dict):
+        for key, value in values.items():
+            toks[key] = value
+        return toks
+
+    return parse_result.setParseAction(lambda toks: parseAction(toks, values))
+
+
 def encapsulate(expr, left="(", right=")"):
     return Suppress(left) + Optional(expr) + Suppress(right)
 
@@ -176,29 +186,35 @@ boolexpr = expr("value") + ((EQUALS + expr("equals")) | (NOTEQUALS + expr("noteq
 rewriteexpr = expr("value") + REWRITES_TO + expr("rewrites_to")
 
 
-def premiseType(toks, name):
-    toks.premise_type = name
-    return toks
-
-
 premise = MatchFirst(
     [
-        stepexpr.setParseAction(lambda toks: premiseType(toks, "computation_expr")),
-        mutableexpr.setParseAction(lambda toks: premiseType(toks, "mutable_expr")),
-        rewriteexpr.setParseAction(lambda toks: premiseType(toks, "rewrite_expr")),
-        boolexpr.setParseAction(lambda toks: premiseType(toks, "bool_expr")),
-        typeexpr.setParseAction(lambda toks: premiseType(toks, "type_expr")),
+        add_result_values(parser, {"premise_type": value})
+        for value, parser in zip(
+            [
+                "computation_expr",
+                "mutable_expr",
+                "rewrite_expr",
+                "bool_expr",
+                "type_expr",
+            ],
+            [
+                stepexpr,
+                mutableexpr,
+                rewriteexpr,
+                boolexpr,
+                typeexpr,
+            ],
+        )
     ]
 )
-transition = OneOrMore(Group(premise)("premises*")) + BAR + Group(premise)("conclusion")
 
+transition = OneOrMore(Group(premise)("premises*")) + BAR + Group(premise)("conclusion")
 rule_def = MatchFirst(
     [
-        transition.setParseAction(lambda toks: premiseType(toks, "transformation")),
-        premise.setParseAction(lambda toks: premiseType(toks, "simple_rewrite")),
+        add_result_values(transition, {"rule_type": "transformation"}),
+        add_result_values(premise, {"rule_type": "simple_rewrite"}),
     ]
 )
-
 rule_parser = Group(Suppress(RULE) + rule_def)
 rules = ZeroOrMore(rule_parser("rules*"))
 
@@ -382,6 +398,10 @@ def parse_file(parser, path, dump_json=False, print_res=False):
             json.dump(data, f)
             print(f"Exported to {json_path}")
     return res
+
+
+def parse_cbs_file(path, dump_json=False, print_res=False):
+    return parse_file(cbs_file_parser, path, dump_json, print_res)
 
 
 def get_parser(keyword):
