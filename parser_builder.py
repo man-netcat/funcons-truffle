@@ -143,25 +143,24 @@ expr <<= infixNotation(
 
 # Rules
 
-# Input, Output and Control
-ioc = Group(IDENTIFIER("name") + Optional(POLARITY("polarity")) + params)
+# Actions (Input, Output and Control)
+action = Group(IDENTIFIER("name") + Optional(POLARITY("polarity")) + params)
 
-computation = Group(
-    encapsulate(delimitedList(ioc("ioc*")), "--", "->")
+step = Group(
+    encapsulate(delimitedList(action("actions*")), "--", "->")
     + Optional(NUMBER("sequence_number"))
 )
 
-mutablentitysig = encapsulate(expr("source") + COMMA + expr("target"), "<", ">")
-mutableentity = mutablentitysig("before") + computation + mutablentitysig("after")
+mutablesig = encapsulate(expr("source") + COMMA + expr("target"), "<", ">")
+mutableexpr = mutablesig("premise") + step + mutablesig("conclusion")
 
 
-# Input/Output/Control entities (with optional context)
-context = expr + CONTEXTUALENTITY
-ioc_entity = (
-    Optional(context("context"))
-    + expr("before")
-    + delimitedList(computation("computations*"), ";")
-    + expr("after")
+# Computation steps
+stepexpr = (
+    Optional(expr("context") + CONTEXTUALENTITY)
+    + expr("premise")
+    + delimitedList(step("actions*"), ";")
+    + expr("conclusion")
 )
 
 
@@ -176,14 +175,32 @@ boolexpr = expr("value") + ((EQUALS + expr("equals")) | (NOTEQUALS + expr("noteq
 # Rewrite premise
 rewriteexpr = expr("value") + REWRITES_TO + expr("rewrites_to")
 
-premise = Group(ioc_entity | mutableentity | rewriteexpr | boolexpr | typeexpr)
-premises = OneOrMore(premise("premises*"))
 
-transition = premises + BAR + premise("rewritten")
+def premiseType(toks, name):
+    toks.premise_type = name
+    return toks
 
-rule_def = transition | premise("premise")
-rule_parser = Group(Suppress(RULE) + rule_def)("rules*")
-rules = ZeroOrMore(rule_parser)
+
+premise = MatchFirst(
+    [
+        stepexpr.setParseAction(lambda toks: premiseType(toks, "computation_expr")),
+        mutableexpr.setParseAction(lambda toks: premiseType(toks, "mutable_expr")),
+        rewriteexpr.setParseAction(lambda toks: premiseType(toks, "rewrite_expr")),
+        boolexpr.setParseAction(lambda toks: premiseType(toks, "bool_expr")),
+        typeexpr.setParseAction(lambda toks: premiseType(toks, "type_expr")),
+    ]
+)
+transition = OneOrMore(Group(premise)("premises*")) + BAR + Group(premise)("conclusion")
+
+rule_def = MatchFirst(
+    [
+        transition.setParseAction(lambda toks: premiseType(toks, "transformation")),
+        premise.setParseAction(lambda toks: premiseType(toks, "simple_rewrite")),
+    ]
+)
+
+rule_parser = Group(Suppress(RULE) + rule_def)
+rules = ZeroOrMore(rule_parser("rules*"))
 
 # Aliases
 
@@ -209,8 +226,9 @@ funcon_parser = Group(funcon_parser + aliases + rules)("funcons*")
 
 # Entities
 
-entitydef = mutableentity | ioc_entity
-entity_parser = Group(Suppress(ENTITY) + entitydef + aliases)("entities*")
+entity_parser = Group(
+    Suppress(ENTITY) + (mutableexpr | stepexpr) + aliases,
+)("entities*")
 
 # Types
 
