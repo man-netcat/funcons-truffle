@@ -41,7 +41,8 @@ def add_result_values(parse_result, values):
             toks[key] = value
         return toks
 
-    return parse_result.setParseAction(lambda toks: parseAction(toks, values))
+    # return parse_result.setParseAction(lambda toks: parseAction(toks, values))
+    return parse_result
 
 
 def encapsulate(expr, left="(", right=")"):
@@ -94,15 +95,17 @@ EQUALITY = EQUALS | NOTEQUALS
 COLON = Suppress(":")
 COMMA = Suppress(",")
 SEMICOLON = Suppress(";")
+
+returnempty = lambda toks: [[]]
 EMPTY = Combine(
     Group(encapsulate(White())),
-).setParseAction(lambda toks: "empty")
+).setParseAction(returnempty)
 EMPTYMAP = Combine(
     Group(encapsulate(White(), "{", "}")),
-).setParseAction(lambda toks: "empty_map")
+).setParseAction(returnempty)
 EMPTYLIST = Combine(
     Group(encapsulate(White(), "[", "]")),
-).setParseAction(lambda toks: "empty_list")
+).setParseAction(returnempty)
 
 # Define forward expression for recursion
 expr = Forward()
@@ -162,15 +165,15 @@ step = Group(
 )
 
 mutablesig = encapsulate(expr("source") + COMMA + expr("target"), "<", ">")
-mutableexpr = mutablesig("premise") + step + mutablesig("conclusion")
+mutableexpr = mutablesig("expr") + step + mutablesig("rewrites_to")
 
 
 # Computation steps
 stepexpr = (
     Optional(expr("context") + CONTEXTUALENTITY)
-    + expr("premise")
+    + expr("expr")
     + delimitedList(step("actions*"), ";")
-    + expr("conclusion")
+    + expr("rewrites_to")
 )
 
 
@@ -183,7 +186,7 @@ boolexpr = expr("value") + ((EQUALS + expr("equals")) | (NOTEQUALS + expr("noteq
 
 
 # Rewrite premise
-rewriteexpr = expr("value") + REWRITES_TO + expr("rewrites_to")
+rewriteexpr = expr("term") + REWRITES_TO + expr("rewrites_to")
 
 
 premise = MatchFirst(
@@ -221,10 +224,9 @@ rules = ZeroOrMore(rule_parser("rules*"))
 # Aliases
 
 alias_parser = Group(
-    Suppress(ALIAS)
-    + Group(IDENTIFIER("alias") + Suppress("=") + IDENTIFIER("original"))("aliases*")
+    Suppress(ALIAS) + IDENTIFIER("alias_id") + Suppress("=") + IDENTIFIER("orig_id")
 )
-aliases = ZeroOrMore(alias_parser)
+aliases = ZeroOrMore(alias_parser("aliases*"))
 
 # Funcons
 
