@@ -10,56 +10,62 @@ def make_body(str):
     return "{\n" + "\n".join(["    " + line for line in str.splitlines()]) + "\n}"
 
 
+def class_signature(name, params):
+    return f"class {node_name(name)}({params}) : Node()"
+
+
+def make_param_objs(param_data):
+    return [Param(param, i) for i, param in enumerate(param_data)]
+
+
+def make_slice(array, start_idx):
+    return f"*{array}.sliceArray({start_idx}..{array}.size)"
+
+
 class Datatype:
     def __init__(self, data) -> None:
         self.name = data["name"]
         self.def_ = data["definition"]
 
     @property
-    def signature(self):
-        return f"class {node_name(self.name)} : Node"
-
-    @property
-    def body(self):
-        return make_body(f"override fun execute(): {self.name} = {self.def_}")
-
-    @property
     def code(self):
-        return "\n".join([self.signature, self.body])
+        return "\n".join(
+            [
+                class_signature(self.name, "private val value: String"),
+                make_body(f"fun execute(frame: VirtualFrame): String = value"),
+            ]
+        )
 
 
 class Rule:
     def __init__(self, data) -> None:
         self.term = data["term"]
-        self.fun_node = node_name(self.term["fun"])
-        self.fun_params = self.term["params"]
+        self.term_node = node_name(self.term["fun"])
+        self.term_params = make_param_objs(self.term["params"])
         self.rewrites_to = data["rewrites_to"]
 
 
-class ParamType(Enum):
-    ARG = 1
-    VARARG = 2
-
-
 class Param:
-    def __init__(self, data) -> None:
+    def __init__(self, data, i) -> None:
         self.data = data
         self.value = data["value"]
-        self.type = data["type"]
+        self.type = data["type"] if "type" in data else None
+        self.param_idx = i
+        self.param_value_str = f"p{i}"
+        self.value_str = f"this.p{i}"
 
     def __repr__(self) -> str:
         return str(self.data)
 
     def code(self, i):
-        self.value_str = f"p{i}"
 
         match self.type:
             case [type, "*"]:
-                self.param_str = f"vararg {self.value_str}: {node_name(type)}"
-                self.param_type = ParamType.VARARG
+                self.param_str = f"@Child private vararg val {self.param_value_str}: {node_name(type)}"
             case type:
-                self.param_str = f"{self.value_str}: {node_name(type)}"
-                self.param_type = ParamType.ARG
+                self.param_str = (
+                    f"@Child private val {self.param_value_str}: {node_name(type)}"
+                )
         return self.param_str
 
 
@@ -67,7 +73,7 @@ class Funcon:
     def __init__(self, data) -> None:
         self.def_ = data["definition"]
         self.name = self.def_["name"]
-        self.params = [Param(param) for param in self.def_["params"]]
+        self.params = make_param_objs(self.def_["params"])
         self.rules = [Rule(rule) for rule in data["rules"]]
         self.returns = self.def_["returns"]
 
@@ -77,50 +83,53 @@ class Funcon:
 
     @property
     def signature(self):
-        return f"class {node_name(self.name)}({self.param_str}) : Node"
-
-    def rw(self, rule: Rule):
-        term_params = rule.term["params"]
-        if len(self.params) == len(term_params):
-            condition = " && ".join(
-                [
-                    f"{fun_param.value_str} == {term_param['value']}"
-                    for fun_param, term_param in zip(self.params, term_params)
-                ]
-            )
-        elif len(term_params) == 0:
-            condition = "p0.isEmpty()"
-        else:
-            conditions = []
-            for i, param in enumerate(term_params):
-                match param["value"]:
-                    case [_, "*"]:
-                        pass
-                    case value:
-                        conditions.append(f"p[{i}] == {value}")
-            condition = " && ".join(conditions)
-
-        match rule.rewrites_to:
-            case {"fun": rw_call, "params": rw_params}:
-                rw_node = node_name(rw_call)
-                returns = f"return {rw_node}({rw_params})"
-            case literal:
-                returns = f"return {literal}"
-
-        return "\n".join([f"if ({condition})", make_body(returns)])
+        return class_signature(self.name, self.param_str)
 
     @property
     def body(self):
         match self.returns:
             case ["=>", returns] | returns:
-                self.return_str = node_name(returns)
+                self.return_str = returns
 
-        rewrite_results = "\n".join([self.rw(rule) for rule in self.rules])
+        lines = []
+        for rule in self.rules:
+            term_params = rule.term_params
 
-        body = make_body(
-            f"override fun execute(): {self.return_str}()\n{make_body(rewrite_results)}"
-        )
-        return body
+            if len(term_params) == len(self.params):
+                condition = " && ".join(
+                    [
+                        f'{fun_param.value_str}.execute(frame) == "{term_param.value}"'
+                        for fun_param, term_param in zip(self.params, term_params)
+                    ]
+                )
+            elif len(term_params) == 0:
+                condition = f"{self.params[0].value_str}.isEmpty()"
+            elif len(term_params) > len(self.params):
+                conditions = []
+                for i, param in enumerate(term_params):
+                    match param.value:
+                        case [_, "*"]:
+                            varargs_idx = i
+                            break
+                        case value:
+                            conditions.append(
+                                f'{self.params[0].value_str}[{i}].execute(frame) == "{value}"'
+                            )
+                condition = " && ".join(conditions)
+
+            match rule.rewrites_to:
+                case {"fun": rw_call, "params": rw_params}:
+                    rw_node = node_name(rw_call)
+                    return_node_args = make_slice(self.params[0].value_str, varargs_idx)
+                    returns = f"{rw_node}({return_node_args})"
+                case literal:
+                    returns = f'{node_name(self.return_str)}("{literal}")'
+            lines.append(f"{condition} -> {returns}")
+        lines.append("else -> throw IllegalArgumentException()")
+        fun_body = make_body("\n".join(lines))
+        body = f"@Override\nfun execute(frame: VirtualFrame): Any = when {fun_body}"
+
+        return make_body(body)
 
     @property
     def code(self):
@@ -130,29 +139,45 @@ class Funcon:
 class CodeGen:
     def __init__(self, path) -> None:
         self.ast = parse_cbs_file(path).asDict()
-        self.datatypes = self.ast["datatypes"]
+        self.datatypes = self.ast["datatypes"] if "datatypes" in self.ast else ""
         self.funcons = self.ast["funcons"]
 
     @property
     def generate(self):
-        objs = ["import com.oracle.truffle.api.nodes.Node"]
+        truffle_api_imports = (
+            "\n".join(
+                [
+                    f"import com.oracle.truffle.api.{i}"
+                    for i in [
+                        "frame.VirtualFrame",
+                        "nodes.Node",
+                        "nodes.Node.Child",
+                        "dsl.Specialization",
+                    ]
+                ]
+            )
+            + "\n\n"
+        )
+
+        classes = []
 
         dtype_strs = []
         for datatype in self.datatypes:
             dtype_cls = Datatype(datatype)
             dtype_strs.append(dtype_cls.code)
-        objs.extend(dtype_strs)
+        classes.extend(dtype_strs)
 
         funcon_strs = []
         for funcon in self.funcons:
             funcon_cls = Funcon(funcon)
             funcon_strs.append(funcon_cls.code)
-        objs.extend(funcon_strs)
+        classes.extend(funcon_strs)
 
-        return "\n\n".join(objs)
+        return truffle_api_imports + "\n\n".join(classes)
 
 
 if __name__ == "__main__":
+    # path = "/home/rick/workspace/thesis/CBS-beta/Funcons-beta/Values/Primitive/Integers/Integers.cbs"
     path = "/home/rick/workspace/thesis/CBS-beta/Funcons-beta/Values/Primitive/Booleans/Booleans.cbs"
     # path = "/home/rick/workspace/thesis/CBS-beta/Funcons-beta/Computations/Normal/Flowing/Flowing.cbs"
 
