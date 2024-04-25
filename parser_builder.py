@@ -160,8 +160,9 @@ expr <<= infixNotation(
 # Actions (Input, Output and Control)
 action = Group(IDENTIFIER("name") + Optional(POLARITY("polarity")) + params)
 
-step = STEP | encapsulate(delimitedList(action("actions*")), "--", "->") + Optional(
-    NUMBER("sequence_number")
+step = STEP | Group(
+    encapsulate(delimitedList(action("actions*")), "--", "->")
+    + Optional(NUMBER("sequence_number"))
 )
 mutablesig = encapsulate(expr("source") + COMMA + expr("target"), "<", ">")
 mutableexpr = mutablesig("term") + step + mutablesig("rewrites_to")
