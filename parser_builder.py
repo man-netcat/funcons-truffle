@@ -85,6 +85,7 @@ PREFIX = oneOf("~ =>").setName("prefix")
 INFIX = oneOf("=> | &").setName("infix")
 
 REWRITES_TO = Suppress("~>")
+STEP = Suppress("--->")
 CONTEXTUALENTITY = Suppress("|-")
 MAPSTO = Suppress("|->")
 METAVARASSIGN = Suppress("<:")
@@ -159,20 +160,18 @@ expr <<= infixNotation(
 # Actions (Input, Output and Control)
 action = Group(IDENTIFIER("name") + Optional(POLARITY("polarity")) + params)
 
-step = Group(
-    encapsulate(delimitedList(action("actions*")), "--", "->")
-    + Optional(NUMBER("sequence_number"))
+step = STEP | encapsulate(delimitedList(action("actions*")), "--", "->") + Optional(
+    NUMBER("sequence_number")
 )
-
 mutablesig = encapsulate(expr("source") + COMMA + expr("target"), "<", ">")
-mutableexpr = mutablesig("expr") + step + mutablesig("rewrites_to")
+mutableexpr = mutablesig("term") + step + mutablesig("rewrites_to")
 
 
 # Computation steps
 stepexpr = (
     Optional(expr("context") + CONTEXTUALENTITY)
-    + expr("expr")
-    + delimitedList(step("actions*"), ";")
+    + expr("term")
+    + (STEP | delimitedList(step("actions*"), ";"))
     + expr("rewrites_to")
 )
 
@@ -280,7 +279,7 @@ metavar_parser = Suppress(METAVARIABLES) + metavar_defs
 
 # Assertions
 
-assert_def = expr("expr") + Optional(mapping) + Suppress(EQUALS) + expr("equals")
+assert_def = expr("term") + Optional(mapping) + Suppress(EQUALS) + expr("equals")
 assert_parser = Group(Suppress(ASSERT) + assert_def)("assertions*")
 
 indexline = BASEKEYWORD + IDENTIFIER + Optional(ALIAS + IDENTIFIER)
