@@ -1,9 +1,11 @@
-from enum import Enum
+import argparse
+from pprint import pprint
+
 from parser_builder import parse_cbs_file
 
 
 def node_name(name):
-    return "".join(w.capitalize() for w in name.split("-")) + "Node"
+    return "".join(w.capitalize() for w in str(name).split("-")) + "Node"
 
 
 def make_body(str):
@@ -20,6 +22,18 @@ def make_param_objs(param_data):
 
 def make_slice(array, start_idx):
     return f"*{array}.sliceArray({start_idx}..{array}.size)"
+
+
+def type_str(type):
+    match type:
+        # Extract computes
+        case ["=>", inner_type] | inner_type:
+            match inner_type:
+                case [t, "*"] | [t, "+"]:  # Array type
+                    param_type_str = f"Array<{node_name(t)}>"
+                case t:  # Single type
+                    param_type_str = f"{node_name(t)}"
+    return param_type_str
 
 
 class Datatype:
@@ -39,10 +53,18 @@ class Datatype:
 
 class Rule:
     def __init__(self, data) -> None:
-        self.term = data["term"]
-        self.term_node = node_name(self.term["fun"])
-        self.term_params = make_param_objs(self.term["params"])
-        self.rewrites_to = data["rewrites_to"]
+        self.data = data
+        if "term" in data:
+            self.term = data["term"]
+            self.term_node = node_name(self.term["fun"])
+            self.term_params = make_param_objs(self.term["params"])
+            self.rewrites_to = data["rewrites_to"]
+        elif "premises" in data:
+            self.premises = data["premises"]
+            self.conclusion = data["conclusion"]
+
+    def __str__(self) -> str:
+        return str(self.data)
 
 
 class Param:
@@ -57,16 +79,16 @@ class Param:
     def __repr__(self) -> str:
         return str(self.data)
 
-    def code(self, i):
+    def make_param_str(self, param_type, vararg):
+        return f"@Child private {'vararg ' if vararg else ''}val {self.param_value_str}: {type_str(param_type)}"
 
+    @property
+    def code(self):
         match self.type:
             case [type, "*"]:
-                self.param_str = f"@Child private vararg val {self.param_value_str}: {node_name(type)}"
+                return self.make_param_str(type, True)
             case type:
-                self.param_str = (
-                    f"@Child private val {self.param_value_str}: {node_name(type)}"
-                )
-        return self.param_str
+                return self.make_param_str(type, False)
 
 
 class Funcon:
@@ -78,12 +100,19 @@ class Funcon:
         self.returns = self.def_["returns"]
 
     @property
+    def vararg(self):
+        return self.params[0].value_str
+
+    @property
     def param_str(self):
-        return ", ".join([param.code(i) for i, param in enumerate(self.params)])
+        return ", ".join([param.code for param in self.params])
 
     @property
     def signature(self):
         return class_signature(self.name, self.param_str)
+
+    def make_condition(self, param, condition):
+        return f'{param}.execute(frame) == "{condition}"'
 
     @property
     def body(self):
@@ -98,12 +127,12 @@ class Funcon:
             if len(term_params) == len(self.params):
                 condition = " && ".join(
                     [
-                        f'{fun_param.value_str}.execute(frame) == "{term_param.value}"'
+                        self.make_condition(fun_param.value_str, term_param.value)
                         for fun_param, term_param in zip(self.params, term_params)
                     ]
                 )
             elif len(term_params) == 0:
-                condition = f"{self.params[0].value_str}.isEmpty()"
+                condition = f"{self.vararg}.isEmpty()"
             elif len(term_params) > len(self.params):
                 conditions = []
                 for i, param in enumerate(term_params):
@@ -111,16 +140,22 @@ class Funcon:
                         case [_, "*"]:
                             varargs_idx = i
                             break
+                        case [_, "+"]:
+                            conditions.append(
+                                self.make_condition(f"{self.vararg}[{i}]", value)
+                            )
+                            varargs_idx = i + 1
+                            break
                         case value:
                             conditions.append(
-                                f'{self.params[0].value_str}[{i}].execute(frame) == "{value}"'
+                                self.make_condition(f"{self.vararg}[{i}]", value)
                             )
                 condition = " && ".join(conditions)
 
             match rule.rewrites_to:
                 case {"fun": rw_call, "params": rw_params}:
                     rw_node = node_name(rw_call)
-                    return_node_args = make_slice(self.params[0].value_str, varargs_idx)
+                    return_node_args = make_slice(self.vararg, varargs_idx)
                     returns = f"{rw_node}({return_node_args})"
                 case literal:
                     returns = f'{node_name(self.return_str)}("{literal}")'
@@ -144,19 +179,16 @@ class CodeGen:
 
     @property
     def generate(self):
-        truffle_api_imports = (
-            "\n".join(
-                [
-                    f"import com.oracle.truffle.api.{i}"
-                    for i in [
-                        "frame.VirtualFrame",
-                        "nodes.Node",
-                        "nodes.Node.Child",
-                        "dsl.Specialization",
-                    ]
+        truffle_api_imports = "\n".join(
+            [
+                f"import com.oracle.truffle.api.{i}"
+                for i in [
+                    "frame.VirtualFrame",
+                    "nodes.Node",
+                    "nodes.Node.Child",
+                    "dsl.Specialization",
                 ]
-            )
-            + "\n\n"
+            ]
         )
 
         classes = []
@@ -173,14 +205,16 @@ class CodeGen:
             funcon_strs.append(funcon_cls.code)
         classes.extend(funcon_strs)
 
-        return truffle_api_imports + "\n\n".join(classes)
+        allclasses = "\n\n".join(classes)
+
+        return truffle_api_imports + "\n\n" + allclasses
 
 
 if __name__ == "__main__":
-    # path = "/home/rick/workspace/thesis/CBS-beta/Funcons-beta/Values/Primitive/Integers/Integers.cbs"
-    path = "/home/rick/workspace/thesis/CBS-beta/Funcons-beta/Values/Primitive/Booleans/Booleans.cbs"
-    # path = "/home/rick/workspace/thesis/CBS-beta/Funcons-beta/Computations/Normal/Flowing/Flowing.cbs"
+    parser = argparse.ArgumentParser(description="Generate code from CBS file")
+    parser.add_argument("cbs_file", help="Path to the CBS file")
+    args = parser.parse_args()
 
-    generator = CodeGen(path)
+    generator = CodeGen(args.cbs_file)
     code = generator.generate
     print(code)
