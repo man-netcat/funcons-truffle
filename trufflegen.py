@@ -29,6 +29,14 @@ def make_arg_str(arg):
             return arg
 
 
+def is_vararg(value):
+    match value:
+        case [value, "*" | "+"]:
+            return True
+        case value:
+            return False
+
+
 def generate_function_call(data):
     match data:
         case {"fun": fun, "params": params}:
@@ -136,20 +144,20 @@ class ParamIndexer:
         if isinstance(index, slice):
             if index.start is None:
                 return f"p{self.vararg_index}"
+            elif index.stop is None:
+                return f"p{index.start}"
 
-            return f"*p{self.vararg_index}.sliceArray({index.start}..p{self.vararg_index}.size)"
+            return f"*p{index.start}.sliceArray({index.stop}..p{index.start}.size)"
 
         if -index > self.n_final_args:
             raise IndexError("Invalid final argument")
 
-        if self.vararg_index < 0 or index < self.vararg_index:
+        if self.vararg_index < 0 or (index >= 0 and index < self.vararg_index):
             return f"p{index}"
-
-        if index >= self.vararg_index:
+        elif index >= self.vararg_index:
             return f"p{self.vararg_index}[{index - self.vararg_index}]"
-
-        if index < 0:
-            return f"fp{self.n_final_args + index}"
+        elif index < 0:
+            return f"p{self.vararg_index + self.n_final_args + index + 1}"
 
 
 class Funcon:
@@ -193,22 +201,24 @@ class Funcon:
     def make_condition(self, param, condition):
         return f'{param}.execute(frame) == "{condition}"'
 
-    def get_kt_param(self, arg, rule: Rule, vararg=False):
+    def get_kt_param(self, arg, argindex, rule: Rule):
         if arg is None:
             return self.param_indexer[:]
 
+        vararg = is_vararg(arg)
         arg_str = make_arg_str(arg)
         match arg_str:
             case {"fun": fun, "params": params}:
-                kt_params = []
-                for param in params:
-                    match param["value"]:
-                        case [value, "*" | "+"]:
-                            vararg = True
-                        case value:
-                            vararg = False
-                    kt_params.append(self.get_kt_param(param["value"], rule, vararg))
-                param_str = ", ".join(kt_params)
+                param_str = ", ".join(
+                    [
+                        self.get_kt_param(
+                            param["value"],
+                            argindex,
+                            rule,
+                        )
+                        for argindex, param in enumerate(params)
+                    ]
+                )
                 return f"{node_name(fun)}({param_str})"
             case value:
                 param = rule.param_map.get(value)
@@ -216,12 +226,14 @@ class Funcon:
                 if not param:
                     return None
 
-                i = rule.term_params.index(param)
+                rewriteindex = rule.term_params.index(param)
 
-                if vararg:
-                    return self.param_indexer[i:]
+                if rewriteindex == 0:
+                    return self.param_indexer[argindex:]
+                elif vararg:
+                    return self.param_indexer[argindex:rewriteindex]
                 else:
-                    return self.param_indexer[i]
+                    return self.param_indexer[rewriteindex]
 
     @property
     def body(self):
@@ -236,22 +248,24 @@ class Funcon:
             except:
                 continue
             if len(term_params) == 0:
-                kt_param = self.get_kt_param(None, rule)
+                kt_param = self.get_kt_param(None, 0, rule)
                 kt_condition = f"{kt_param}.isEmpty()"
             else:
-                conditions = []
-                for term_param in term_params:
-                    match term_param["value"]:
-                        case [value, "*" | "+"]:
-                            varargs = True
-                        case value:
-                            varargs = False
-                    kt_param = self.get_kt_param(value, rule, varargs)
-                    ic(kt_param)
-                    if kt_param:
-                        conditions.append(self.make_condition(kt_param, value))
-                kt_condition = " && ".join(conditions)
-            kt_returns = self.get_kt_param(rule.rewrites_to, rule)
+                kt_condition = " && ".join(
+                    [
+                        self.make_condition(
+                            self.get_kt_param(
+                                term_param["value"],
+                                term_index,
+                                rule,
+                            ),
+                            term_param["value"],
+                        )
+                        for term_index, term_param in enumerate(term_params)
+                        if not is_vararg(term_param["value"])
+                    ]
+                )
+            kt_returns = self.get_kt_param(rule.rewrites_to, 0, rule)
             if kt_returns is None:
                 kt_returns = f'{node_name(self.return_str)}("{rule.rewrites_to}")'
             lines.append(f"{kt_condition} -> {kt_returns}")
