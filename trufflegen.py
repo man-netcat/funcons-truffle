@@ -6,6 +6,8 @@ from icecream.icecream import ic
 
 
 def node_name(name):
+    if name == "T":
+        return "ExprNode"
     return "".join(w.capitalize() for w in str(name).split("-")) + "Node"
 
 
@@ -210,8 +212,25 @@ class Funcon:
     def signature(self):
         return class_signature(self.name, self.param_str)
 
-    def make_condition(self, param, condition):
-        return f'{param}.execute(frame) == "{condition}"'
+    def make_condition(self, param_str, value, rule: Rule):
+        try:
+            param_index = self.get_funcon_param_index(rule, value)
+            param: Param = self.params[param_index]
+        except IndexError:
+            return "<TODO>"
+
+        if extract_computes(param.type) == "T":
+            return f"{param_str}.execute(frame) is ExprNode"
+        else:
+            return f'{param_str}.execute(frame) == "{value}"'
+
+    def get_funcon_param_index(self, rule: Rule, value):
+        param = rule.param_map.get(value)
+
+        if not param:
+            return None
+
+        return rule.term_params.index(param)
 
     def make_rule_node(self, arg, argindex, rule: Rule):
         if arg is None:
@@ -233,12 +252,7 @@ class Funcon:
                 )
                 return f"{node_name(fun)}({param_str})"
             case value:
-                param = rule.param_map.get(value)
-
-                if not param:
-                    return None
-
-                rewriteindex = rule.term_params.index(param)
+                rewriteindex = self.get_funcon_param_index(rule, value)
 
                 if rewriteindex == 0:
                     return self.param_indexer[argindex:]
@@ -268,11 +282,14 @@ class Funcon:
                                 rule,
                             ),
                             term_param["value"],
+                            rule,
                         )
                         for term_index, term_param in enumerate(term_params)
                         if not is_vararg(term_param["value"])
                     ]
                 )
+            if not kt_condition:
+                kt_condition = "<TODO>"
             kt_returns = self.make_rule_node(rule.rewrites_to, 0, rule)
             if kt_returns is None:
                 kt_returns = f'{node_name(self.return_str)}("{rule.rewrites_to}")'
@@ -298,7 +315,6 @@ class Funcon:
 
     @property
     def rewrite_body(self):
-        ic(self.definition)
         kt_return = f"return {self.make_rewrite_node(self.rewrites_to)}"
         fun_body = make_body(kt_return)
         body = f"@Override\nfun execute(frame: VirtualFrame): Any {fun_body}"
