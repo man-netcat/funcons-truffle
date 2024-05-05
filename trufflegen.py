@@ -291,17 +291,10 @@ class Funcon:
                 )
                 return f"{node_name(fun)}({param_str})"
             case value:
-                try:
-                    i = next(
-                        (
-                            i
-                            for i, param in enumerate(self.params)
-                            if param.value == value
-                        )
-                    )
-                    return self.param_indexer[i]
-                except:
-                    return f'{node_name(self.return_str)}("{value}")'
+                for i, param in enumerate(self.params):
+                    if param.value == value:
+                        return self.param_indexer[i]
+                return f'{node_name(self.return_str)}("{value}")'
 
     @property
     def rewrite_body(self):
