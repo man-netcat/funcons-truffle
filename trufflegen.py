@@ -283,22 +283,11 @@ class Funcon:
 
         return body
 
-    def make_rewrite_node(self, expr, argindex):
-        if expr is None:
-            return self.param_indexer[:]
-
-        vararg = is_vararg(expr)
-        arg_str = make_arg_str(expr)
+    def make_rewrite_node(self, expr):
         match expr:
             case {"fun": fun, "params": params}:
                 param_str = ", ".join(
-                    [
-                        self.make_rewrite_node(
-                            param["value"],
-                            argindex,
-                        )
-                        for argindex, param in enumerate(params)
-                    ]
+                    [self.make_rewrite_node(param["value"]) for param in params]
                 )
                 return f"{node_name(fun)}({param_str})"
             case value:
@@ -308,16 +297,16 @@ class Funcon:
                             i
                             for i, param in enumerate(self.params)
                             if param.value == value
-                        ),
+                        )
                     )
                     return self.param_indexer[i]
                 except:
-                    return f'"{value}"'
+                    return f'{node_name(self.return_str)}("{value}")'
 
     @property
     def rewrite_body(self):
         ic(self.definition)
-        kt_return = f"return {self.make_rewrite_node(self.rewrites_to, 0)}"
+        kt_return = f"return {self.make_rewrite_node(self.rewrites_to)}"
         fun_body = make_body(kt_return)
         body = f"@Override\nfun execute(frame: VirtualFrame): Any {fun_body}"
         return body
