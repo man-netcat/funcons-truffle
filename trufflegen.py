@@ -57,14 +57,11 @@ def generate_function_call(data):
 
 
 def type_str(type):
-    match type:
-        # Extract computes
-        case ["=>", inner_type] | inner_type:
-            match inner_type:
-                case [t, "*" | "+"]:  # Array type
-                    param_type_str = f"Array<{node_name(t)}>"
-                case t:  # Single type
-                    param_type_str = f"{node_name(t)}"
+    match extract_computes(type):
+        case [t, "*" | "+"]:  # Array type
+            param_type_str = f"Array<{node_name(t)}>"
+        case t:  # Single type
+            param_type_str = f"{node_name(t)}"
     return param_type_str
 
 
@@ -253,6 +250,9 @@ class Funcon:
                 return f"{node_name(fun)}({param_str})"
             case value:
                 rewriteindex = self.get_funcon_param_index(rule, value)
+
+                if rewriteindex is None:
+                    return None
 
                 if rewriteindex == 0:
                     return self.param_indexer[argindex:]
