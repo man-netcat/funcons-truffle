@@ -32,9 +32,9 @@ def extract_computes(str):
 def make_arg_str(arg):
     match arg:
         case [*args]:
-            return "".join(args)
+            return "".join([extract_computes(arg) for arg in args])
         case arg:
-            return arg
+            return extract_computes(arg)
 
 
 def is_vararg(value):
@@ -54,15 +54,6 @@ def generate_function_call(data):
             return generate_function_call(value)
         case literal:
             return f'"{str(literal)}"'
-
-
-def type_str(type):
-    match extract_computes(type):
-        case [t, "*" | "+"]:  # Array type
-            param_type_str = f"Array<{node_name(t)}>"
-        case t:  # Single type
-            param_type_str = f"{node_name(t)}"
-    return param_type_str
 
 
 class Datatype:
@@ -85,13 +76,9 @@ class Rule:
         self.data = data
         if "term" in data:
             self.term = data["term"]
-            self.term_node = node_name(self.term["fun"])
-            self.term_params: list[dict] = self.term["params"]
-            self.param_map = dict(
-                zip(
-                    [(make_arg_str(param["value"])) for param in self.term_params],
-                    self.term_params,
-                )
+            self.node = node_name(self.term["fun"])
+            self.params = (
+                make_param_objs(self.term["params"]) if "params" in self.term else []
             )
             self.rewrites_to = data["rewrites_to"]
         elif "premises" in data:
@@ -107,62 +94,32 @@ class Param:
         self.data = data
         self.value = data["value"]
         self.type = data["type"] if "type" in data else None
-        match self.type:
+
+        match extract_computes(self.type):
             case [type, "*" | "+"]:
                 self.param_type = type
                 self.vararg = True
             case type:
                 self.param_type = type
                 self.vararg = False
-        self.kt_type = type_str(self.param_type)
+
+        # Type can be an array-like
+        match extract_computes(self.param_type):
+            case [t, "*" | "+"]:  # Array type
+                self.kt_type = f"Array<{node_name(t)}>"
+                self.array_type = True
+            case t:  # Single type
+                self.kt_type = f"{node_name(t)}"
+                self.array_type = False
+
         self.param_idx = i
-        self.kt_param = f"p{i}"
-        self.kt_param_exec = f"this.p{i}"
 
     def __repr__(self) -> str:
         return str(self.data)
 
     @property
     def make_param_str(self):
-        return f"@Child private {'vararg ' if self.vararg else ''}val {self.kt_param}: {self.kt_type}"
-
-
-class ParamIndexer:
-    def __init__(self, vararg_index=-1, n_final_args=0) -> None:
-        self.vararg_index = vararg_index
-        self.n_final_args = n_final_args
-        self.index = 0
-
-    def __iter__(self):
-        self.index = 0
-        return self
-
-    def __next__(self):
-        try:
-            arg = self[self.index]
-            self.index += 1
-            return arg
-        except IndexError:
-            raise StopIteration
-
-    def __getitem__(self, index):
-        if isinstance(index, slice):
-            if index.start is None:
-                return f"p{self.vararg_index}"
-            elif index.stop is None:
-                return f"p{index.start}"
-
-            return f"*p{index.start}.sliceArray({index.stop}..p{index.start}.size)"
-
-        if -index > self.n_final_args:
-            raise IndexError("Invalid final argument")
-
-        if self.vararg_index < 0 or (index >= 0 and index < self.vararg_index):
-            return f"p{index}"
-        elif index >= self.vararg_index:
-            return f"p{self.vararg_index}[{index - self.vararg_index}]"
-        elif index < 0:
-            return f"p{self.vararg_index + self.n_final_args + index + 1}"
+        return f"@Child private {'vararg ' if self.vararg else ''}val p{self.param_idx}: {self.kt_type}"
 
 
 class Funcon:
@@ -170,6 +127,7 @@ class Funcon:
         self.data = data
         self.definition = self.data["definition"]
         self.name = self.definition["name"]
+
         self.params = (
             make_param_objs(self.definition["params"])
             if "params" in self.definition
@@ -184,9 +142,11 @@ class Funcon:
             (i for i, param in enumerate(self.params) if param.vararg), -1
         )
         self.n_final_args = (
-            len(self.params) - self.vararg_index if self.vararg_index != -1 else 0
+            len(self.params) - self.vararg_index - 1 if self.has_varargs else 0
         )
-        self.param_indexer = ParamIndexer(self.vararg_index, self.n_final_args)
+        self.n_regular_args = (
+            len(self.params) - self.n_final_args - (1 if self.has_varargs else 0)
+        )
 
         if "rewrites_to" in self.definition:
             self.rewrites_to = self.definition["rewrites_to"]
@@ -209,96 +169,21 @@ class Funcon:
     def signature(self):
         return class_signature(self.name, self.param_str)
 
-    def make_condition(self, param_str, value, rule: Rule):
-        try:
-            param_index = self.get_funcon_param_index(rule, value)
-            param: Param = self.params[param_index]
-        except IndexError:
-            return "<TODO>"
-
-        if extract_computes(param.type) == "T":
-            return f"{param_str}.execute(frame) is ExprNode"
-        else:
-            return f'{param_str}.execute(frame) == "{value}"'
-
-    def get_funcon_param_index(self, rule: Rule, value):
-        param = rule.param_map.get(value)
-
-        if not param:
+    def make_condition(self, kt_param, param: Param):
+        if is_vararg(param.value):
             return None
+        value = make_arg_str(param.value)
+        return f'{kt_param}.execute(frame) == "{value}"'
 
-        return rule.term_params.index(param)
+    def make_kt_param(self, index, n_params):
+        num_varargs = n_params - (self.n_regular_args + self.n_final_args)
 
-    def make_rule_node(self, arg, argindex, rule: Rule):
-        if arg is None:
-            return self.param_indexer[:]
-
-        vararg = is_vararg(arg)
-        arg_str = make_arg_str(arg)
-        match arg_str:
-            case {"fun": fun, "params": params}:
-                param_str = ", ".join(
-                    [
-                        self.make_rule_node(
-                            param["value"],
-                            argindex,
-                            rule,
-                        )
-                        for argindex, param in enumerate(params)
-                    ]
-                )
-                return f"{node_name(fun)}({param_str})"
-            case value:
-                rewriteindex = self.get_funcon_param_index(rule, value)
-
-                if rewriteindex is None:
-                    return None
-
-                if rewriteindex == 0:
-                    return self.param_indexer[argindex:]
-                elif vararg:
-                    return self.param_indexer[argindex:rewriteindex]
-                else:
-                    return self.param_indexer[rewriteindex]
-
-    @property
-    def rule_body(self):
-        lines = []
-        for rule in self.rules:
-            try:
-                term_params = rule.term_params
-            except:
-                continue
-            if len(term_params) == 0:
-                kt_param = self.make_rule_node(None, 0, rule)
-                kt_condition = f"{kt_param}.isEmpty()"
-            else:
-                kt_condition = " && ".join(
-                    [
-                        self.make_condition(
-                            self.make_rule_node(
-                                term_param["value"],
-                                term_index,
-                                rule,
-                            ),
-                            term_param["value"],
-                            rule,
-                        )
-                        for term_index, term_param in enumerate(term_params)
-                        if not is_vararg(term_param["value"])
-                    ]
-                )
-            if not kt_condition:
-                kt_condition = "<TODO>"
-            kt_returns = self.make_rule_node(rule.rewrites_to, 0, rule)
-            if kt_returns is None:
-                kt_returns = f'{node_name(self.return_str)}("{rule.rewrites_to}")'
-            lines.append(f"{kt_condition} -> {kt_returns}")
-        lines.append("else -> throw IllegalArgumentException()")
-        fun_body = make_body("\n".join(lines))
-        body = f"@Override\nfun execute(frame: VirtualFrame): Any = when {fun_body}"
-
-        return body
+        if index < self.n_regular_args:
+            return f"p{index}"
+        elif index < self.n_regular_args + num_varargs:
+            return f"p{self.n_regular_args}[{index - self.n_regular_args}]"
+        else:
+            return f"p{index - num_varargs + 1}"
 
     def make_rewrite_node(self, expr):
         match expr:
@@ -310,8 +195,62 @@ class Funcon:
             case value:
                 for i, param in enumerate(self.params):
                     if param.value == value:
-                        return self.param_indexer[i]
+                        return self.make_kt_param(i, len(self.params))
                 return f'{node_name(self.return_str)}("{value}")'
+
+    def make_rule_param(self, arg, rule: Rule):
+        arg_str = make_arg_str(arg)
+        match arg_str:
+            case {"fun": fun, "params": params}:
+                param_str = ", ".join(
+                    [self.make_rule_param(param["value"], rule) for param in params]
+                )
+                return f"{node_name(fun)}({param_str})"
+            case value:
+                for i, param in enumerate(rule.params):
+                    if param.value == value:
+                        return self.make_kt_param(i, len(rule.params))
+                return f'{node_name(self.return_str)}("{value}")'
+
+    def build_term_rewrite(self, rule: Rule):
+        conditions = []
+
+        for param in rule.params:
+            value = make_arg_str(param.value)
+            rule_param = self.make_rule_param(value, rule)
+            condition = self.make_condition(rule_param, param)
+            if condition:
+                conditions.append(condition)
+
+        kt_condition = " && ".join(conditions)
+
+        if not kt_condition:
+            kt_condition = "Unknown Condition"
+
+        kt_returns = self.make_rule_param(rule.rewrites_to, rule)
+        if kt_returns is None:
+            kt_returns = f'{node_name(self.return_str)}("{rule.rewrites_to}")'
+        return f"{kt_condition} -> {kt_returns}"
+
+    def build_step_rewrite(self, rule: Rule):
+        for premise in rule.premises:
+            pass
+        return "Step"
+
+    @property
+    def rule_body(self):
+        lines = []
+        for rule in self.rules:
+            if "term" in rule.data:
+                line = self.build_term_rewrite(rule)
+            else:
+                line = self.build_step_rewrite(rule)
+            lines.append(line)
+        lines.append("else -> throw IllegalArgumentException()")
+        fun_body = make_body("\n".join(lines))
+        body = f"@Override\nfun execute(frame: VirtualFrame): Any = when {fun_body}"
+
+        return body
 
     @property
     def rewrite_body(self):
