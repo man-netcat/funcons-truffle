@@ -80,6 +80,12 @@ class Rule:
             self.params = (
                 make_param_objs(self.term["params"]) if "params" in self.term else []
             )
+            self.param_map = dict(
+                zip(
+                    [(make_arg_str(param.value)) for param in self.params],
+                    self.params,
+                )
+            )
             self.rewrites_to = data["rewrites_to"]
         elif "premises" in data:
             self.premises = data["premises"]
@@ -170,18 +176,25 @@ class Funcon:
         return class_signature(self.name, self.param_str)
 
     def make_condition(self, kt_param, param: Param):
-        if is_vararg(param.value):
-            return None
-        value = make_arg_str(param.value)
-        return f'{kt_param}.execute(frame) == "{value}"'
+        if param is None:
+            return f"{kt_param}.isEmpty()"
+        elif is_vararg(param.value):
+            return "Unimplemented Condition"
+        else:
+            return f'{kt_param}.execute(frame) == "{make_arg_str(param.value)}"'
 
-    def make_kt_param(self, index, n_params):
+    def make_kt_param(self, index, n_params, is_vararg):
         num_varargs = n_params - (self.n_regular_args + self.n_final_args)
 
-        if index < self.n_regular_args:
+        if n_params < self.n_regular_args + self.n_final_args or index >= n_params:
+            return "error"
+        elif index < self.n_regular_args:
             return f"p{index}"
         elif index < self.n_regular_args + num_varargs:
-            return f"p{self.n_regular_args}[{index - self.n_regular_args}]"
+            if is_vararg:
+                return f"*p{self.n_regular_args}.sliceArray({index - self.n_regular_args}..p{self.n_regular_args}.size)"
+            else:
+                return f"p{self.n_regular_args}[{index - self.n_regular_args}]"
         else:
             return f"p{index - num_varargs + 1}"
 
@@ -195,7 +208,7 @@ class Funcon:
             case value:
                 for i, param in enumerate(self.params):
                     if param.value == value:
-                        return self.make_kt_param(i, len(self.params))
+                        return self.make_kt_param(i, len(self.params), is_vararg(value))
                 return f'{node_name(self.return_str)}("{value}")'
 
     def make_rule_param(self, arg, rule: Rule):
@@ -207,25 +220,32 @@ class Funcon:
                 )
                 return f"{node_name(fun)}({param_str})"
             case value:
-                for i, param in enumerate(rule.params):
-                    if param.value == value:
-                        return self.make_kt_param(i, len(rule.params))
-                return f'{node_name(self.return_str)}("{value}")'
+                n_term_params = len(rule.params)
+                param = rule.param_map.get(value)
+
+                if not param:
+                    return None
+
+                param_index = rule.params.index(param)
+                return self.make_kt_param(
+                    param_index, n_term_params, is_vararg(param.value)
+                )
 
     def build_term_rewrite(self, rule: Rule):
         conditions = []
 
-        for param in rule.params:
-            value = make_arg_str(param.value)
-            rule_param = self.make_rule_param(value, rule)
-            condition = self.make_condition(rule_param, param)
-            if condition:
-                conditions.append(condition)
+        if len(rule.params) == 0:
+            rule_param = f"p{self.vararg_index}"
+            kt_condition = self.make_condition(rule_param, None)
+        else:
+            for param in rule.params:
+                value = make_arg_str(param.value)
+                rule_param = self.make_rule_param(value, rule)
+                condition = self.make_condition(rule_param, param)
+                if condition:
+                    conditions.append(condition)
 
-        kt_condition = " && ".join(conditions)
-
-        if not kt_condition:
-            kt_condition = "Unknown Condition"
+            kt_condition = " && ".join(conditions)
 
         kt_returns = self.make_rule_param(rule.rewrites_to, rule)
         if kt_returns is None:
@@ -235,7 +255,7 @@ class Funcon:
     def build_step_rewrite(self, rule: Rule):
         for premise in rule.premises:
             pass
-        return "Step"
+        return "Unimplemented Step"
 
     @property
     def rule_body(self):
