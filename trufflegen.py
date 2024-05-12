@@ -186,7 +186,7 @@ class Funcon:
             if is_vararg:
                 if index - self.n_regular_args == 0:
                     return f"p{self.n_regular_args}"
-                return f"*slice(p{self.n_regular_args}, {index - self.n_regular_args})"
+                return f"*Util.slice(p{self.n_regular_args}, {index - self.n_regular_args})"
             return f"p{self.n_regular_args}[{index - self.n_regular_args}]"
         return f"p{index - num_varargs + 1}"
 
