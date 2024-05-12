@@ -4,6 +4,8 @@ from pprint import pprint
 from parser_builder import parse_cbs_file
 from icecream.icecream import ic
 
+ic.configureOutput(includeContext=True)
+
 
 def node_name(name):
     if name == "T":
@@ -29,12 +31,26 @@ def extract_computes(str):
             return r
 
 
-def make_arg_str(arg):
-    match arg:
-        case [*args]:
-            return "".join([extract_computes(arg) for arg in args])
-        case arg:
-            return extract_computes(arg)
+def recursive_call(expr, value_fun):
+    match expr:
+        case {"fun": fun, "params": params}:
+            param_str = ", ".join(
+                [recursive_call(param["value"], value_fun) for param in params]
+            )
+            return f"{node_name(fun)}({param_str})"
+        case value:
+            return value_fun(value)
+
+
+# def make_arg_str(arg):
+#     def helper(value):
+#         match value:
+#             case [*args]:
+#                 return "".join(map(extract_computes, args))
+#             case arg:
+#                 return extract_computes(arg)
+
+#     return recursive_call(arg, helper)
 
 
 def is_vararg(value):
@@ -45,17 +61,6 @@ def is_vararg(value):
             return False
 
 
-def generate_function_call(data):
-    match data:
-        case {"fun": fun, "params": params}:
-            param_strings = [generate_function_call(param) for param in params]
-            return f"{node_name(fun)}({', '.join(param_strings)})"
-        case {"value": value}:
-            return generate_function_call(value)
-        case literal:
-            return f'"{str(literal)}"'
-
-
 class Datatype:
     def __init__(self, data) -> None:
         self.name = data["name"]
@@ -63,7 +68,7 @@ class Datatype:
 
     @property
     def code(self):
-        return "\n".join(
+        return " ".join(
             [
                 class_signature(self.name, "private val value: String"),
                 make_body(f"fun execute(frame: VirtualFrame): String = value"),
@@ -80,12 +85,6 @@ class Rule:
             self.params = (
                 make_param_objs(self.term["params"]) if "params" in self.term else []
             )
-            self.param_map = dict(
-                zip(
-                    [(make_arg_str(param.value)) for param in self.params],
-                    self.params,
-                )
-            )
             self.rewrites_to = data["rewrites_to"]
         elif "premises" in data:
             self.premises = data["premises"]
@@ -100,6 +99,7 @@ class Param:
         self.data = data
         self.value = data["value"]
         self.type = data["type"] if "type" in data else None
+        self.param_idx = i
 
         match extract_computes(self.type):
             case [type, "*" | "+"]:
@@ -117,8 +117,6 @@ class Param:
             case t:  # Single type
                 self.kt_type = f"{node_name(t)}"
                 self.array_type = False
-
-        self.param_idx = i
 
     def __repr__(self) -> str:
         return str(self.data)
@@ -166,70 +164,51 @@ class Funcon:
             self.rewrites_to = None
         self.returns = self.definition["returns"]
         self.return_str = extract_computes(self.returns)
-
-    @property
-    def param_str(self):
-        return ", ".join([param.make_param_str for param in self.params])
-
-    @property
-    def signature(self):
-        return class_signature(self.name, self.param_str)
+        self.param_str = ", ".join([param.make_param_str for param in self.params])
+        self.signature = class_signature(self.name, self.param_str)
 
     def make_condition(self, kt_param, param: Param):
         if param is None:
             return f"{kt_param}.isEmpty()"
         elif is_vararg(param.value):
-            return "Unimplemented Condition"
+            return None
         else:
-            return f'{kt_param}.execute(frame) == "{make_arg_str(param.value)}"'
+            return f'{kt_param}.execute(frame) == "{param.value}"'
 
     def make_kt_param(self, index, n_params, is_vararg):
         num_varargs = n_params - (self.n_regular_args + self.n_final_args)
 
-        if n_params < self.n_regular_args + self.n_final_args or index >= n_params:
+        if n_params < self.n_regular_args + self.n_final_args:
             return "error"
         elif index < self.n_regular_args:
             return f"p{index}"
         elif index < self.n_regular_args + num_varargs:
             if is_vararg:
-                return f"*p{self.n_regular_args}.sliceArray({index - self.n_regular_args}..p{self.n_regular_args}.size)"
-            else:
-                return f"p{self.n_regular_args}[{index - self.n_regular_args}]"
-        else:
-            return f"p{index - num_varargs + 1}"
+                if index - self.n_regular_args == 0:
+                    return f"p{self.n_regular_args}"
+                return f"*slice(p{self.n_regular_args}, {index - self.n_regular_args})"
+            return f"p{self.n_regular_args}[{index - self.n_regular_args}]"
+        return f"p{index - num_varargs + 1}"
 
     def make_rewrite_node(self, expr):
-        match expr:
-            case {"fun": fun, "params": params}:
-                param_str = ", ".join(
-                    [self.make_rewrite_node(param["value"]) for param in params]
-                )
-                return f"{node_name(fun)}({param_str})"
-            case value:
-                for i, param in enumerate(self.params):
-                    if param.value == value:
-                        return self.make_kt_param(i, len(self.params), is_vararg(value))
-                return f'{node_name(self.return_str)}("{value}")'
+        def helper(value):
+            for i, param in enumerate(self.params):
+                if param.value == value:
+                    return self.make_kt_param(i, len(self.params), is_vararg(value))
+            return f'{node_name(self.return_str)}("{value}")'
+
+        return recursive_call(expr, helper)
 
     def make_rule_param(self, arg, rule: Rule):
-        arg_str = make_arg_str(arg)
-        match arg_str:
-            case {"fun": fun, "params": params}:
-                param_str = ", ".join(
-                    [self.make_rule_param(param["value"], rule) for param in params]
-                )
-                return f"{node_name(fun)}({param_str})"
-            case value:
-                n_term_params = len(rule.params)
-                param = rule.param_map.get(value)
+        def helper(value):
+            n_term_params = len(rule.params)
+            try:
+                param_index = [param.value for param in rule.params].index(value)
+                return self.make_kt_param(param_index, n_term_params, is_vararg(value))
+            except ValueError:
+                return f'"{value}"'
 
-                if not param:
-                    return None
-
-                param_index = rule.params.index(param)
-                return self.make_kt_param(
-                    param_index, n_term_params, is_vararg(param.value)
-                )
+        return recursive_call(arg, helper)
 
     def build_term_rewrite(self, rule: Rule):
         conditions = []
@@ -239,13 +218,15 @@ class Funcon:
             kt_condition = self.make_condition(rule_param, None)
         else:
             for param in rule.params:
-                value = make_arg_str(param.value)
-                rule_param = self.make_rule_param(value, rule)
+                rule_param = self.make_rule_param(param.value, rule)
                 condition = self.make_condition(rule_param, param)
                 if condition:
                     conditions.append(condition)
 
             kt_condition = " && ".join(conditions)
+
+        if not kt_condition:
+            kt_condition = "Unimplemented Condition"
 
         kt_returns = self.make_rule_param(rule.rewrites_to, rule)
         if kt_returns is None:
@@ -254,7 +235,9 @@ class Funcon:
 
     def build_step_rewrite(self, rule: Rule):
         for premise in rule.premises:
-            pass
+            ic(premise)
+        conclusion = rule.conclusion
+        ic(conclusion)
         return "Unimplemented Step"
 
     @property
@@ -290,7 +273,7 @@ class Funcon:
 
     @property
     def code(self):
-        return "\n".join([self.signature, self.body])
+        return f"{self.signature} {self.body}"
 
 
 class CodeGen:
@@ -303,6 +286,10 @@ class CodeGen:
     def generate(self):
         truffle_api_imports = "\n".join(
             [
+                "package com.trufflegen",
+                "import com.trufflegen",
+            ]
+            + [
                 f"import com.oracle.truffle.api.{i}"
                 for i in [
                     "frame.VirtualFrame",
