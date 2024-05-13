@@ -1,4 +1,4 @@
-package com.trufflegen.static
+package com.trufflegen.stc
 
 class Util {
     companion object {

@@ -1,8 +1,11 @@
 import argparse
-from pprint import pprint
+import glob
+import os
+from enum import Flag
+from pathlib import Path
 
-from parser_builder import parse_cbs_file
 from icecream.icecream import ic
+from parser_builder import parse_cbs_file
 
 ic.configureOutput(includeContext=True)
 
@@ -42,23 +45,23 @@ def recursive_call(expr, value_fun):
             return value_fun(value)
 
 
-# def make_arg_str(arg):
-#     def helper(value):
-#         match value:
-#             case [*args]:
-#                 return "".join(map(extract_computes, args))
-#             case arg:
-#                 return extract_computes(arg)
-
-#     return recursive_call(arg, helper)
+class VarType(Flag):
+    NORMAL = 0
+    STAR = 1
+    PLUS = 2
+    OPT = 3
 
 
-def is_vararg(value):
+def value_type(value):
     match value:
-        case [value, "*" | "+"]:
-            return True
+        case [value, "*"]:
+            return VarType.STAR
+        case [value, "+"]:
+            return VarType.PLUS
+        case [value, "?"]:
+            return VarType.OPT
         case value:
-            return False
+            return VarType.NORMAL
 
 
 class Datatype:
@@ -100,9 +103,10 @@ class Param:
         self.value = data["value"]
         self.type = data["type"] if "type" in data else None
         self.param_idx = i
+        self.value_type = value_type(self.value)
 
         match extract_computes(self.type):
-            case [type, "*" | "+"]:
+            case [type, "*" | "+" | "?"]:
                 self.param_type = type
                 self.vararg = True
             case type:
@@ -170,7 +174,7 @@ class Funcon:
     def make_condition(self, kt_param, param: Param):
         if param is None:
             return f"{kt_param}.isEmpty()"
-        elif is_vararg(param.value):
+        elif value_type(param.value):
             return None
         else:
             return f'{kt_param}.execute(frame) == "{param.value}"'
@@ -194,7 +198,8 @@ class Funcon:
         def helper(value):
             for i, param in enumerate(self.params):
                 if param.value == value:
-                    return self.make_kt_param(i, len(self.params), is_vararg(value))
+                    kt_param = self.make_kt_param(i, len(self.params), param.value_type)
+                    return kt_param
             return f'{node_name(self.return_str)}("{value}")'
 
         return recursive_call(expr, helper)
@@ -204,7 +209,9 @@ class Funcon:
             n_term_params = len(rule.params)
             try:
                 param_index = [param.value for param in rule.params].index(value)
-                return self.make_kt_param(param_index, n_term_params, is_vararg(value))
+                is_vararg = value_type(value)
+                kt_param = self.make_kt_param(param_index, n_term_params, is_vararg)
+                return kt_param
             except ValueError:
                 return f'"{value}"'
 
@@ -234,10 +241,10 @@ class Funcon:
         return f"{kt_condition} -> {kt_returns}"
 
     def build_step_rewrite(self, rule: Rule):
-        for premise in rule.premises:
-            ic(premise)
-        conclusion = rule.conclusion
-        ic(conclusion)
+        # for premise in rule.premises:
+        #     ic(premise)
+        # conclusion = rule.conclusion
+        # ic(conclusion)
         return "Unimplemented Step"
 
     @property
@@ -279,15 +286,14 @@ class Funcon:
 class CodeGen:
     def __init__(self, path) -> None:
         self.ast = parse_cbs_file(path).asDict()
-        self.datatypes = self.ast["datatypes"] if "datatypes" in self.ast else ""
-        self.funcons = self.ast["funcons"]
+        self.datatypes = self.ast["datatypes"] if "datatypes" in self.ast else []
+        self.funcons = self.ast["funcons"] if "funcons" in self.ast else []
 
-    @property
     def generate(self):
         truffle_api_imports = "\n".join(
             [
-                "package com.trufflegen",
-                "import com.trufflegen",
+                "package com.trufflegen.generated",
+                "import com.trufflegen.stc.*",
             ]
             + [
                 f"import com.oracle.truffle.api.{i}"
@@ -316,14 +322,54 @@ class CodeGen:
 
         allclasses = "\n\n".join(classes)
 
-        return truffle_api_imports + "\n\n" + allclasses
+        code = truffle_api_imports + "\n\n" + allclasses
+
+        return code
+
+
+def main():
+    def generate(path, write=False):
+        print(path)
+        generator = CodeGen(path)
+        try:
+            code = generator.generate()
+            if write:
+                filename = Path(path).stem
+                kt_path = (
+                    f"kt_source/src/main/kotlin/com/trufflegen/generated/{filename}.kt"
+                )
+                with open(kt_path, "w") as f:
+                    f.write(code)
+            else:
+                print(code)
+        except Exception as e:
+            ic(e)
+
+    parser = argparse.ArgumentParser(description="Generate code from CBS file")
+    parser.add_argument(
+        "-d",
+        "--directory",
+        help="Generate kotlin files for all .cbs files in specified direcotry",
+    )
+    parser.add_argument(
+        "-f",
+        "--file",
+        help="Generate kotlin file for given .cbs file",
+    )
+    parser.add_argument(
+        "-w", "--write-kotlin", help="Write output to kotlin file", action="store_true"
+    )
+    args = parser.parse_args()
+    if args.directory:
+        pattern = os.path.join(args.directory, "**/*.cbs")
+        cbs_files = glob.glob(pattern, recursive=True)
+        for path in cbs_files:
+            generate(path, args.write_kotlin)
+    elif args.file:
+        generate(args.file, args.write_kotlin)
+    else:
+        raise ValueError("Specify either -d/--directory or -f/--file.")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate code from CBS file")
-    parser.add_argument("cbs_file", help="Path to the CBS file")
-    args = parser.parse_args()
-
-    generator = CodeGen(args.cbs_file)
-    code = generator.generate
-    print(code)
+    main()
