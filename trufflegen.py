@@ -1,7 +1,7 @@
 import argparse
 import glob
 import os
-from enum import Flag
+from enum import Enum, Flag
 from pathlib import Path
 
 from icecream.icecream import ic
@@ -11,9 +11,7 @@ ic.configureOutput(includeContext=True)
 
 
 def node_name(name):
-    if name == "T":
-        return "ExprNode"
-    return "".join(w.capitalize() for w in str(name).split("-")) + "Node"
+    return "".join(w.capitalize() for w in str(name).split("-"))
 
 
 def make_body(str):
@@ -22,16 +20,6 @@ def make_body(str):
 
 def class_signature(name, params):
     return f"class {node_name(name)}({params}) : Node()"
-
-
-def make_param_objs(param_data):
-    return [Param(param, i) for i, param in enumerate(param_data)]
-
-
-def extract_computes(str):
-    match str:
-        case ["=>", r] | r:
-            return r
 
 
 def recursive_call(expr, value_fun):
@@ -50,6 +38,11 @@ class VarType(Flag):
     STAR = 1
     PLUS = 2
     OPT = 3
+
+
+class TypeAttribute(Enum):
+    VARARG = 0
+    LAZY = 1
 
 
 def value_type(value):
@@ -82,52 +75,106 @@ class Datatype:
 class Rule:
     def __init__(self, data) -> None:
         self.data = data
-        if "term" in data:
-            self.term = data["term"]
-            self.node = node_name(self.term["fun"])
-            self.params = (
-                make_param_objs(self.term["params"]) if "params" in self.term else []
-            )
-            self.rewrites_to = data["rewrites_to"]
-        elif "premises" in data:
-            self.premises = data["premises"]
-            self.conclusion = data["conclusion"]
+
+        match data:
+            case {"term": term, "rewrites_to": rewrites_to}:
+                self.term = term
+                match self.term:
+                    case {"fun": fun, "params": params}:
+                        self.node = node_name(fun)
+                        self.params = Params(params)
+                        self.has_two_varargs = (
+                            sum([param.value_type.value > 0 for param in self.params])
+                            == 2
+                        )
+                    case value:
+                        self.value = value
+                self.rewrites_to = rewrites_to
+            case {"premises": premises, "conclusion": conclusion}:
+                self.premises = [Rule(premise) for premise in premises]
+                self.conclusion = Rule(conclusion)
 
     def __str__(self) -> str:
         return str(self.data)
+
+
+class Params:
+    def __init__(self, params) -> None:
+        if params is None:
+            self.params = []
+        else:
+            self.params = [Param(param, i) for i, param in enumerate(params)]
+
+    def __contains__(self, value):
+        return value in (param.value for param in self.params)
+
+    def __len__(self):
+        return len(self.params)
+
+    def __iter__(self):
+        self.index = 0
+        return self
+
+    def __next__(self):
+        if self.index < len(self.params):
+            param = self.params[self.index]
+            self.index += 1
+            return param
+        else:
+            raise StopIteration
+
+
+class Type:
+    def __init__(self, data):
+        if data is None:
+            self.type = None
+            return
+
+        self.type, type_attributes = self.get_type_attributes(data)
+
+        vararg_count = type_attributes.count(TypeAttribute.VARARG)
+        lazy_count = type_attributes.count(TypeAttribute.LAZY)
+
+        if vararg_count > 2 or lazy_count > 1:
+            raise ValueError(f"Unimplemented type attributes {type_attributes}")
+
+        self.is_vararg = vararg_count > 0
+        self.is_array = vararg_count == 2
+        self.is_lazy = lazy_count == 1
+
+        if self.is_array:
+            self.str = f"Array<{node_name(self.type)}>"
+        else:
+            self.str = f"{node_name(self.type)}"
+
+    def get_type_attributes(self, type, attributes=None):
+        if attributes is None:
+            attributes = []
+        match type:
+            case [t, "*" | "+" | "?"]:
+                attributes.append(TypeAttribute.VARARG)
+                return self.get_type_attributes(t, attributes)
+            case ["=>", t]:
+                attributes.append(TypeAttribute.LAZY)
+                return self.get_type_attributes(t, attributes)
+            case t:
+                return t, attributes
 
 
 class Param:
     def __init__(self, data, i) -> None:
         self.data = data
         self.value = data["value"]
-        self.type = data["type"] if "type" in data else None
+        self.type = Type(data.get("type"))
         self.param_idx = i
         self.value_type = value_type(self.value)
-
-        match extract_computes(self.type):
-            case [type, "*" | "+" | "?"]:
-                self.param_type = type
-                self.vararg = True
-            case type:
-                self.param_type = type
-                self.vararg = False
-
-        # Type can be an array-like
-        match extract_computes(self.param_type):
-            case [t, "*" | "+"]:  # Array type
-                self.kt_type = f"Array<{node_name(t)}>"
-                self.array_type = True
-            case t:  # Single type
-                self.kt_type = f"{node_name(t)}"
-                self.array_type = False
 
     def __repr__(self) -> str:
         return str(self.data)
 
     @property
     def make_param_str(self):
-        return f"@Child private {'vararg ' if self.vararg else ''}val p{self.param_idx}: {self.kt_type}"
+        return f"@Child private {'vararg ' if self.type.is_vararg else ''}val p{self.param_idx}: {self.type.str}"
 
 
 class Funcon:
@@ -136,46 +183,39 @@ class Funcon:
         self.definition = self.data["definition"]
         self.name = self.definition["name"]
 
-        self.params = (
-            make_param_objs(self.definition["params"])
-            if "params" in self.definition
-            else []
-        )
+        print(self.name)
 
-        if sum([param.vararg for param in self.params]) > 1:
+        self.params = Params(self.definition.get("params"))
+        self.n_params = len(self.params)
+
+        if sum([param.type.is_vararg for param in self.params]) > 1:
             raise ValueError("Somehow more than 1 vararg???")
 
-        self.has_varargs = any([param.vararg for param in self.params])
-        self.vararg_index = next(
-            (i for i, param in enumerate(self.params) if param.vararg), -1
-        )
-        self.n_final_args = (
-            len(self.params) - self.vararg_index - 1 if self.has_varargs else 0
-        )
-        self.n_regular_args = (
-            len(self.params) - self.n_final_args - (1 if self.has_varargs else 0)
-        )
+        self.has_varargs = any(param.type.is_vararg for param in self.params)
+
+        if self.has_varargs:
+            self.vararg_index = next(
+                (i for i, param in enumerate(self.params) if param.type.is_vararg)
+            )
+            self.n_regular_args = self.vararg_index
+            self.n_final_args = self.n_params - self.vararg_index - 1
+        else:
+            self.n_final_args = 0
+            self.n_regular_args = self.n_params
 
         if "rewrites_to" in self.definition:
             self.rewrites_to = self.definition["rewrites_to"]
             self.rules = None
         else:
-            self.rules = (
-                [Rule(rule) for rule in self.data["rules"]]
-                if "rules" in self.data
-                else []
-            )
+            self.rules = [Rule(rule) for rule in self.data.get("rules", [])]
             self.rewrites_to = None
-        self.returns = self.definition["returns"]
-        self.return_str = extract_computes(self.returns)
+        self.return_type = Type(self.definition["returns"])
         self.param_str = ", ".join([param.make_param_str for param in self.params])
         self.signature = class_signature(self.name, self.param_str)
 
     def make_condition(self, kt_param, param: Param):
         if param is None:
             return f"{kt_param}.isEmpty()"
-        elif value_type(param.value):
-            return None
         else:
             return f'{kt_param}.execute(frame) == "{param.value}"'
 
@@ -200,7 +240,7 @@ class Funcon:
                 if param.value == value:
                     kt_param = self.make_kt_param(i, len(self.params), param.value_type)
                     return kt_param
-            return f'{node_name(self.return_str)}("{value}")'
+            return f'{node_name(self.return_type.str)}("{value}")'
 
         return recursive_call(expr, helper)
 
@@ -232,19 +272,12 @@ class Funcon:
 
             kt_condition = " && ".join(conditions)
 
-        if not kt_condition:
-            kt_condition = "Unimplemented Condition"
-
         kt_returns = self.make_rule_param(rule.rewrites_to, rule)
         if kt_returns is None:
-            kt_returns = f'{node_name(self.return_str)}("{rule.rewrites_to}")'
+            kt_returns = f'{node_name(self.return_type.str)}("{rule.rewrites_to}")'
         return f"{kt_condition} -> {kt_returns}"
 
     def build_step_rewrite(self, rule: Rule):
-        # for premise in rule.premises:
-        #     ic(premise)
-        # conclusion = rule.conclusion
-        # ic(conclusion)
         return "Unimplemented Step"
 
     @property
@@ -331,19 +364,16 @@ def main():
     def generate(path, write=False):
         print(path)
         generator = CodeGen(path)
-        try:
-            code = generator.generate()
-            if write:
-                filename = Path(path).stem
-                kt_path = (
-                    f"kt_source/src/main/kotlin/com/trufflegen/generated/{filename}.kt"
-                )
-                with open(kt_path, "w") as f:
-                    f.write(code)
-            else:
-                print(code)
-        except Exception as e:
-            ic(e)
+        code = generator.generate()
+        if write:
+            filename = Path(path).stem
+            kt_path = (
+                f"kt_source/src/main/kotlin/com/trufflegen/generated/{filename}.kt"
+            )
+            with open(kt_path, "w") as f:
+                f.write(code)
+        else:
+            print(code)
 
     parser = argparse.ArgumentParser(description="Generate code from CBS file")
     parser.add_argument(
@@ -364,6 +394,8 @@ def main():
         pattern = os.path.join(args.directory, "**/*.cbs")
         cbs_files = glob.glob(pattern, recursive=True)
         for path in cbs_files:
+            if not any(x in path for x in ["Flowing", "Booleans"]):
+                continue
             generate(path, args.write_kotlin)
     elif args.file:
         generate(args.file, args.write_kotlin)
