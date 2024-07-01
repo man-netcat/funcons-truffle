@@ -5,3 +5,4 @@ tests/test.cfg
 stderr.txt
 stdout.txt
 sandbox.py
+.venv

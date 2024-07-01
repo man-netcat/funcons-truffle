@@ -7,22 +7,28 @@ from pathlib import Path
 from icecream.icecream import ic
 from parser_builder import parse_cbs_file
 
+FUNCON_NODE = "FunconNode"
+DATATYPE_NODE = "DataTypeNode"
+CBS_NODE = "CBSNode"
+
 ic.configureOutput(includeContext=True)
 
 
 def node_name(name):
-    return "".join(w.capitalize() for w in str(name).split("-"))
+    if name == "T":
+        return CBS_NODE
+    return "".join(w.capitalize() for w in str(name).split("-")) + "Node"
 
 
 def make_body(str):
     return "{\n" + "\n".join(["    " + line for line in str.splitlines()]) + "\n}"
 
 
-def class_signature(name, params):
-    return f"class {node_name(name)}({params}) : Node()"
+def class_signature(name, params, inherits):
+    return f"class {node_name(name)}({params}) : {inherits}()"
 
 
-def recursive_call(expr, value_fun):
+def recursive_call(expr, value_fun, *args):
     match expr:
         case {"fun": fun, "params": params}:
             param_str = ", ".join(
@@ -30,7 +36,7 @@ def recursive_call(expr, value_fun):
             )
             return f"{node_name(fun)}({param_str})"
         case value:
-            return value_fun(value)
+            return value_fun(value, *args)
 
 
 class VarType(Flag):
@@ -43,6 +49,11 @@ class VarType(Flag):
 class TypeAttribute(Enum):
     VARARG = 0
     LAZY = 1
+
+
+class ParamType(Enum):
+    FUNCON_PARAM = 0
+    RULE_PARAM = 1
 
 
 def value_type(value):
@@ -66,44 +77,39 @@ class Datatype:
     def code(self):
         return " ".join(
             [
-                class_signature(self.name, "private val value: String"),
-                make_body(f"fun execute(frame: VirtualFrame): String = value"),
+                class_signature(self.name, "private val value: String", DATATYPE_NODE),
+                make_body(f"override fun execute(frame: VirtualFrame): String = value"),
             ]
         )
 
 
-class Rule:
-    def __init__(self, data) -> None:
+class Param:
+    def __init__(self, data, i) -> None:
         self.data = data
+        self.value = data["value"]
+        self.type = Type(data.get("type"))
+        self.idx = i
+        self.value_type = value_type(self.value)
 
-        match data:
-            case {"term": term, "rewrites_to": rewrites_to}:
-                self.term = term
-                match self.term:
-                    case {"fun": fun, "params": params}:
-                        self.node = node_name(fun)
-                        self.params = Params(params)
-                        self.has_two_varargs = (
-                            sum([param.value_type.value > 0 for param in self.params])
-                            == 2
-                        )
-                    case value:
-                        self.value = value
-                self.rewrites_to = rewrites_to
-            case {"premises": premises, "conclusion": conclusion}:
-                self.premises = [Rule(premise) for premise in premises]
-                self.conclusion = Rule(conclusion)
-
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return str(self.data)
 
+    def __str__(self) -> str:
+        return f"{self.value}: {self.type}"
 
-class Params:
-    def __init__(self, params) -> None:
+    @property
+    def param_str(self):
+        return f"@Child private {'vararg ' if self.type.is_vararg else ''}val p{self.idx}: {CBS_NODE}"
+
+
+class ParamContainer:
+    def __init__(self, params, param_type) -> None:
         if params is None:
             self.params = []
         else:
             self.params = [Param(param, i) for i, param in enumerate(params)]
+
+        self.param_type = param_type
 
     def __contains__(self, value):
         return value in (param.value for param in self.params)
@@ -112,22 +118,34 @@ class Params:
         return len(self.params)
 
     def __iter__(self):
-        self.index = 0
-        return self
+        for param in self.params:
+            yield param
 
-    def __next__(self):
-        if self.index < len(self.params):
-            param = self.params[self.index]
-            self.index += 1
-            return param
-        else:
-            raise StopIteration
+    def __str__(self) -> str:
+        return "[" + ", ".join([str(param) for param in self.params]) + "]"
+
+    def __repr__(self) -> str:
+        return str(self)
+
+    def __getitem__(self, value):
+        if isinstance(value, int):
+            param = self.params[value]
+        elif isinstance(value, str):
+            param = next(
+                (param for param in self.params if str(param.value) == value), None
+            )
+        return param
 
 
 class Type:
     def __init__(self, data):
+        self.data = data
+
         if data is None:
             self.type = None
+            self.is_vararg = False
+            self.is_array = False
+            self.is_lazy = False
             return
 
         self.type, type_attributes = self.get_type_attributes(data)
@@ -135,17 +153,20 @@ class Type:
         vararg_count = type_attributes.count(TypeAttribute.VARARG)
         lazy_count = type_attributes.count(TypeAttribute.LAZY)
 
-        if vararg_count > 2 or lazy_count > 1:
-            raise ValueError(f"Unimplemented type attributes {type_attributes}")
+        assert vararg_count <= 2 or lazy_count <= 1
 
         self.is_vararg = vararg_count > 0
         self.is_array = vararg_count == 2
         self.is_lazy = lazy_count == 1
 
+    def __str__(self) -> str:
+        if self.data == None:
+            return "typeless"
+
         if self.is_array:
-            self.str = f"Array<{node_name(self.type)}>"
+            return f"Array<{node_name(self.type)}>"
         else:
-            self.str = f"{node_name(self.type)}"
+            return f"{node_name(self.type)}"
 
     def get_type_attributes(self, type, attributes=None):
         if attributes is None:
@@ -161,20 +182,31 @@ class Type:
                 return t, attributes
 
 
-class Param:
-    def __init__(self, data, i) -> None:
+class Rule:
+    def __init__(self, data, funcon: "Funcon") -> None:
         self.data = data
-        self.value = data["value"]
-        self.type = Type(data.get("type"))
-        self.param_idx = i
-        self.value_type = value_type(self.value)
 
-    def __repr__(self) -> str:
+        match data:
+            case {"term": term, "rewrites_to": rewrites_to}:
+                self.term = term
+                match self.term:
+                    case {"fun": fun, "params": params}:
+                        self.node = node_name(fun)
+                        self.params = ParamContainer(params, ParamType.RULE_PARAM)
+                        self.funcon = funcon
+                        self.has_two_varargs = (
+                            sum([param.value_type.value > 0 for param in self.params])
+                            == 2
+                        )
+                    case value:
+                        self.value = value
+                self.rewrites_to = rewrites_to
+            case {"premises": premises, "conclusion": conclusion}:
+                self.premises = [Rule(premise, funcon) for premise in premises]
+                self.conclusion = Rule(conclusion, funcon)
+
+    def __str__(self) -> str:
         return str(self.data)
-
-    @property
-    def make_param_str(self):
-        return f"@Child private {'vararg ' if self.type.is_vararg else ''}val p{self.param_idx}: {self.type.str}"
 
 
 class Funcon:
@@ -183,13 +215,13 @@ class Funcon:
         self.definition = self.data["definition"]
         self.name = self.definition["name"]
 
-        print(self.name)
-
-        self.params = Params(self.definition.get("params"))
+        self.params = ParamContainer(
+            self.definition.get("params"),
+            ParamType.FUNCON_PARAM,
+        )
         self.n_params = len(self.params)
 
-        if sum([param.type.is_vararg for param in self.params]) > 1:
-            raise ValueError("Somehow more than 1 vararg???")
+        assert sum([param.type.is_vararg for param in self.params]) <= 1
 
         self.has_varargs = any(param.type.is_vararg for param in self.params)
 
@@ -207,99 +239,131 @@ class Funcon:
             self.rewrites_to = self.definition["rewrites_to"]
             self.rules = None
         else:
-            self.rules = [Rule(rule) for rule in self.data.get("rules", [])]
+            self.rules = [Rule(rule, self) for rule in self.data.get("rules", [])]
             self.rewrites_to = None
+
         self.return_type = Type(self.definition["returns"])
-        self.param_str = ", ".join([param.make_param_str for param in self.params])
-        self.signature = class_signature(self.name, self.param_str)
+        print(self.return_type.is_vararg)
+        self.param_str = ", ".join([param.param_str for param in self.params])
+        self.signature = class_signature(self.name, self.param_str, FUNCON_NODE)
 
-    def make_condition(self, kt_param, param: Param):
-        if param is None:
-            return f"{kt_param}.isEmpty()"
+    def get_index(self, index: int, n_params: int):
+        n_varargs = n_params - (self.n_regular_args + self.n_final_args)
+
+        if index < self.n_regular_args:
+            return index
+        elif index < self.n_regular_args + n_varargs:
+            return (self.vararg_index, index - self.vararg_index)
+        elif index < self.n_regular_args + n_varargs + self.n_final_args:
+            return index - n_varargs + 1
         else:
-            return f'{kt_param}.execute(frame) == "{param.value}"'
+            raise ValueError("Invalid argument values provided")
 
-    def make_kt_param(self, index, n_params, is_vararg):
-        num_varargs = n_params - (self.n_regular_args + self.n_final_args)
+    def make_param_str(self, param_idx, n_term_params):
+        fparam_idx = self.get_index(param_idx, n_term_params)
+        match fparam_idx:
+            case (param_index, vararg_index):
+                return f"p{param_index}[{vararg_index}]"
+            case param_index:
+                return f"p{param_index}"
 
-        if n_params < self.n_regular_args + self.n_final_args:
-            return "error"
-        elif index < self.n_regular_args:
-            return f"p{index}"
-        elif index < self.n_regular_args + num_varargs:
-            if is_vararg:
-                if index - self.n_regular_args == 0:
-                    return f"p{self.n_regular_args}"
-                return f"*Util.slice(p{self.n_regular_args}, {index - self.n_regular_args})"
-            return f"p{self.n_regular_args}[{index - self.n_regular_args}]"
-        return f"p{index - num_varargs + 1}"
+    def rewrite_expr(self, expr, params: ParamContainer):
+        def make_param_str(value):
+            n_term_params = len(params)
+            param = params[str(value)]
 
-    def make_rewrite_node(self, expr):
-        def helper(value):
-            for i, param in enumerate(self.params):
-                if param.value == value:
-                    kt_param = self.make_kt_param(i, len(self.params), param.value_type)
-                    return kt_param
-            return f'{node_name(self.return_type.str)}("{value}")'
+            if param is None:
+                return f'{self.return_type}("{value}")'
 
-        return recursive_call(expr, helper)
-
-    def make_rule_param(self, arg, rule: Rule):
-        def helper(value):
-            n_term_params = len(rule.params)
-            try:
-                param_index = [param.value for param in rule.params].index(value)
-                is_vararg = value_type(value)
-                kt_param = self.make_kt_param(param_index, n_term_params, is_vararg)
-                return kt_param
-            except ValueError:
-                return f'"{value}"'
-
-        return recursive_call(arg, helper)
-
-    def build_term_rewrite(self, rule: Rule):
-        conditions = []
-
-        if len(rule.params) == 0:
-            rule_param = f"p{self.vararg_index}"
-            kt_condition = self.make_condition(rule_param, None)
-        else:
-            for param in rule.params:
-                rule_param = self.make_rule_param(param.value, rule)
-                condition = self.make_condition(rule_param, param)
-                if condition:
-                    conditions.append(condition)
-
-            kt_condition = " && ".join(conditions)
-
-        kt_returns = self.make_rule_param(rule.rewrites_to, rule)
-        if kt_returns is None:
-            kt_returns = f'{node_name(self.return_type.str)}("{rule.rewrites_to}")'
-        return f"{kt_condition} -> {kt_returns}"
-
-    def build_step_rewrite(self, rule: Rule):
-        return "Unimplemented Step"
-
-    @property
-    def rule_body(self):
-        lines = []
-        for rule in self.rules:
-            if "term" in rule.data:
-                line = self.build_term_rewrite(rule)
+            if param.value_type.value > 0:
+                if param.idx == self.vararg_index:
+                    return f"*p{self.vararg_index}"
+                else:
+                    return f"*Util.slice(p{self.vararg_index}, {param.idx - self.vararg_index})"
             else:
-                line = self.build_step_rewrite(rule)
-            lines.append(line)
-        lines.append("else -> throw IllegalArgumentException()")
-        fun_body = make_body("\n".join(lines))
-        body = f"@Override\nfun execute(frame: VirtualFrame): Any = when {fun_body}"
+                return self.make_param_str(param.idx, n_term_params)
 
+        return recursive_call(expr, make_param_str)
+
+    def node_body(self):
+        conditions = {
+            param: f"{self.make_param_str(param.idx, len(self.params))} is {DATATYPE_NODE}"
+            for param in self.params
+            if not param.type.is_lazy
+        }
+        kt_rules = []
+        for rule in self.rules:
+            if not "term" in rule.data:
+                continue
+            rule_conditions = []
+
+            if len(rule.params) == 0 or len(rule.params) == self.n_final_args:
+                rule_param = f"p{self.vararg_index}"
+                kt_condition = f"{rule_param}.isEmpty()"
+            else:
+                for param in rule.params:
+                    rule_param = self.make_param_str(param.idx, len(rule.params))
+
+                    idx = self.get_index(param.idx, len(rule.params))
+                    match idx:
+                        case (f_param_idx, _) | f_param_idx:
+                            f_param = self.params[f_param_idx]
+
+                    if f_param not in conditions.keys() or param.type.is_vararg:
+                        continue
+
+                    condition = f'{rule_param}.execute(frame) == "{param.value}"'
+
+                    rule_conditions.append(condition)
+
+                kt_condition = " && ".join(rule_conditions)
+
+            kt_returns = self.rewrite_expr(rule.rewrites_to, rule.params)
+            if kt_returns is None:
+                kt_returns = f'{self.return_type}("{rule.rewrites_to}")'
+            kt_rule = f"{kt_condition} -> return {kt_returns}"
+            kt_rules.append(kt_rule)
+        kt_rules.append("else -> throw IllegalArgumentException()")
+
+        when_body = "\n".join(kt_rules)
+        rules_body = f"when {make_body(when_body)}"
+        if len(conditions) > 0:
+            conditionblock = (
+                f"if ({' && '.join(conditions.values())}) {make_body(rules_body)}"
+            )
+        else:
+            conditionblock = rules_body
+
+        kt_steps = []
+        for param in conditions.keys():
+            param_str = self.make_param_str(param.idx, len(self.params))
+            execute_body = f"val e{param.idx} = {param_str}.execute(frame)"
+            node_params = ", ".join(
+                [
+                    param_str if param_str_idx != param.idx else f"e{param.idx}"
+                    for param_str_idx, param_str in enumerate(
+                        self.make_param_str(param.idx, len(self.params))
+                        for param in self.params
+                    )
+                ]
+            )
+            execute_body += f"\nreturn {node_name(self.name)}({node_params})"
+            kt_step = f"if ({param_str} is {FUNCON_NODE}) {make_body(execute_body)}"
+            kt_steps.append(kt_step)
+        body = conditionblock + "\n" + "\n".join(kt_steps)
         return body
 
     @property
+    def rule_body(self):
+        body = self.node_body()
+
+        return f"@Override\noverride fun execute(frame: VirtualFrame): {CBS_NODE} {make_body(body)}"
+
+    @property
     def rewrite_body(self):
-        kt_return = f"return {self.make_rewrite_node(self.rewrites_to)}"
+        kt_return = f"return {self.rewrite_expr(self.rewrites_to, self.params)}"
         fun_body = make_body(kt_return)
-        body = f"@Override\nfun execute(frame: VirtualFrame): Any {fun_body}"
+        body = f"@Override\noverride fun execute(frame: VirtualFrame): {CBS_NODE} {fun_body}"
         return body
 
     @property
@@ -327,6 +391,7 @@ class CodeGen:
             [
                 "package com.trufflegen.generated",
                 "import com.trufflegen.stc.*",
+                "import com.trufflegen.generated.*",
             ]
             + [
                 f"import com.oracle.truffle.api.{i}"
@@ -372,6 +437,7 @@ def main():
             )
             with open(kt_path, "w") as f:
                 f.write(code)
+            print(f"Written to {kt_path}\n")
         else:
             print(code)
 
@@ -394,7 +460,7 @@ def main():
         pattern = os.path.join(args.directory, "**/*.cbs")
         cbs_files = glob.glob(pattern, recursive=True)
         for path in cbs_files:
-            if not any(x in path for x in ["Flowing", "Booleans"]):
+            if not any(x in path for x in ["Flowing", "Booleans", "Null"]):
                 continue
             generate(path, args.write_kotlin)
     elif args.file:
