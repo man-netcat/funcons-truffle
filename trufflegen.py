@@ -99,7 +99,7 @@ class Param:
 
     @property
     def param_str(self):
-        return f"@Child private {'vararg ' if self.type.is_vararg else ''}val p{self.idx}: {CBS_NODE}"
+        return f"    @Child private {'vararg ' if self.type.is_vararg else ''}val p{self.idx}: {CBS_NODE}"
 
 
 class ParamContainer:
@@ -122,7 +122,7 @@ class ParamContainer:
             yield param
 
     def __str__(self) -> str:
-        return "[" + ", ".join([str(param) for param in self.params]) + "]"
+        return "\n" + ",\n".join([param.param_str for param in self.params]) + "\n"
 
     def __repr__(self) -> str:
         return str(self)
@@ -243,9 +243,7 @@ class Funcon:
             self.rewrites_to = None
 
         self.return_type = Type(self.definition["returns"])
-        print(self.return_type.is_vararg)
-        self.param_str = ", ".join([param.param_str for param in self.params])
-        self.signature = class_signature(self.name, self.param_str, FUNCON_NODE)
+        self.signature = class_signature(self.name, self.params, FUNCON_NODE)
 
     def get_index(self, index: int, n_params: int):
         n_varargs = n_params - (self.n_regular_args + self.n_final_args)
@@ -276,12 +274,23 @@ class Funcon:
                 return f'{self.return_type}("{value}")'
 
             if param.value_type.value > 0:
-                if param.idx == self.vararg_index:
-                    return f"*p{self.vararg_index}"
+                if self.n_final_args == 0:
+                    vararg_part = f"*Util.slice(p{self.vararg_index}, {param.idx})"
+                    return vararg_part
                 else:
-                    return f"*Util.slice(p{self.vararg_index}, {param.idx - self.vararg_index})"
-            else:
-                return self.make_param_str(param.idx, n_term_params)
+                    vararg_part = f"*Util.slice(p{self.vararg_index}, {param.idx}, {self.n_final_args})"
+                    final_part = ", ".join(
+                        [
+                            f"p{i}=p{self.vararg_index}[{i}]"
+                            for i in range(
+                                self.vararg_index + 1,
+                                self.vararg_index + self.n_final_args + 1,
+                            )
+                        ]
+                    )
+                    return f"{vararg_part}, {final_part}"
+
+            return self.make_param_str(param.idx, n_term_params)
 
         return recursive_call(expr, make_param_str)
 
@@ -303,17 +312,7 @@ class Funcon:
             else:
                 for param in rule.params:
                     rule_param = self.make_param_str(param.idx, len(rule.params))
-
-                    idx = self.get_index(param.idx, len(rule.params))
-                    match idx:
-                        case (f_param_idx, _) | f_param_idx:
-                            f_param = self.params[f_param_idx]
-
-                    if f_param not in conditions.keys() or param.type.is_vararg:
-                        continue
-
                     condition = f'{rule_param}.execute(frame) == "{param.value}"'
-
                     rule_conditions.append(condition)
 
                 kt_condition = " && ".join(rule_conditions)
@@ -362,8 +361,7 @@ class Funcon:
     @property
     def rewrite_body(self):
         kt_return = f"return {self.rewrite_expr(self.rewrites_to, self.params)}"
-        fun_body = make_body(kt_return)
-        body = f"@Override\noverride fun execute(frame: VirtualFrame): {CBS_NODE} {fun_body}"
+        body = f"@Override\noverride fun execute(frame: VirtualFrame): {CBS_NODE} {make_body(kt_return)}"
         return body
 
     @property
