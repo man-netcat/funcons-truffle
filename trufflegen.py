@@ -1,9 +1,10 @@
 import argparse
-from dataclasses import dataclass
 import glob
 import os
+from dataclasses import dataclass
 from enum import Enum, Flag
 from pathlib import Path
+from typing import Literal
 
 from icecream.icecream import ic
 from parser_builder import parse_cbs_file
@@ -394,10 +395,8 @@ class FileData:
 
 
 class CodeGen:
-    filedata: dict[str, FileData] = {}
-
     def get(
-        self, attribute: str = "datatypes" | "funcons"
+        self, attribute: Literal["datatypes", "funcons"]
     ) -> list[Datatype] | list[Funcon]:
         return [
             obj
@@ -407,57 +406,64 @@ class CodeGen:
 
     def __init__(self, cbs_dir) -> None:
         pattern = os.path.join(cbs_dir, "**/*.cbs")
-        cbs_files = glob.glob(pattern, recursive=True)
+        self.cbs_files = glob.glob(pattern, recursive=True)
+        self.filedata: dict[str, FileData] = {}
 
-        for path in cbs_files:
+        for path in self.cbs_files:
             filename = Path(path).stem
             self.filedata[filename] = FileData()
 
-            print(filename)
-            skip = not any(x in path for x in ["Flowing", "Booleans", "Null"])
             ast = parse_cbs_file(path, dump_json=False).asDict()
             if "datatypes" in ast:
                 for datatype_ast in ast["datatypes"]:
                     datatype = Datatype(datatype_ast)
-                    datatype.skip = skip
                     self.filedata[filename].datatypes[datatype.name] = datatype
             if "funcons" in ast:
                 for funcon_ast in ast["funcons"]:
                     funcon = Funcon(funcon_ast)
-                    funcon.skip = skip
                     self.filedata[filename].funcons[funcon.name] = funcon
 
     def generate(self):
-        truffle_api_imports = "\n".join(
-            [
-                "package com.trufflegen.generated",
-                "import com.trufflegen.stc.*",
-                "import com.trufflegen.generated.*",
-            ]
-            + [
-                f"import com.oracle.truffle.api.{i}"
-                for i in [
-                    "frame.VirtualFrame",
-                    "nodes.Node",
-                    "nodes.Node.Child",
-                    "dsl.Specialization",
+        for path in self.cbs_files:
+            if not any(x in path for x in ["Flowing", "Booleans", "Null"]):
+                continue
+            filename = Path(path).stem
+
+            truffle_api_imports = "\n".join(
+                [
+                    "package com.trufflegen.generated",
+                    "import com.trufflegen.stc.*",
+                    "import com.trufflegen.generated.*",
                 ]
-            ]
-        )
+                + [
+                    f"import com.oracle.truffle.api.{i}"
+                    for i in [
+                        "frame.VirtualFrame",
+                        "nodes.Node",
+                        "nodes.Node.Child",
+                        "dsl.Specialization",
+                    ]
+                ]
+            )
 
-        print(self.get("datatypes") + self.get("funcons"))
+            code = "\n\n".join(
+                [
+                    obj.code
+                    for obj in (
+                        list(self.filedata[filename].datatypes.values())
+                        + list(self.filedata[filename].funcons.values())
+                    )
+                ]
+            )
 
-        code = "\n\n".join(
-            [
-                obj.code
-                for obj in self.get("datatypes") + self.get("funcons")
-                if not obj.skip
-            ]
-        )
+            code = truffle_api_imports + "\n\n" + code
 
-        code = truffle_api_imports + "\n\n" + code
-
-        return code
+            kt_path = (
+                f"kt_source/src/main/kotlin/com/trufflegen/generated/{filename}.kt"
+            )
+            with open(kt_path, "w") as f:
+                f.write(code)
+            print(f"Written to {kt_path}\n")
 
 
 def main():
@@ -465,9 +471,6 @@ def main():
     parser.add_argument(
         "cbs_dir",
         help="Generate kotlin files for all .cbs files in specified direcotry",
-    )
-    parser.add_argument(
-        "-w", "--write-kotlin", help="Write output to kotlin file", action="store_true"
     )
     args = parser.parse_args()
     generator = CodeGen(args.cbs_dir)
