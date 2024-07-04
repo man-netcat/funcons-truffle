@@ -261,7 +261,9 @@ type_parser = Group(Suppress(TYPE) + type_def + aliases)("types*")
 # Datatypes
 
 datatypedef = (
-    expr("name") + Suppress(DATATYPEASSIGN | METAVARASSIGN) + expr("definition")
+    (IDENTIFIER("name") + Optional(params))("definition")
+    + Suppress(DATATYPEASSIGN | METAVARASSIGN)
+    + expr("definition")
 )
 datatype_parser = Group(Suppress(DATATYPE) + datatypedef + aliases)("datatypes*")
 
