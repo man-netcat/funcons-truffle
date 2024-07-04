@@ -1,4 +1,5 @@
 import argparse
+from dataclasses import dataclass
 import glob
 import os
 from enum import Enum, Flag
@@ -15,17 +16,11 @@ ic.configureOutput(includeContext=True)
 
 
 def node_name(name):
-    if name == "T":
-        return CBS_NODE
     return "".join(w.capitalize() for w in str(name).split("-")) + "Node"
 
 
 def make_body(str):
     return "{\n" + "\n".join(["    " + line for line in str.splitlines()]) + "\n}"
-
-
-def class_signature(name, params, inherits):
-    return f"class {node_name(name)}({params}) : {inherits}()"
 
 
 def recursive_call(expr, value_fun, *args):
@@ -68,16 +63,25 @@ def value_type(value):
             return VarType.NORMAL
 
 
+class Metavar:
+    def __init__(self, data) -> None:
+        pass
+
+
 class Datatype:
     def __init__(self, data) -> None:
         self.name = data["name"]
         self.def_ = data["definition"]
 
     @property
+    def class_signature(self):
+        return f"class {node_name(self.name)}(private val value: String) : {DATATYPE_NODE}()"
+
+    @property
     def code(self):
         return " ".join(
             [
-                class_signature(self.name, "private val value: String", DATATYPE_NODE),
+                self.class_signature,
                 make_body(f"override fun execute(frame: VirtualFrame): String = value"),
             ]
         )
@@ -243,7 +247,10 @@ class Funcon:
             self.rewrites_to = None
 
         self.return_type = Type(self.definition["returns"])
-        self.signature = class_signature(self.name, self.params, FUNCON_NODE)
+
+        self.signature = (
+            f"class {node_name(self.name)}({self.params}) : {FUNCON_NODE}()"
+        )
 
     def get_index(self, index: int, n_params: int):
         n_varargs = n_params - (self.n_regular_args + self.n_final_args)
@@ -266,7 +273,7 @@ class Funcon:
                 return f"p{param_index}"
 
     def rewrite_expr(self, expr, params: ParamContainer):
-        def make_param_str(value):
+        def make_arg_str(value):
             n_term_params = len(params)
             param = params[str(value)]
 
@@ -292,7 +299,7 @@ class Funcon:
 
             return self.make_param_str(param.idx, n_term_params)
 
-        return recursive_call(expr, make_param_str)
+        return recursive_call(expr, make_arg_str)
 
     def node_body(self):
         conditions = {
@@ -312,6 +319,7 @@ class Funcon:
             else:
                 for param in rule.params:
                     rule_param = self.make_param_str(param.idx, len(rule.params))
+
                     condition = f'{rule_param}.execute(frame) == "{param.value}"'
                     rule_conditions.append(condition)
 
@@ -378,11 +386,46 @@ class Funcon:
         return f"{self.signature} {self.body}"
 
 
+@dataclass
+class FileData:
+    def __init__(self):
+        self.datatypes: dict[str, Datatype] = {}
+        self.funcons: dict[str, Funcon] = {}
+
+
 class CodeGen:
-    def __init__(self, path) -> None:
-        self.ast = parse_cbs_file(path).asDict()
-        self.datatypes = self.ast["datatypes"] if "datatypes" in self.ast else []
-        self.funcons = self.ast["funcons"] if "funcons" in self.ast else []
+    filedata: dict[str, FileData] = {}
+
+    def get(
+        self, attribute: str = "datatypes" | "funcons"
+    ) -> list[Datatype] | list[Funcon]:
+        return [
+            obj
+            for file in self.filedata.values()
+            for obj in getattr(file, attribute).values()
+        ]
+
+    def __init__(self, cbs_dir) -> None:
+        pattern = os.path.join(cbs_dir, "**/*.cbs")
+        cbs_files = glob.glob(pattern, recursive=True)
+
+        for path in cbs_files:
+            filename = Path(path).stem
+            self.filedata[filename] = FileData()
+
+            print(filename)
+            skip = not any(x in path for x in ["Flowing", "Booleans", "Null"])
+            ast = parse_cbs_file(path, dump_json=False).asDict()
+            if "datatypes" in ast:
+                for datatype_ast in ast["datatypes"]:
+                    datatype = Datatype(datatype_ast)
+                    datatype.skip = skip
+                    self.filedata[filename].datatypes[datatype.name] = datatype
+            if "funcons" in ast:
+                for funcon_ast in ast["funcons"]:
+                    funcon = Funcon(funcon_ast)
+                    funcon.skip = skip
+                    self.filedata[filename].funcons[funcon.name] = funcon
 
     def generate(self):
         truffle_api_imports = "\n".join(
@@ -402,69 +445,33 @@ class CodeGen:
             ]
         )
 
-        classes = []
+        print(self.get("datatypes") + self.get("funcons"))
 
-        dtype_strs = []
-        for datatype in self.datatypes:
-            dtype_cls = Datatype(datatype)
-            dtype_strs.append(dtype_cls.code)
-        classes.extend(dtype_strs)
+        code = "\n\n".join(
+            [
+                obj.code
+                for obj in self.get("datatypes") + self.get("funcons")
+                if not obj.skip
+            ]
+        )
 
-        funcon_strs = []
-        for funcon in self.funcons:
-            funcon_cls = Funcon(funcon)
-            funcon_strs.append(funcon_cls.code)
-        classes.extend(funcon_strs)
-
-        allclasses = "\n\n".join(classes)
-
-        code = truffle_api_imports + "\n\n" + allclasses
+        code = truffle_api_imports + "\n\n" + code
 
         return code
 
 
 def main():
-    def generate(path, write=False):
-        print(path)
-        generator = CodeGen(path)
-        code = generator.generate()
-        if write:
-            filename = Path(path).stem
-            kt_path = (
-                f"kt_source/src/main/kotlin/com/trufflegen/generated/{filename}.kt"
-            )
-            with open(kt_path, "w") as f:
-                f.write(code)
-            print(f"Written to {kt_path}\n")
-        else:
-            print(code)
-
     parser = argparse.ArgumentParser(description="Generate code from CBS file")
     parser.add_argument(
-        "-d",
-        "--directory",
+        "cbs_dir",
         help="Generate kotlin files for all .cbs files in specified direcotry",
-    )
-    parser.add_argument(
-        "-f",
-        "--file",
-        help="Generate kotlin file for given .cbs file",
     )
     parser.add_argument(
         "-w", "--write-kotlin", help="Write output to kotlin file", action="store_true"
     )
     args = parser.parse_args()
-    if args.directory:
-        pattern = os.path.join(args.directory, "**/*.cbs")
-        cbs_files = glob.glob(pattern, recursive=True)
-        for path in cbs_files:
-            if not any(x in path for x in ["Flowing", "Booleans", "Null"]):
-                continue
-            generate(path, args.write_kotlin)
-    elif args.file:
-        generate(args.file, args.write_kotlin)
-    else:
-        raise ValueError("Specify either -d/--directory or -f/--file.")
+    generator = CodeGen(args.cbs_dir)
+    generator.generate()
 
 
 if __name__ == "__main__":
