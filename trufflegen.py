@@ -24,17 +24,6 @@ def make_body(str):
     return "{\n" + "\n".join(["    " + line for line in str.splitlines()]) + "\n}"
 
 
-def recursive_call(expr, value_fun, *args):
-    match expr:
-        case {"fun": fun, "params": params}:
-            param_str = ", ".join(
-                [recursive_call(param["value"], value_fun) for param in params]
-            )
-            return f"{node_name(fun)}({param_str})"
-        case value:
-            return value_fun(value, *args)
-
-
 class VarType(Flag):
     NORMAL = 0
     STAR = 1
@@ -108,13 +97,14 @@ class Param:
 
 
 class ParamContainer:
-    def __init__(self, params, param_type) -> None:
+    def __init__(self, params, param_type, funcon) -> None:
         if params is None:
             self.params = []
         else:
             self.params = [Param(param, i) for i, param in enumerate(params)]
 
         self.param_type = param_type
+        self.funcon = funcon
 
     def __contains__(self, value):
         return value in (param.value for param in self.params)
@@ -145,6 +135,7 @@ class ParamContainer:
 class Type:
     def __init__(self, data):
         self.data = data
+        self.is_final_arg = False
 
         if data is None:
             self.type = None
@@ -197,7 +188,11 @@ class Rule:
                 match self.term:
                     case {"fun": fun, "params": params}:
                         self.node = node_name(fun)
-                        self.params = ParamContainer(params, ParamType.RULE_PARAM)
+                        self.params = ParamContainer(
+                            params,
+                            ParamType.RULE_PARAM,
+                            funcon,
+                        )
                         self.funcon = funcon
                         self.has_two_varargs = (
                             sum([param.value_type.value > 0 for param in self.params])
@@ -223,6 +218,7 @@ class Funcon:
         self.params = ParamContainer(
             self.definition.get("params"),
             ParamType.FUNCON_PARAM,
+            self,
         )
         self.n_params = len(self.params)
 
@@ -236,6 +232,10 @@ class Funcon:
             )
             self.n_regular_args = self.vararg_index
             self.n_final_args = self.n_params - self.vararg_index - 1
+            if self.n_final_args > 0:
+                for i in range(1, self.n_final_args + 1):
+                    self.params[-i].type.is_final_arg = True
+
         else:
             self.n_final_args = 0
             self.n_regular_args = self.n_params
@@ -273,34 +273,53 @@ class Funcon:
             case param_index:
                 return f"p{param_index}"
 
-    def rewrite_expr(self, expr, params: ParamContainer):
-        def make_arg_str(value):
-            n_term_params = len(params)
-            param = params[str(value)]
+    def rewrite_expr(self, expr, term_params: ParamContainer):
+        def recursive_call(expr, funcon_name=None):
+            match expr:
+                case {"fun": funcon_name, "params": params}:
+                    strs = [
+                        recursive_call(param["value"], funcon_name=funcon_name)
+                        for param in params
+                    ]
+                    funcon: Funcon = globaldata.getattr("funcons")[funcon_name]
+                    if funcon.n_final_args > 0 and not self.n_final_args > 0:
+                        for i, param in zip(
+                            range(1, funcon.n_final_args + 1), reversed(funcon.params)
+                        ):
+                            strs[-i] = f"p{param.idx}={strs[-i]}"
 
-            if param is None:
-                return f'{self.return_type}("{value}")'
+                    param_str = ", ".join(strs)
+                    return f"{node_name(funcon_name)}({param_str})"
+                case value:
+                    n_term_params = len(term_params)
+                    param = term_params[str(value)]
 
-            if param.value_type.value > 0:
-                if self.n_final_args == 0:
-                    vararg_part = f"*Util.slice(p{self.vararg_index}, {param.idx})"
-                    return vararg_part
-                else:
-                    vararg_part = f"*Util.slice(p{self.vararg_index}, {param.idx}, {self.n_final_args})"
-                    final_part = ", ".join(
-                        [
-                            f"p{i}=p{self.vararg_index}[{i}]"
-                            for i in range(
-                                self.vararg_index + 1,
-                                self.vararg_index + self.n_final_args + 1,
+                    if param is None:
+                        return f'{self.return_type}("{value}")'
+
+                    if param.value_type.value > 0:
+                        star = "*" if funcon_name else ""
+                        if self.n_final_args == 0:
+                            vararg_part = (
+                                f"{star}Util.slice(p{self.vararg_index}, {param.idx})"
                             )
-                        ]
-                    )
-                    return f"{vararg_part}, {final_part}"
+                            return vararg_part
+                        else:
+                            vararg_part = f"{star}Util.slice(p{self.vararg_index}, {param.idx}, {self.n_final_args})"
+                            final_part = ", ".join(
+                                [
+                                    f"p{i}=p{self.vararg_index}[{i}]"
+                                    for i in range(
+                                        self.vararg_index + 1,
+                                        self.vararg_index + self.n_final_args + 1,
+                                    )
+                                ]
+                            )
+                            return f"{vararg_part}, {final_part}"
+                    else:
+                        return self.make_param_str(param.idx, n_term_params)
 
-            return self.make_param_str(param.idx, n_term_params)
-
-        return recursive_call(expr, make_arg_str)
+        return recursive_call(expr)
 
     def node_body(self):
         conditions = {
@@ -318,10 +337,17 @@ class Funcon:
                 rule_param = f"p{self.vararg_index}"
                 kt_condition = f"{rule_param}.isEmpty()"
             else:
-                for param in rule.params:
-                    rule_param = self.make_param_str(param.idx, len(rule.params))
+                for rule_param in rule.params:
+                    param_str = self.make_param_str(rule_param.idx, len(rule.params))
 
-                    condition = f'{rule_param}.execute(frame) == "{param.value}"'
+                    f_param_idx = self.get_index(rule_param.idx, len(rule.params))
+
+                    f_param = self.params[
+                        f_param_idx if isinstance(f_param_idx, int) else f_param_idx[0]
+                    ]
+                    # ic(self.name, rule_param, f_param, param_str)
+
+                    condition = f'{param_str}.execute(frame) == "{rule_param.value}"'
                     rule_conditions.append(condition)
 
                 kt_condition = " && ".join(rule_conditions)
@@ -365,7 +391,12 @@ class Funcon:
     def rule_body(self):
         body = self.node_body()
 
-        return f"@Override\noverride fun execute(frame: VirtualFrame): {CBS_NODE} {make_body(body)}"
+        if self.return_type.is_vararg:
+            returns = f"Array<out {CBS_NODE}>"
+        else:
+            returns = CBS_NODE
+
+        return f"@Override\noverride fun execute(frame: VirtualFrame): {returns} {make_body(body)}"
 
     @property
     def rewrite_body(self):
@@ -394,34 +425,38 @@ class FileData:
         self.funcons: dict[str, Funcon] = {}
 
 
-class CodeGen:
-    def get(
-        self, attribute: Literal["datatypes", "funcons"]
-    ) -> list[Datatype] | list[Funcon]:
-        return [
-            obj
+@dataclass
+class GlobalData:
+    def __init__(self):
+        self.filedata: dict[str, "FileData"] = {}
+
+    def getattr(self, attribute: Literal["datatypes", "funcons"]) -> dict[str]:
+        return {
+            name: obj
             for file in self.filedata.values()
-            for obj in getattr(file, attribute).values()
-        ]
+            for name, obj in getattr(file, attribute).items()
+        }
+
+
+class CodeGen:
 
     def __init__(self, cbs_dir) -> None:
         pattern = os.path.join(cbs_dir, "**/*.cbs")
         self.cbs_files = glob.glob(pattern, recursive=True)
-        self.filedata: dict[str, FileData] = {}
 
         for path in self.cbs_files:
             filename = Path(path).stem
-            self.filedata[filename] = FileData()
+            globaldata.filedata[filename] = FileData()
 
             ast = parse_cbs_file(path, dump_json=False).asDict()
             if "datatypes" in ast:
                 for datatype_ast in ast["datatypes"]:
                     datatype = Datatype(datatype_ast)
-                    self.filedata[filename].datatypes[datatype.name] = datatype
+                    globaldata.filedata[filename].datatypes[datatype.name] = datatype
             if "funcons" in ast:
                 for funcon_ast in ast["funcons"]:
                     funcon = Funcon(funcon_ast)
-                    self.filedata[filename].funcons[funcon.name] = funcon
+                    globaldata.filedata[filename].funcons[funcon.name] = funcon
 
     def generate(self):
         for path in self.cbs_files:
@@ -449,10 +484,8 @@ class CodeGen:
             code = "\n\n".join(
                 [
                     obj.code
-                    for obj in (
-                        list(self.filedata[filename].datatypes.values())
-                        + list(self.filedata[filename].funcons.values())
-                    )
+                    for x in ["datatypes", "funcons"]
+                    for obj in getattr(globaldata.filedata[filename], x).values()
                 ]
             )
 
@@ -478,4 +511,5 @@ def main():
 
 
 if __name__ == "__main__":
+    globaldata = GlobalData()
     main()
