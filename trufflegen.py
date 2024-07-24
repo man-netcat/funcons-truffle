@@ -2,7 +2,7 @@ import argparse
 import glob
 import os
 from dataclasses import dataclass
-from enum import Enum, Flag
+from enum import Enum, Flag, auto
 from pathlib import Path
 from typing import Literal
 
@@ -12,6 +12,12 @@ from parser_builder import parse_cbs_file
 FUNCON_NODE = "FunconNode"
 DATATYPE_NODE = "DataTypeNode"
 CBS_NODE = "CBSNode"
+
+
+class Unimplemented(Exception):
+    def __init__(self, message, errors):
+        super().__init__(message)
+
 
 ic.configureOutput(includeContext=True)
 
@@ -54,14 +60,20 @@ def value_type(value):
 
 
 class Metavar:
-    def __init__(self, data) -> None:
-        pass
+    def __init__(self, data, filename: str) -> None:
+        self.filename = filename
+        self.name = "".join(data["definition"])
+        self.data = data
+        self.definition = data["definition"]
+        self.types = [type[0] if len(type) == 1 else type for type in data["types"]]
 
 
 class Datatype:
-    def __init__(self, data) -> None:
+    def __init__(self, data, filename: str) -> None:
+        self.filename = filename
+        self.data = data
         self.name = data["name"]
-        self.def_ = data["definition"]
+        self.definition = data["definition"]
 
     @property
     def class_signature(self):
@@ -138,13 +150,13 @@ class Type:
         self.is_final_arg = False
 
         if data is None:
-            self.type = None
+            self.value = None
             self.is_vararg = False
             self.is_array = False
             self.is_lazy = False
             return
 
-        self.type, type_attributes = self.get_type_attributes(data)
+        self.value, type_attributes = self.get_type_attributes(data)
 
         vararg_count = type_attributes.count(TypeAttribute.VARARG)
         lazy_count = type_attributes.count(TypeAttribute.LAZY)
@@ -160,9 +172,9 @@ class Type:
             return "typeless"
 
         if self.is_array:
-            return f"Array<{node_name(self.type)}>"
+            return f"Array<{node_name(self.value)}>"
         else:
-            return f"{node_name(self.type)}"
+            return f"{node_name(self.value)}"
 
     def get_type_attributes(self, type, attributes=None):
         if attributes is None:
@@ -176,6 +188,14 @@ class Type:
                 return self.get_type_attributes(t, attributes)
             case t:
                 return t, attributes
+
+
+class RuleCategory(Enum):
+    TERMREWRITE = auto()
+    PREMISECONCLUSION = auto()
+    TYPECONDITION = auto()
+    EQUALS = auto()
+    NOTEQUALS = auto()
 
 
 class Rule:
@@ -201,16 +221,34 @@ class Rule:
                     case value:
                         self.value = value
                 self.rewrites_to = rewrites_to
+                self.category = RuleCategory.TERMREWRITE
             case {"premises": premises, "conclusion": conclusion}:
                 self.premises = [Rule(premise, funcon) for premise in premises]
                 self.conclusion = Rule(conclusion, funcon)
+                self.category = RuleCategory.PREMISECONCLUSION
+            case {"value": value, "type": type}:
+                self.value = value
+                self.type = type
+                self.category = RuleCategory.TYPECONDITION
+            case {"value": value, "equals": equals}:
+                self.value = value
+                self.equals = equals
+                self.category = RuleCategory.EQUALS
+            case {"value": value, "notequals": notequals}:
+                self.value = value
+                self.notequals = notequals
+                self.category = RuleCategory.NOTEQUALS
+            case _:
+                raise Unimplemented("Unsupported rule")
 
     def __str__(self) -> str:
         return str(self.data)
 
 
 class Funcon:
-    def __init__(self, data) -> None:
+    def __init__(self, data, filename: str) -> None:
+        self.filename = filename
+        self.filedata = globaldata.filedata[self.filename]
         self.data = data
         self.definition = self.data["definition"]
         self.name = self.definition["name"]
@@ -252,6 +290,9 @@ class Funcon:
         self.signature = (
             f"class {node_name(self.name)}({self.params}) : {FUNCON_NODE}()"
         )
+        self.executed = dict()
+        self.n_executed = 0
+        self.executed_map = dict()
 
     def get_index(self, index: int, n_params: int):
         n_varargs = n_params - (self.n_regular_args + self.n_final_args)
@@ -291,6 +332,9 @@ class Funcon:
                     param_str = ", ".join(strs)
                     return f"{node_name(funcon_name)}({param_str})"
                 case value:
+                    if isinstance(value, str) and value in self.executed_map:
+                        return self.executed_map[value]
+
                     n_term_params = len(term_params)
                     param = term_params[str(value)]
 
@@ -300,15 +344,15 @@ class Funcon:
                     if param.value_type.value > 0:
                         star = "*" if funcon_name else ""
                         if self.n_final_args == 0:
-                            vararg_part = (
-                                f"{star}Util.slice(p{self.vararg_index}, {param.idx})"
-                            )
-                            return vararg_part
+                            if param.idx == 0:
+                                return f"{star}p{self.vararg_index}"
+                            else:
+                                return f"{star}Util.slice(p{self.vararg_index}, {param.idx})"
                         else:
                             vararg_part = f"{star}Util.slice(p{self.vararg_index}, {param.idx}, {self.n_final_args})"
                             final_part = ", ".join(
                                 [
-                                    f"p{i}=p{self.vararg_index}[{i}]"
+                                    f"p{i}=p{i}"
                                     for i in range(
                                         self.vararg_index + 1,
                                         self.vararg_index + self.n_final_args + 1,
@@ -321,7 +365,25 @@ class Funcon:
 
         return recursive_call(expr)
 
+    def f_param(self, rule_param: Param, rule: Rule):
+        f_param_idx = self.get_index(rule_param.idx, len(rule.params))
+
+        f_param = self.params[
+            (f_param_idx if isinstance(f_param_idx, int) else f_param_idx[0])
+        ]
+        return f_param
+
+    def ex_param(self, param_str):
+        ex_param = self.executed.get(param_str)
+        if ex_param is None:
+            ex_param = f"e{self.n_executed}"
+            self.executed[param_str] = ex_param
+            self.n_executed += 1
+        return ex_param
+
     def node_body(self):
+        print()
+        print(self.name)
         conditions = {
             param: f"{self.make_param_str(param.idx, len(self.params))} is {DATATYPE_NODE}"
             for param in self.params
@@ -329,49 +391,76 @@ class Funcon:
         }
         kt_rules = []
         for rule in self.rules:
-            if not "term" in rule.data:
-                continue
-            rule_conditions = []
+            if rule.category == RuleCategory.TERMREWRITE:
+                rule_conditions = []
 
-            if len(rule.params) == 0 or len(rule.params) == self.n_final_args:
-                rule_param = f"p{self.vararg_index}"
-                kt_condition = f"{rule_param}.isEmpty()"
-            else:
-                for rule_param in rule.params:
-                    param_str = self.make_param_str(rule_param.idx, len(rule.params))
+                if len(rule.params) == 0 or len(rule.params) == self.n_final_args:
+                    kt_condition = f"p{self.vararg_index}.isEmpty()"
+                    priority = 0
+                elif (
+                    len(rule.params) == 1
+                    and not self.f_param(rule.params[0], rule).type.is_array
+                    and rule.params[0].value == rule.rewrites_to
+                ):
+                    if self.has_varargs:
+                        kt_condition = f"p{self.vararg_index}.size == 1"
+                    else:
+                        # TODO
+                        kt_condition = ""
+                    priority = 1
+                else:
+                    for rule_param in rule.params:
+                        param_str = self.make_param_str(
+                            rule_param.idx, len(rule.params)
+                        )
+                        ex_param = self.ex_param(param_str)
 
-                    f_param_idx = self.get_index(rule_param.idx, len(rule.params))
+                        f_param = self.f_param(rule_param, rule)
+                        # ic(
+                        #     f_param.type.value,
+                        #     self.filedata.get_metavar_types(),
+                        # )
+                        if not f_param.type.value in self.filedata.get_metavar_types():
+                            condition = f'{ex_param} == "{rule_param.value}"'
+                            rule_conditions.append(condition)
 
-                    f_param = self.params[
-                        f_param_idx if isinstance(f_param_idx, int) else f_param_idx[0]
-                    ]
-                    # ic(self.name, rule_param, f_param, param_str)
+                    kt_condition = " && ".join(rule_conditions)
+                    priority = 3
+                kt_returns = self.rewrite_expr(rule.rewrites_to, rule.params)
+                if kt_returns is None:
+                    kt_returns = f'{self.return_type}("{rule.rewrites_to}")'
+                kt_rule = (priority, kt_condition, kt_returns)
+                kt_rules.append(kt_rule)
+            elif RuleCategory.PREMISECONCLUSION:
+                param_strs = []
+                for premise in rule.premises:
+                    if premise.category == RuleCategory.TERMREWRITE:
+                        param_str = self.rewrite_expr(
+                            premise.term, rule.conclusion.params
+                        )
+                        ex_param = self.ex_param(param_str)
+                        self.executed_map[premise.rewrites_to] = ex_param
+                        param_strs.append(param_str)
+                    # elif premise.category == RuleCategory.TYPECONDITION:
+                    #     ic(premise.value, premise.type)
+                    #     pass
+                    # elif premise.category == RuleCategory.EQUALS:
+                    #     ic(premise.value, premise.equals)
+                    #     pass
+                    # elif premise.category == RuleCategory.NOTEQUALS:
+                    #     ic(premise.value, premise.notequals)
+                    #     pass
+                kt_returns = self.rewrite_expr(
+                    rule.conclusion.rewrites_to, rule.conclusion.params
+                )
+                kt_condition = " && ".join(
+                    [f"{param_str} is {FUNCON_NODE}" for param_str in param_strs]
+                )
+                kt_rule = (3, kt_condition, kt_returns)
+                kt_rules.append(kt_rule)
 
-                    condition = f'{param_str}.execute(frame) == "{rule_param.value}"'
-                    rule_conditions.append(condition)
-
-                kt_condition = " && ".join(rule_conditions)
-
-            kt_returns = self.rewrite_expr(rule.rewrites_to, rule.params)
-            if kt_returns is None:
-                kt_returns = f'{self.return_type}("{rule.rewrites_to}")'
-            kt_rule = f"{kt_condition} -> return {kt_returns}"
-            kt_rules.append(kt_rule)
-        kt_rules.append("else -> throw IllegalArgumentException()")
-
-        when_body = "\n".join(kt_rules)
-        rules_body = f"when {make_body(when_body)}"
-        if len(conditions) > 0:
-            conditionblock = (
-                f"if ({' && '.join(conditions.values())}) {make_body(rules_body)}"
-            )
-        else:
-            conditionblock = rules_body
-
-        kt_steps = []
         for param in conditions.keys():
             param_str = self.make_param_str(param.idx, len(self.params))
-            execute_body = f"val e{param.idx} = {param_str}.execute(frame)"
             node_params = ", ".join(
                 [
                     param_str if param_str_idx != param.idx else f"e{param.idx}"
@@ -381,10 +470,25 @@ class Funcon:
                     )
                 ]
             )
-            execute_body += f"\nreturn {node_name(self.name)}({node_params})"
-            kt_step = f"if ({param_str} is {FUNCON_NODE}) {make_body(execute_body)}"
-            kt_steps.append(kt_step)
-        body = conditionblock + "\n" + "\n".join(kt_steps)
+            rewrites_to = f"{node_name(self.name)}({node_params}).execute(frame)"
+            kt_rule = (2, f"{param_str} is {FUNCON_NODE}", rewrites_to)
+            kt_rules.append(kt_rule)
+
+        executed_strs = [
+            f"val {e} = {p}.execute(frame) as {CBS_NODE}"
+            for p, e in self.executed.items()
+        ]
+
+        for condition in conditions.values():
+            print(condition)
+
+        for str in executed_strs:
+            print(str)
+
+        for rule in sorted(kt_rules, key=lambda x: x[0]):
+            print(rule)
+
+        body = ""
         return body
 
     @property
@@ -396,12 +500,12 @@ class Funcon:
         else:
             returns = CBS_NODE
 
-        return f"@Override\noverride fun execute(frame: VirtualFrame): {returns} {make_body(body)}"
+        return f"override fun execute(frame: VirtualFrame): {returns} {make_body(body)}"
 
     @property
     def rewrite_body(self):
         kt_return = f"return {self.rewrite_expr(self.rewrites_to, self.params)}"
-        body = f"@Override\noverride fun execute(frame: VirtualFrame): {CBS_NODE} {make_body(kt_return)}"
+        body = f"override fun execute(frame: VirtualFrame): {CBS_NODE} {make_body(kt_return)}"
         return body
 
     @property
@@ -421,8 +525,12 @@ class Funcon:
 @dataclass
 class FileData:
     def __init__(self):
+        self.metavars: dict[str, Metavar] = {}
         self.datatypes: dict[str, Datatype] = {}
         self.funcons: dict[str, Funcon] = {}
+
+    def get_metavar_types(self):
+        return [type for metavar in self.metavars.values() for type in metavar.types]
 
 
 @dataclass
@@ -430,7 +538,9 @@ class GlobalData:
     def __init__(self):
         self.filedata: dict[str, "FileData"] = {}
 
-    def getattr(self, attribute: Literal["datatypes", "funcons"]) -> dict[str]:
+    def getattr(
+        self, attribute: Literal["datatypes", "funcons", "metavars"]
+    ) -> dict[str]:
         return {
             name: obj
             for file in self.filedata.values()
@@ -449,14 +559,14 @@ class CodeGen:
             globaldata.filedata[filename] = FileData()
 
             ast = parse_cbs_file(path, dump_json=False).asDict()
-            if "datatypes" in ast:
-                for datatype_ast in ast["datatypes"]:
-                    datatype = Datatype(datatype_ast)
-                    globaldata.filedata[filename].datatypes[datatype.name] = datatype
-            if "funcons" in ast:
-                for funcon_ast in ast["funcons"]:
-                    funcon = Funcon(funcon_ast)
-                    globaldata.filedata[filename].funcons[funcon.name] = funcon
+            for cls, value in zip(
+                [Datatype, Funcon, Metavar],
+                ["datatypes", "funcons", "metavars"],
+            ):
+                if value in ast:
+                    for value_ast in ast[value]:
+                        obj = cls(value_ast, filename)
+                        getattr(globaldata.filedata[filename], value)[obj.name] = obj
 
     def generate(self):
         for path in self.cbs_files:
