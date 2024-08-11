@@ -34,6 +34,11 @@ def main():
     )
     args = parser.parse_args()
 
+    # If no arguments are provided, print help
+    if not any(vars(args).values()):
+        parser.print_help()
+        return
+
     if args.directory and args.file:
         raise ValueError("Specify either -d/--directory or -f/--file, not both.")
 
