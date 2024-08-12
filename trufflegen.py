@@ -348,7 +348,10 @@ class Funcon:
                             strs[-i] = f"p{param.idx}={strs[-i]}"
 
                     param_str = ", ".join(strs)
-                    return f"{node_name(funcon_name)}({param_str})"
+                    rewrite_str = f"{node_name(funcon_name)}({param_str})"
+                    if funcon_name in globaldata.getattr("funcons"):
+                        rewrite_str += ".execute(frame)"
+                    return rewrite_str
                 case value:
                     n_term_params = len(term_params)
                     param = term_params[str(value)]
@@ -485,7 +488,7 @@ class Funcon:
 
         rewrite = if_else_chain(
             [
-                if_stmt(rule[1], "return " + rule[2])
+                if_stmt(rule[1], f"return {rule[2]}")
                 for rule in [
                     rule
                     for rule in kt_rules
@@ -601,7 +604,14 @@ class CodeGen:
     def generate(self):
         for path in self.cbs_files:
             if not any(
-                x in path for x in ["Flowing", "Booleans", "Null", "Linking", "Storing"]
+                x in path
+                for x in [
+                    # "Flowing",
+                    "Booleans",
+                    "Null",
+                    # "Linking",
+                    # "Storing",
+                ]
             ):
                 continue
             filename = Path(path).stem
