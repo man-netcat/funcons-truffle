@@ -87,7 +87,9 @@ class Datatype:
 
     @property
     def class_signature(self):
-        return f"class {node_name(self.name)}(private val value: String) : {TERMINAL}()"
+        return (
+            f"class {node_name(self.name)}(override val value: String) : {TERMINAL}()"
+        )
 
     @property
     def code(self):
@@ -116,7 +118,7 @@ class Param:
     @property
     def param_str(self):
         returntype = f"Array<{CBS_NODE}>" if self.type.is_array else CBS_NODE
-        return f"    @Child private {'vararg ' if self.type.is_vararg else ''}val p{self.idx}: {returntype}"
+        return f"    private {'vararg ' if self.type.is_vararg else ''}val p{self.idx}: {returntype}"
 
 
 class ParamContainer:
@@ -505,12 +507,25 @@ class Funcon:
         for f_param in f_param_strs:
             compcondition = f"{f_param}.isComputation()"
             param_strs = []
-            for param in self.params:
-                param_str = self.make_param_str(param.idx, len(self.params))
+            for param in rule.params:
+                param_str = self.make_param_str(param.idx, len(rule.params))
                 if param_str == f_param:
                     param_str += ".execute(frame) as CBSNode"
                 elif param.type.is_vararg:
-                    param_str = "*" + param_str
+                    if self.n_final_args == 0:
+                        param_str = f"*Util.slice(p{self.vararg_index}, {param.idx})"
+                    else:
+                        vararg_part = f"*Util.slice(p{self.vararg_index}, {param.idx}, {self.n_final_args})"
+                        final_part = ", ".join(
+                            [
+                                f"p{i}=p{i}"
+                                for i in range(
+                                    self.vararg_index + 1,
+                                    self.vararg_index + self.n_final_args + 1,
+                                )
+                            ]
+                        )
+                        return f"{vararg_part}, {final_part}"
                 param_strs.append(param_str)
             node_params = ", ".join(param_strs)
 
