@@ -118,7 +118,10 @@ class Param:
     @property
     def param_str(self):
         returntype = f"Array<{CBS_NODE}>" if self.type.is_array else CBS_NODE
-        return f"    private {'vararg ' if self.type.is_vararg else ''}val p{self.idx}: {returntype}"
+        if self.type.is_vararg:
+            return f"@Children private vararg val p{self.idx}: {returntype}"
+        else:
+            return f"@Child private var p{self.idx}: {returntype}"
 
 
 class ParamContainer:
@@ -142,7 +145,7 @@ class ParamContainer:
             yield param
 
     def __str__(self) -> str:
-        return "\n" + ",\n".join([param.param_str for param in self.params]) + "\n"
+        return ", ".join([param.param_str for param in self.params])
 
     def __repr__(self) -> str:
         return str(self)
@@ -419,7 +422,7 @@ class Funcon:
                     conditiontype = ConditionType.EMPTY
                 elif (
                     len(rule.params) == 1
-                    and not self.f_param(rule.params[0], rule).type.is_array
+                    # and not self.f_param(rule.params[0], rule).type.is_array
                     and rule.params[0].value == rule.rewrites_to
                 ):
                     if self.has_varargs:
@@ -428,6 +431,7 @@ class Funcon:
                         kt_condition = ""
                     conditiontype = ConditionType.SINGLE
                 else:
+                    # ic(rule.data)
                     for rule_param in rule.params:
                         if rule_param.type.is_vararg:
                             continue
@@ -453,6 +457,7 @@ class Funcon:
                     kt_rule = (conditiontype, kt_condition, kt_returns)
                 kt_rules.append(kt_rule)
             elif RuleCategory.PREMISECONCLUSION:
+                ic(rule.data)
                 param_strs = []
                 for premise in rule.premises:
                     if premise.category == RuleCategory.TERMREWRITE:
