@@ -1,4 +1,4 @@
-package com.trufflegen.main
+package trufflegen.main
 
 import com.oracle.truffle.api.TruffleLanguage.Env
 

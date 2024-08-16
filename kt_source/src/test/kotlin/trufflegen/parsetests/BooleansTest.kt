@@ -1,6 +1,6 @@
-package com.trufflegen.parsetests
+package trufflegen.parsetests
 
-import com.trufflegen.generated.*
+import trufflegen.generated.*
 import org.junit.jupiter.api.Test
 
 class BooleansTest : BaseTest() {

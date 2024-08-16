@@ -645,9 +645,9 @@ class CodeGen:
 
             truffle_api_imports = "\n".join(
                 [
-                    f"package com.{TRUFFLEGEN}.{GENERATED}\n",
-                    f"import com.{TRUFFLEGEN}.{MAIN}.*",
-                    f"import com.{TRUFFLEGEN}.{MAIN}.{UTIL}.Companion.slice",
+                    f"package {TRUFFLEGEN}.{GENERATED}\n",
+                    f"import {TRUFFLEGEN}.{MAIN}.*",
+                    f"import {TRUFFLEGEN}.{MAIN}.{UTIL}.Companion.slice",
                 ]
                 + [
                     f"import com.oracle.truffle.api.{i}"
@@ -669,7 +669,7 @@ class CodeGen:
             code = truffle_api_imports + "\n\n" + code
 
             kt_path = (
-                f"kt_source/src/main/kotlin/com/{TRUFFLEGEN}/{GENERATED}/{filename}.kt"
+                f"kt_source/src/main/kotlin/{TRUFFLEGEN}/{GENERATED}/{filename}.kt"
             )
             with open(kt_path, "w") as f:
                 f.write(code)

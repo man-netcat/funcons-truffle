@@ -1,6 +1,6 @@
-grammar fct;
+grammar FCT;
 
-parse: generalBlock testsBlock;
+main: generalBlock testsBlock;
 
 generalBlock: 'general' '{' funconTerm '}' ;
 testsBlock: 'tests' '{' tests+ '}' ;

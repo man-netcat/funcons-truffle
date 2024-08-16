@@ -1,6 +1,6 @@
-package com.trufflegen.parsetests
+package trufflegen.parsetests
 
-import com.trufflegen.main.CBSNode
+import trufflegen.main.CBSNode
 import org.junit.jupiter.api.Assertions.assertTrue
 
 open class BaseTest {

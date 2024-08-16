@@ -1,7 +1,6 @@
-package com.trufflegen.main
+package trufflegen.main
 
 import kotlin.IllegalArgumentException
-import kotlin.RuntimeException
 
 class Util {
     companion object {

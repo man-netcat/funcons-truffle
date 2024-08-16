@@ -14,6 +14,7 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <junit.jupiter.version>5.10.3</junit.jupiter.version>
+        <antlr.version>4.13.2</antlr.version>
     </properties>
 
     <dependencies>
@@ -45,6 +46,11 @@
             <version>${junit.jupiter.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.antlr</groupId>
+            <artifactId>antlr4-runtime</artifactId>
+            <version>${antlr.version}</version>
+        </dependency>
     </dependencies>
 
     <repositories>
@@ -57,7 +63,9 @@
     <build>
         <sourceDirectory>src/main/kotlin</sourceDirectory>
         <testSourceDirectory>src/test/kotlin</testSourceDirectory>
+
         <plugins>
+            <!-- Kotlin Plugin -->
             <plugin>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <groupId>org.jetbrains.kotlin</groupId>
@@ -78,7 +86,54 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <sourceDirs>
+                        <sourceDir>${project.build.directory}/generated-sources/antlr4</sourceDir>
+                        <sourceDir>src/main/kotlin</sourceDir>
+                    </sourceDirs>
+                </configuration>
             </plugin>
+
+            <!-- ANTLR Plugin -->
+            <plugin>
+                <groupId>org.antlr</groupId>
+                <artifactId>antlr4-maven-plugin</artifactId>
+                <version>${antlr.version}</version>
+                <executions>
+                    <execution>
+                        <id>antlr</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>antlr4</goal>
+                        </goals>
+                        <configuration>
+                            <!-- The directory where generated sources will be placed -->
+                            <outputDirectory>src/main/kotlin/trufflegen/antlr4</outputDirectory>
+                            <!-- The directory where your .g4 files are located -->
+                            <sourceDirectory>src/main/antlr4</sourceDirectory>
+                            <!-- The package name for generated classes -->
+                            <arguments>
+                                <argument>-package</argument>
+                                <argument>trufflegen.antlr4</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Maven Compiler Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
+                    <generatedSourcesDirectory>${project.build.directory}/generated-sources/antlr4</generatedSourcesDirectory>
+                </configuration>
+            </plugin>
+
+            <!-- Maven Surefire Plugin for testing -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>

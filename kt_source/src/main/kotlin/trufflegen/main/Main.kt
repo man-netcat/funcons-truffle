@@ -1,6 +1,5 @@
-package com.trufflegen.main
+package trufflegen.main
 
-import CBSLanguage
 import com.oracle.truffle.api.source.Source
 import java.io.File
 
