@@ -12,6 +12,10 @@ from parser_builder import parse_cbs_file
 COMPUTATION = "Computation"
 TERMINAL = "Terminal"
 CBS_NODE = "CBSNode"
+MAIN = "main"
+GENERATED = "generated"
+TRUFFLEGEN = "trufflegen"
+UTIL = "Util"
 
 
 class Unimplemented(Exception):
@@ -145,10 +149,12 @@ class ParamContainer:
             yield param
 
     def __str__(self) -> str:
-        return ", ".join([param.param_str for param in self.params])
+        return (
+            "\n    " + ",\n    ".join([param.param_str for param in self.params]) + "\n"
+        )
 
     def __repr__(self) -> str:
-        return str(self)
+        return ", ".join([param.param_str for param in self.params])
 
     def __getitem__(self, value):
         if isinstance(value, int):
@@ -370,9 +376,9 @@ class Funcon:
                             if param.idx == 0:
                                 return f"{star}p{self.vararg_index}"
                             else:
-                                return f"{star}Util.slice(p{self.vararg_index}, {param.idx})"
+                                return f"{star}slice(p{self.vararg_index}, {param.idx})"
                         else:
-                            vararg_part = f"{star}Util.slice(p{self.vararg_index}, {param.idx}, {self.n_final_args})"
+                            vararg_part = f"{star}slice(p{self.vararg_index}, {param.idx}, {self.n_final_args})"
                             final_part = ", ".join(
                                 [
                                     f"p{i}=p{i}"
@@ -516,11 +522,11 @@ class Funcon:
                 param_str = self.make_param_str(param.idx, len(rule.params))
                 if param_str == f_param:
                     param_str += ".execute(frame) as CBSNode"
-                elif param.type.is_vararg:
+                elif param.value_type.value > 0:
                     if self.n_final_args == 0:
-                        param_str = f"*Util.slice(p{self.vararg_index}, {param.idx})"
+                        param_str = f"*slice(p{self.vararg_index}, {param.idx})"
                     else:
-                        vararg_part = f"*Util.slice(p{self.vararg_index}, {param.idx}, {self.n_final_args})"
+                        vararg_part = f"*slice(p{self.vararg_index}, {param.idx}, {self.n_final_args})"
                         final_part = ", ".join(
                             [
                                 f"p{i}=p{i}"
@@ -539,8 +545,8 @@ class Funcon:
             ifs.append(computation)
 
         body = if_else_chain(ifs)
-        if body.startswith("if"):
-            body += "\nUtil.fail()"
+
+        body += "\nthrow RuntimeException()"
 
         return body
 
@@ -572,7 +578,8 @@ class Funcon:
 
     @property
     def code(self):
-        return f"{self.signature} {self.body}"
+        node_info = f'@NodeInfo(shortName = "{self.name}")'
+        return f"{node_info}\n{self.signature} {self.body}"
 
 
 @dataclass
@@ -638,17 +645,15 @@ class CodeGen:
 
             truffle_api_imports = "\n".join(
                 [
-                    "package com.trufflegen.generated",
-                    "import com.trufflegen.stc.*",
-                    "import com.trufflegen.generated.*",
+                    f"package com.{TRUFFLEGEN}.{GENERATED}\n",
+                    f"import com.{TRUFFLEGEN}.{MAIN}.*",
+                    f"import com.{TRUFFLEGEN}.{MAIN}.{UTIL}.Companion.slice",
                 ]
                 + [
                     f"import com.oracle.truffle.api.{i}"
                     for i in [
                         "frame.VirtualFrame",
-                        "nodes.Node",
-                        "nodes.Node.Child",
-                        "dsl.Specialization",
+                        "nodes.NodeInfo",
                     ]
                 ]
             )
@@ -664,7 +669,7 @@ class CodeGen:
             code = truffle_api_imports + "\n\n" + code
 
             kt_path = (
-                f"kt_source/src/main/kotlin/com/trufflegen/generated/{filename}.kt"
+                f"kt_source/src/main/kotlin/com/{TRUFFLEGEN}/{GENERATED}/{filename}.kt"
             )
             with open(kt_path, "w") as f:
                 f.write(code)

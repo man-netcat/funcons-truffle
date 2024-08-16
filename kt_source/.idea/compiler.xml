@@ -7,6 +7,14 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="my-kotlin-project" />
+      </profile>
+      <profile name="Annotation profile for funcons-truffle" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/org/graalvm/truffle/truffle-dsl-processor/20.0.0/truffle-dsl-processor-20.0.0.jar" />
+        </processorPath>
         <module name="funcons-truffle" />
       </profile>
     </annotationProcessing>

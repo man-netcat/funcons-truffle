@@ -1,4 +1,4 @@
-package com.trufflegen.stc
+package com.trufflegen.main
 
 import kotlin.IllegalArgumentException
 import kotlin.RuntimeException
@@ -16,10 +16,6 @@ class Util {
             }
 
             return array.sliceArray(startIndex until endIndex)
-        }
-
-        fun fail(): Nothing {
-            throw RuntimeException()
         }
     }
 }
