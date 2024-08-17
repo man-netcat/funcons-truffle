@@ -4,11 +4,11 @@ import com.oracle.truffle.api.CallTarget
 import com.oracle.truffle.api.Truffle
 import com.oracle.truffle.api.TruffleLanguage
 import com.oracle.truffle.api.source.Source
-import org.antlr.v4.runtime.CharStreams
-import org.antlr.v4.runtime.CommonTokenStream
 import fctruffle.antlr4.FCTLexer
 import fctruffle.antlr4.FCTParser
 import java.lang.reflect.Constructor
+import org.antlr.v4.runtime.CharStreams
+import org.antlr.v4.runtime.CommonTokenStream
 
 @TruffleLanguage.Registration(
     id = CBSLanguage.ID,
@@ -75,7 +75,6 @@ class CBSLanguage : TruffleLanguage<Nothing>() {
         return constructor.newInstance()
     }
 
-
     private fun convertToCBSNode(context: FCTParser.GeneralBlockContext): CBSNode {
         val expr = context.funconTerm().expr()
 
@@ -83,7 +82,7 @@ class CBSLanguage : TruffleLanguage<Nothing>() {
         val funconName = expr.funcon().funconName().text
 
         // Convert the funconName to a class name
-        val className = toClassName("and")
+        val className = toClassName(funconName)
 
         // Instantiate the class
         val cbsNode = instantiateClass(className) as? CBSNode

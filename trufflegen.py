@@ -545,7 +545,7 @@ class Funcon:
 
         body = if_else_chain(ifs)
 
-        body += "\nthrow RuntimeException()"
+        body += "\nfail()"
 
         return body
 

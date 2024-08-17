@@ -10,3 +10,7 @@ fun <CBSNode> slice(array: Array<CBSNode>, startIndex: Int, endIndexOffset: Int 
 
     return array.sliceArray(startIndex until endIndex)
 }
+
+fun fail(): Nothing {
+    throw RuntimeException()
+}

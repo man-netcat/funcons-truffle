@@ -1,73 +1,76 @@
 grammar FCT;
 
-main: generalBlock testsBlock? EOF;
+topLevel: generalBlock inputsBlock? testsBlock? EOF;
 
-generalBlock: 'general' '{' funconTerm '}' ;
+generalBlock: 'general' '{' funconTerm '}';
 
-testsBlock: 'tests' '{' tests+ '}' ;
+testsBlock: 'tests' '{' tests+ '}';
 
-funconTerm: 'funcon-term' ':' expr ';' ;
+inputsBlock: 'inputs' '{' standardIn+ '}';
 
-funcon
-    : funconName '(' exprs ')'
-    | funconName expr // Single param funcons can omit parentheses
-    ;
+funconTerm: 'funcon-term' ':' expr ';';
 
-funconName: IDENTIFIER ;
+funcon:
+	funconName '(' exprs ')'
+	| funconName expr; // Single param funcons can omit parentheses (e.g. 'print')
 
-expr
-    : unOp expr
-    | expr binOp expr
-    | funcon
-    | listExpr
-    | mapExpr
-    | setExpr
-    | tupleExpr
-    | terminal
-    ;
+funconName: IDENTIFIER;
 
-exprs : (expr (',' expr)*)? ;
+expr:
+	unOp expr
+	| expr binOp expr
+	| funcon
+	| listExpr
+	| mapExpr
+	| setExpr
+	| tupleExpr
+	| terminal;
 
-terminal
-    : STRING
-    | IDENTIFIER
-    | NUMBER
-    | EMPTY
-    ;
+exprs: (expr (',' expr)*)?;
 
-listExpr : '[' exprs ']' ;
+terminal: STRING | IDENTIFIER | NUMBER | EMPTY;
 
-mapExpr : '{' pairs '}' ;
+terminals: (terminal (',' terminal)*)?;
 
-setExpr : '{' exprs '}' ;
+listExpr: '[' exprs ']';
 
-pair: expr '|->' expr ;
+mapExpr: '{' pairs '}';
 
-pairs : (pair (',' pair)*)? ;
+setExpr: '{' exprs '}';
 
-tupleExpr: 'tuple(' exprs ')' ;
+pair: expr '|->' expr;
+termPair: terminal '|->' terminal;
 
-tests: resultTest | standardOutTest ;
+pairs: (pair (',' pair)*)?;
+termPairs: (termPair (',' termPair)*)?;
 
-resultTest: 'result-term' ':' expr ';' ;
-standardOutTest: 'standard-out' ':' '[' exprs ']' ';' ;
+tupleExpr: 'tuple(' exprs ')';
 
-binOp
-    : AND
-    | OR
-    ;
+standardIn: 'standard-in' ':' inputValue ';';
 
-unOp
-    : NOT
-    ;
+inputValue:
+	'(' terminals ')'
+	| '[' terminals ']'
+	| '{' termPairs
+	| terminals '}'
+	| terminal;
 
-NOT: '~' ;
-AND: '&' ;
-OR: '|' ;
+tests: resultTerm | standardOut;
 
-EMPTY: '(' WS? ')' ;
-COMMENT: '//' ~[\r\n]* -> skip ;
-STRING: '"' .*? '"' ;
-IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_-]* ;
-NUMBER: [0-9]+ ;
-WS: [ \t\r\n]+ -> skip ;
+resultTerm: 'result-term' ':' expr ';';
+standardOut: 'standard-out' ':' '[' exprs ']' ';';
+
+binOp: AND | OR;
+
+unOp: NOT;
+
+NOT: '~';
+AND: '&';
+OR: '|';
+
+EMPTY: '(' WS? ')';
+COMMENT: '//' ~[\r\n]* -> skip;
+STRING: '"' .*? '"';
+IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_-]*;
+NUMBER: [0-9]+;
+WS: [ \t\r\n]+ -> skip;
