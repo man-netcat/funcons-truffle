@@ -1,4 +1,4 @@
-package trufflegen.main
+package fctruffle.main
 
 import com.oracle.truffle.api.CallTarget
 import com.oracle.truffle.api.Truffle
@@ -6,8 +6,8 @@ import com.oracle.truffle.api.TruffleLanguage
 import com.oracle.truffle.api.source.Source
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
-import trufflegen.antlr4.FCTLexer
-import trufflegen.antlr4.FCTParser
+import fctruffle.antlr4.FCTLexer
+import fctruffle.antlr4.FCTParser
 import java.lang.reflect.Constructor
 
 @TruffleLanguage.Registration(

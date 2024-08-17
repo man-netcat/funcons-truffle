@@ -1,4 +1,4 @@
-package trufflegen.main
+package fctruffle.main
 
 import com.oracle.truffle.api.TruffleLanguage
 import com.oracle.truffle.api.frame.VirtualFrame

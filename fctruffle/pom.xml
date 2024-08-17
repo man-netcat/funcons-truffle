@@ -104,13 +104,13 @@
                         </goals>
                         <configuration>
                             <!-- The directory where generated sources will be placed -->
-                            <outputDirectory>src/main/kotlin/trufflegen/antlr4</outputDirectory>
+                            <outputDirectory>src/main/kotlin/fctruffle/antlr4</outputDirectory>
                             <!-- The directory where your .g4 files are located -->
                             <sourceDirectory>src/main/antlr4</sourceDirectory>
                             <!-- The package name for generated classes -->
                             <arguments>
                                 <argument>-package</argument>
-                                <argument>trufflegen.antlr4</argument>
+                                <argument>fctruffle.antlr4</argument>
                             </arguments>
                         </configuration>
                     </execution>

@@ -1,4 +1,4 @@
-package trufflegen.main
+package fctruffle.main
 
 fun <CBSNode> slice(array: Array<CBSNode>, startIndex: Int, endIndexOffset: Int = 0): Array<CBSNode> {
     require(startIndex in 0..array.size) { "Start index is out of bounds." }

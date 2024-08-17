@@ -1,10 +1,10 @@
-package trufflegen.parsetests
+package fctruffle.parsetests
 
 import com.oracle.truffle.api.CallTarget
 import com.oracle.truffle.api.Truffle
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.RootNode
-import trufflegen.main.CBSNode
+import fctruffle.main.CBSNode
 
 class TestRootNode(private val rootNode: CBSNode) : RootNode(null) {
 

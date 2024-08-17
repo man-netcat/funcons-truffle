@@ -14,7 +14,7 @@ TERMINAL = "Terminal"
 CBS_NODE = "CBSNode"
 MAIN = "main"
 GENERATED = "generated"
-TRUFFLEGEN = "trufflegen"
+FCTRUFFLE = "fctruffle"
 
 
 class Unimplemented(Exception):
@@ -644,8 +644,8 @@ class CodeGen:
 
             truffle_api_imports = "\n".join(
                 [
-                    f"package {TRUFFLEGEN}.{GENERATED}\n",
-                    f"import {TRUFFLEGEN}.{MAIN}.*",
+                    f"package {FCTRUFFLE}.{GENERATED}\n",
+                    f"import {FCTRUFFLE}.{MAIN}.*",
                 ]
                 + [
                     f"import com.oracle.truffle.api.{i}"
@@ -667,7 +667,7 @@ class CodeGen:
             code = truffle_api_imports + "\n\n" + code
 
             kt_path = (
-                f"kt_source/src/main/kotlin/{TRUFFLEGEN}/{GENERATED}/{filename}.kt"
+                f"{FCTRUFFLE}/src/main/kotlin/{FCTRUFFLE}/{GENERATED}/{filename}.kt"
             )
             with open(kt_path, "w") as f:
                 f.write(code)

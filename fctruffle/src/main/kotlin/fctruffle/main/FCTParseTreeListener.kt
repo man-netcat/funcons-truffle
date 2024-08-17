@@ -1,4 +1,4 @@
-package trufflegen.main
+package fctruffle.main
 
 import com.oracle.truffle.api.nodes.RootNode
 import org.antlr.v4.runtime.ParserRuleContext
