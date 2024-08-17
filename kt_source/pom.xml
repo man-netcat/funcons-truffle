@@ -4,8 +4,8 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.example</groupId>
-    <artifactId>funcons-truffle</artifactId>
+    <groupId>com.rickteuthof</groupId>
+    <artifactId>fctruffle</artifactId>
     <version>1.0.0</version>
 
     <properties>
@@ -14,7 +14,9 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <junit.jupiter.version>5.10.3</junit.jupiter.version>
-        <antlr.version>4.13.2</antlr.version>
+        <antlr.version>4.7.2</antlr.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
     <dependencies>
@@ -73,7 +75,7 @@
                 <executions>
                     <execution>
                         <id>compile</id>
-                        <phase>compile</phase>
+                        <phase>process-sources</phase>
                         <goals>
                             <goal>compile</goal>
                         </goals>
@@ -86,12 +88,6 @@
                         </goals>
                     </execution>
                 </executions>
-                <configuration>
-                    <sourceDirs>
-                        <sourceDir>${project.build.directory}/generated-sources/antlr4</sourceDir>
-                        <sourceDir>src/main/kotlin</sourceDir>
-                    </sourceDirs>
-                </configuration>
             </plugin>
 
             <!-- ANTLR Plugin -->
@@ -129,7 +125,9 @@
                 <configuration>
                     <source>${maven.compiler.source}</source>
                     <target>${maven.compiler.target}</target>
-                    <generatedSourcesDirectory>${project.build.directory}/generated-sources/antlr4</generatedSourcesDirectory>
+                    <compilerArgs>
+                        <arg>-Xlint:-options</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
 

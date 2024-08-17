@@ -1,45 +1,73 @@
 grammar FCT;
 
-main: generalBlock testsBlock;
+main: generalBlock testsBlock? EOF;
 
 generalBlock: 'general' '{' funconTerm '}' ;
+
 testsBlock: 'tests' '{' tests+ '}' ;
 
 funconTerm: 'funcon-term' ':' expr ';' ;
 
 funcon
-    : funconName '(' (expr (',' expr)*)? ')'
-    | funconName expr
+    : funconName '(' exprs ')'
+    | funconName expr // Single param funcons can omit parentheses
     ;
 
-funconName: IDENTIFIER;
+funconName: IDENTIFIER ;
 
 expr
-    : funcon
-    | value
-    | funconName
-    | '(' expr ')'
+    : unOp expr
+    | expr binOp expr
+    | funcon
+    | listExpr
+    | mapExpr
+    | setExpr
+    | tupleExpr
+    | terminal
     ;
 
-value
+exprs : (expr (',' expr)*)? ;
+
+terminal
     : STRING
     | IDENTIFIER
     | NUMBER
-    | mapExpr
-    | tupleExpr
+    | EMPTY
     ;
 
-mapExpr: '{' (pair (',' pair)*)? '}' ;
-pair: STRING '|->' value ;
+listExpr : '[' exprs ']' ;
 
-tupleExpr: 'tuple(' (expr (',' expr)*)? ')' ;
+mapExpr : '{' pairs '}' ;
+
+setExpr : '{' exprs '}' ;
+
+pair: expr '|->' expr ;
+
+pairs : (pair (',' pair)*)? ;
+
+tupleExpr: 'tuple(' exprs ')' ;
 
 tests: resultTest | standardOutTest ;
 
-resultTest: 'result-term' ':' 'null-value' ';' ;
-standardOutTest: 'standard-out' ':' '[' value (',' value)* ']' ';' ;
+resultTest: 'result-term' ':' expr ';' ;
+standardOutTest: 'standard-out' ':' '[' exprs ']' ';' ;
 
+binOp
+    : AND
+    | OR
+    ;
+
+unOp
+    : NOT
+    ;
+
+NOT: '~' ;
+AND: '&' ;
+OR: '|' ;
+
+EMPTY: '(' WS? ')' ;
+COMMENT: '//' ~[\r\n]* -> skip ;
 STRING: '"' .*? '"' ;
-IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]* ;
+IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_-]* ;
 NUMBER: [0-9]+ ;
 WS: [ \t\r\n]+ -> skip ;

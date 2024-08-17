@@ -6,7 +6,7 @@ import java.io.File
 fun main(args: Array<String>) {
     // Check if the file path argument is provided
     if (args.isEmpty()) {
-        println("Usage: <program> <path-to-cbslang-file>")
+        println("Usage: <program> <path-to-fct-file>")
         return
     }
 
@@ -32,12 +32,6 @@ fun main(args: Array<String>) {
     // Parse the source code to create a CallTarget
     val callTarget = language.parse(source)
 
-    // Execute the code
-    try {
-        val result = callTarget.call()
-        println("Execution result: $result")
-    } catch (e: Exception) {
-        println("Error during execution: ${e.message}")
-        e.printStackTrace()
-    }
+    val result = callTarget.call()
+    println("Execution result: $result")
 }

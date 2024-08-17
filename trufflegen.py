@@ -15,7 +15,6 @@ CBS_NODE = "CBSNode"
 MAIN = "main"
 GENERATED = "generated"
 TRUFFLEGEN = "trufflegen"
-UTIL = "Util"
 
 
 class Unimplemented(Exception):
@@ -96,13 +95,13 @@ class Datatype:
         )
 
     @property
+    def body(self):
+        return make_body(f"override fun execute(frame: VirtualFrame): String = value")
+
+    @property
     def code(self):
-        return " ".join(
-            [
-                self.class_signature,
-                make_body(f"override fun execute(frame: VirtualFrame): String = value"),
-            ]
-        )
+        node_info = f'@NodeInfo(shortName = "{self.name}")'
+        return f"{node_info}\n{self.class_signature} {self.body}"
 
 
 class Param:
@@ -647,7 +646,6 @@ class CodeGen:
                 [
                     f"package {TRUFFLEGEN}.{GENERATED}\n",
                     f"import {TRUFFLEGEN}.{MAIN}.*",
-                    f"import {TRUFFLEGEN}.{MAIN}.{UTIL}.Companion.slice",
                 ]
                 + [
                     f"import com.oracle.truffle.api.{i}"

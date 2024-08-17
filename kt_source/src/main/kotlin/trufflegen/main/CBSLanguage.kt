@@ -8,6 +8,7 @@ import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import trufflegen.antlr4.FCTLexer
 import trufflegen.antlr4.FCTParser
+import java.lang.reflect.Constructor
 
 @TruffleLanguage.Registration(
     id = CBSLanguage.ID,
@@ -25,7 +26,7 @@ class CBSLanguage : TruffleLanguage<Nothing>() {
         TODO("Not yet implemented")
     }
 
-    fun parse(source: Source, vararg argumentNames: String): CallTarget {
+    fun parse(source: Source): CallTarget {
         val code = source.characters.toString()
 
         // Create a CharStream that reads from the code string
@@ -57,13 +58,36 @@ class CBSLanguage : TruffleLanguage<Nothing>() {
         TODO("Not yet implemented")
     }
 
-    private fun convertToCBSNode(context: FCTParser.GeneralBlockContext): CBSNode {
-        // Assuming the context contains a single funconTerm or multiple statements
-        val expr = context.funconTerm().expr()
-
-        println(expr)
-
-        TODO("Implement this please")
+    private fun toClassName(funconName: String): String {
+        return "trufflegen.generated." + funconName.split('-')
+            .joinToString("") { it.replaceFirstChar(Char::titlecase) } + "Node"
     }
 
+    // Function to instantiate the class from its name
+    private fun instantiateClass(className: String): Any? {
+        // Load the class by name
+        val clazz = Class.forName(className)
+
+        // Get the default constructor
+        val constructor: Constructor<*> = clazz.getConstructor()
+
+        // Create an instance using the constructor
+        return constructor.newInstance()
+    }
+
+
+    private fun convertToCBSNode(context: FCTParser.GeneralBlockContext): CBSNode {
+        val expr = context.funconTerm().expr()
+
+        // Extract the funconName
+        val funconName = expr.funcon().funconName().text
+
+        // Convert the funconName to a class name
+        val className = toClassName("and")
+
+        // Instantiate the class
+        val cbsNode = instantiateClass(className) as? CBSNode
+
+        return cbsNode ?: throw IllegalArgumentException("Class $className could not be instantiated")
+    }
 }
