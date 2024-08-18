@@ -8,7 +8,7 @@ testsBlock: 'tests' '{' tests+ '}';
 
 inputsBlock: 'inputs' '{' standardIn+ '}';
 
-funconTerm: 'funcon-term' ':' expr ';';
+funconTerm: 'funcon-term' ':' funcon ';';
 
 funcon:
 	funconName '(' exprs ')'
