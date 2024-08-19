@@ -11,15 +11,15 @@ import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 
 @TruffleLanguage.Registration(
-    id = CBSLanguage.ID,
-    name = "cbslang",
-    defaultMimeType = CBSLanguage.MIME_TYPE,
-    characterMimeTypes = [CBSLanguage.MIME_TYPE]
+        id = FCTLanguage.ID,
+        name = "fctlang",
+        defaultMimeType = FCTLanguage.MIME_TYPE,
+        characterMimeTypes = [FCTLanguage.MIME_TYPE]
 )
-class CBSLanguage : TruffleLanguage<Nothing>() {
+class FCTLanguage : TruffleLanguage<Nothing>() {
     companion object {
-        const val ID: String = "cbslang"
-        const val MIME_TYPE: String = "application/x-cbslang"
+        const val ID: String = "fctlang"
+        const val MIME_TYPE: String = "application/x-fctlang"
     }
 
     override fun createContext(env: Env?): Nothing {
@@ -44,14 +44,14 @@ class CBSLanguage : TruffleLanguage<Nothing>() {
         // Parse the code starting from the generalBlock rule
         val mainContext = parser.generalBlock()
 
-        // Convert the parsed ANTLR context to a CBSNode
-        val rootNode = convertToCBSNode(mainContext)
+        // Convert the parsed ANTLR context to a FCTNode
+        val rootNode = convertToFCTNode(mainContext)
 
-        // Create a custom CBSRootNode that wraps the root CBSNode
-        val cbsRootNode = CBSRootNode(this, rootNode)
+        // Create a custom FCTRootNode that wraps the root FCTNode
+        val fctRootNode = FCTRootNode(this, rootNode)
 
         // Create and return a CallTarget for the RootNode
-        return Truffle.getRuntime().createCallTarget(cbsRootNode)
+        return Truffle.getRuntime().createCallTarget(fctRootNode)
     }
 
     override fun isObjectOfLanguage(`object`: Any?): Boolean {
@@ -59,8 +59,9 @@ class CBSLanguage : TruffleLanguage<Nothing>() {
     }
 
     private fun toClassName(funconName: String): String {
-        return "trufflegen.generated." + funconName.split('-')
-            .joinToString("") { it.replaceFirstChar(Char::titlecase) } + "Node"
+        return "fctruffle.generated." +
+                funconName.split('-').joinToString("") { it.replaceFirstChar(Char::titlecase) } +
+                "Node"
     }
 
     // Function to instantiate the class from its name
@@ -75,7 +76,7 @@ class CBSLanguage : TruffleLanguage<Nothing>() {
         return constructor.newInstance()
     }
 
-    private fun convertToCBSNode(context: FCTParser.GeneralBlockContext): CBSNode {
+    private fun convertToFCTNode(context: FCTParser.GeneralBlockContext): FCTNode {
         val expr = context.funconTerm()
 
         // Extract the funconName
@@ -85,8 +86,9 @@ class CBSLanguage : TruffleLanguage<Nothing>() {
         val className = toClassName(funconName)
 
         // Instantiate the class
-        val cbsNode = instantiateClass(className) as? CBSNode
+        val FCTNode = instantiateClass(className) as? FCTNode
 
-        return cbsNode ?: throw IllegalArgumentException("Class $className could not be instantiated")
+        return FCTNode
+                ?: throw IllegalArgumentException("Class $className could not be instantiated")
     }
 }

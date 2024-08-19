@@ -1,7 +1,7 @@
 package fctruffle.grammartests
 
-import cbstotruffle.antlr4.CBSLexer
-import cbstotruffle.antlr4.CBSParser
+import trufflegen.antlr4.CBSLexer
+import trufflegen.antlr4.CBSParser
 import fctruffle.antlr4.FCTLexer
 import fctruffle.antlr4.FCTParser
 import org.antlr.v4.runtime.*
@@ -39,13 +39,13 @@ class GrammarTest {
 
     @ParameterizedTest(name = "Test CBS file: {0}")
     @MethodSource("cbsFilesProvider")
-    fun testCBS(file: File) {
+    fun cbsGrammarTest(file: File) {
         processFile(file, CBSLexer::class.java, CBSParser::class.java)
     }
 
     @ParameterizedTest(name = "Test FCT file: {0}")
     @MethodSource("fctFilesProvider")
-    fun testFCT(file: File) {
+    fun fctGrammarTest(file: File) {
         processFile(file, FCTLexer::class.java, FCTParser::class.java)
     }
 

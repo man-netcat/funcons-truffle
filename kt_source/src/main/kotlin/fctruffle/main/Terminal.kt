@@ -2,7 +2,7 @@ package fctruffle.main
 
 import com.oracle.truffle.api.frame.VirtualFrame
 
-abstract class Terminal : CBSNode() {
+abstract class Terminal : FCTNode() {
     abstract val value: String
 
     abstract override fun execute(frame: VirtualFrame): String

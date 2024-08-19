@@ -65,7 +65,14 @@
       <artifactId>antlr4-runtime</artifactId>
       <version>${antlr.version}</version>
     </dependency>
+
+    <dependency>
+      <groupId>io.github.akshay-thakare</groupId>
+      <artifactId>icecream</artifactId>
+      <version>0.1.3</version>
+    </dependency>
   </dependencies>
+
 
   <repositories>
     <repository>
@@ -116,10 +123,10 @@
             </goals>
             <configuration>
               <sourceDirectory>src/main/antlr4/cbs/</sourceDirectory>
-              <outputDirectory>src/main/kotlin/cbstotruffle/antlr4/</outputDirectory>
+              <outputDirectory>src/main/kotlin/trufflegen/antlr4/</outputDirectory>
               <arguments>
                 <argument>-package</argument>
-                <argument>cbstotruffle.antlr4</argument>
+                <argument>trufflegen.antlr4</argument>
               </arguments>
             </configuration>
           </execution>

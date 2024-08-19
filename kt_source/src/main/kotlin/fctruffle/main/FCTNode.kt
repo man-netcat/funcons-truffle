@@ -3,7 +3,7 @@ package fctruffle.main
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
 
-abstract class CBSNode : Node() {
+abstract class FCTNode : Node() {
     abstract fun execute(frame: VirtualFrame): Any
 
     fun isTerminal(): Boolean {

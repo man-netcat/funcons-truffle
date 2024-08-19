@@ -5,25 +5,21 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="12fe81c7-c52e-49fe-a79a-fe7dc05b3dd9" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/kotlin/fctruffle/grammartests/GrammarTest.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/kotlin/fctruffle/grammartests/LexerErrorListener.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/kotlin/fctruffle/grammartests/LexerException.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/kotlin/fctruffle/grammartests/ParserErrorListener.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/kotlin/fctruffle/grammartests/ParserException.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../CBS-beta/Funcons-beta/Values/Abstraction/Functions/tests/curry.config" beforeDir="false" afterPath="$PROJECT_DIR$/../../CBS-beta/Funcons-beta/Values/Abstraction/Functions/tests/curry.config" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/codeStyles/codeStyleConfig.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/jarRepositories.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/jarRepositories.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/kotlinc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/kotlinc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/uiDesigner.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/Main.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/antlr4/cbs/CBS.g4" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/antlr4/cbs/CBS.g4" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/antlr4/fct/FCT.g4" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/antlr4/fct/FCT.g4" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/cbsgrammartester/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/cbstotruffle/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/cbsgrammartester/main/Main.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/cbstotruffle/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/fctruffle/main/CBSContext.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/fctruffle/main/FCTContext.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/fctruffle/main/CBSLanguage.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/fctruffle/main/FCTLanguage.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/fctruffle/main/CBSNode.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/fctruffle/main/FCTNode.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/fctruffle/main/CBSRootNode.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/fctruffle/main/FCTRootNode.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/fctruffle/main/Computation.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/fctruffle/main/Computation.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/fctruffle/main/Main.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/fctruffle/main/Main.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/fctruffle/main/Terminal.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/fctruffle/main/Terminal.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/test/kotlin/fctruffle/grammartests/GrammarTest.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/kotlin/fctruffle/grammartests/GrammarTest.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/test/kotlin/fctruffle/parsetests/BaseTest.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/kotlin/fctruffle/parsetests/BaseTest.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/test/kotlin/fctruffle/parsetests/TestRootNode.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/kotlin/fctruffle/parsetests/TestRootNode.kt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -33,6 +29,7 @@
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
+        <option value="Class" />
         <option value="Kotlin Class" />
       </list>
     </option>
@@ -64,25 +61,28 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "JUnit.GrammarTest.testFCT.executor": "Run",
-    "JUnit.Test Grammar.executor": "Run",
-    "JUnit.Tests.executor": "Run",
-    "Kotlin.CBSGrammarTester.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "deletionFromPopupRequiresConfirmation": "false",
-    "git-widget-placeholder": "main",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "/home/rick/workspace/thesis/CBS-beta/Funcons-beta/Computations/Normal/Storing/Storing.cbs",
-    "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.15",
-    "project.structure.side.proportion": "0.2",
-    "settings.editor.selected.configurable": "reference.settings.project.maven.repository.indices"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;JUnit.GrammarTest.testFCT.executor&quot;: &quot;Run&quot;,
+    &quot;JUnit.Test Grammar.executor&quot;: &quot;Run&quot;,
+    &quot;JUnit.Tests.executor&quot;: &quot;Run&quot;,
+    &quot;Kotlin.CBSGrammarTester.executor&quot;: &quot;Run&quot;,
+    &quot;Kotlin.FCTruffle.executor&quot;: &quot;Run&quot;,
+    &quot;Kotlin.Trufflegen.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;deletionFromPopupRequiresConfirmation&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/rick/workspace/thesis/CBS-beta/Funcons-beta/Computations/Normal/Storing/Storing.cbs&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
+    &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;reference.settings.project.maven.repository.indices&quot;
   }
-}]]></component>
-  <component name="RunManager" selected="JUnit.Test Grammar">
+}</component>
+  <component name="RunManager" selected="Kotlin.Trufflegen">
     <configuration name="Test Grammar" type="JUnit" factoryName="JUnit">
       <module name="kt_source" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
@@ -114,9 +114,18 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
+    <configuration name="Trufflegen" type="JetRunConfigurationType">
+      <option name="MAIN_CLASS_NAME" value="trufflegen.main.MainKt" />
+      <module name="kt_source" />
+      <shortenClasspath name="NONE" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
     <list>
       <item itemvalue="JUnit.Test Grammar" />
       <item itemvalue="JUnit.Tests" />
+      <item itemvalue="Kotlin.Trufflegen" />
       <item itemvalue="Kotlin.FCTruffle" />
     </list>
   </component>
@@ -130,5 +139,16 @@
       <updated>1724085881733</updated>
     </task>
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
 </project>

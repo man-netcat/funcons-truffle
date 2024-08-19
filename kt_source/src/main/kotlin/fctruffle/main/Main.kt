@@ -24,10 +24,10 @@ fun main(args: Array<String>) {
     val code = file.readText()
 
     // Create a Source object
-    val source = Source.newBuilder(CBSLanguage.MIME_TYPE, code, filePath).build()
+    val source = Source.newBuilder(FCTLanguage.MIME_TYPE, code, filePath).build()
 
     // Create an instance of CBSLanguage
-    val language = CBSLanguage()
+    val language = FCTLanguage()
 
     // Parse the source code to create a CallTarget
     val callTarget = language.parse(source)
