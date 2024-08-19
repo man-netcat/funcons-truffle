@@ -1,6 +1,7 @@
 grammar CBS;
+fragment SQUOTE: '\'';
 
-main: (index | object)* EOF;
+root: (index | object)* EOF;
 
 objectId: DATATYPE | FUNCON | TYPE | ENTITY;
 
@@ -62,16 +63,16 @@ funconDef:
 	IDENTIFIER ('(' exprs ')')? COLON returnType (REWRITE expr)?;
 
 action: IDENTIFIER ('!' | '?')? '(' exprs ')';
-actions: (action (',' action)*)?;
+actions: action (',' action)*;
 
-step: '--' actions '->';
+step: '--->' | '--' actions '->' NUMBER?;
 steps: step (';' step)*;
 
 mutableEntity: '<' expr ',' expr '>';
 mutableExpr: mutableEntity step mutableEntity;
 
 context: expr '|-';
-stepExpr: context? expr ('--->' | steps) expr;
+stepExpr: context? expr steps expr;
 
 typeExpr: expr COLON expr;
 
@@ -85,7 +86,7 @@ transition: premise+ BAR premise;
 ruleDef: transition | premise;
 
 entityDef:
-	stepExpr;
+	stepExpr | mutableExpr;
 
 listExpr: '[' exprs ']';
 
@@ -126,4 +127,4 @@ ASSERT: 'Assert';
 BAR: '----' '-'*;
 REWRITE: '~>';
 //FUNCONID: [a-z][a-z0-9-]+;
-IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_-]* ('\'')*;
+IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_-]* SQUOTE*;

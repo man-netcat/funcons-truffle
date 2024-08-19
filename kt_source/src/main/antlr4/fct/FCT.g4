@@ -1,6 +1,6 @@
 grammar FCT;
 
-main: generalBlock inputsBlock? testsBlock? EOF;
+root: generalBlock inputsBlock? testsBlock? EOF;
 
 generalBlock: 'general' '{' funconTerm '}';
 
@@ -55,18 +55,20 @@ inputValue:
 	| terminals '}'
 	| terminal;
 
-tests: resultTerm | standardOut;
+tests: resultTerm | standardOut | store;
 
 resultTerm: 'result-term' ':' expr ';';
+store: 'store' ':' expr ';';
 standardOut: 'standard-out' ':' '[' exprs ']' ';';
 
-binOp: AND | OR;
+binOp: AND | OR | COMPUTE;
 
-unOp: NOT;
+unOp: NOT | COMPUTE;
 
 NOT: '~';
 AND: '&';
 OR: '|';
+COMPUTE: '=>';
 
 EMPTY: '(' WS? ')';
 COMMENT: '//' ~[\r\n]* -> skip;

@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="12fe81c7-c52e-49fe-a79a-fe7dc05b3dd9" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/test/kotlin/fctruffle/grammartests/GrammarTest.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/test/kotlin/fctruffle/grammartests/LexerErrorListener.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/test/kotlin/fctruffle/grammartests/LexerException.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/test/kotlin/fctruffle/grammartests/ParserErrorListener.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/test/kotlin/fctruffle/grammartests/ParserException.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../CBS-beta/Funcons-beta/Values/Abstraction/Functions/tests/curry.config" beforeDir="false" afterPath="$PROJECT_DIR$/../../CBS-beta/Funcons-beta/Values/Abstraction/Functions/tests/curry.config" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/codeStyles/codeStyleConfig.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/jarRepositories.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/jarRepositories.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/kotlinc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/kotlinc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/uiDesigner.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/antlr4/cbs/CBS.g4" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/antlr4/cbs/CBS.g4" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/antlr4/fct/FCT.g4" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/antlr4/fct/FCT.g4" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/cbsgrammartester/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/cbstotruffle/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/cbsgrammartester/main/Main.kt" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Kotlin Class" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;man-netcat&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/man-netcat/funcons-truffle.git&quot;,
+    &quot;accountId&quot;: &quot;08c8778c-3b3c-4c82-9c4c-c351c0b7592f&quot;
+  }
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;customColor&quot;: &quot;&quot;,
+  &quot;associatedIndex&quot;: 6
+}</component>
+  <component name="ProjectId" id="2ksx2pXrAIKHMWeuq3ooaCucIN7" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "JUnit.GrammarTest.testFCT.executor": "Run",
+    "JUnit.Test Grammar.executor": "Run",
+    "JUnit.Tests.executor": "Run",
+    "Kotlin.CBSGrammarTester.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "deletionFromPopupRequiresConfirmation": "false",
+    "git-widget-placeholder": "main",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/home/rick/workspace/thesis/CBS-beta/Funcons-beta/Computations/Normal/Storing/Storing.cbs",
+    "project.structure.last.edited": "Modules",
+    "project.structure.proportion": "0.15",
+    "project.structure.side.proportion": "0.2",
+    "settings.editor.selected.configurable": "reference.settings.project.maven.repository.indices"
+  }
+}]]></component>
+  <component name="RunManager" selected="JUnit.Test Grammar">
+    <configuration name="Test Grammar" type="JUnit" factoryName="JUnit">
+      <module name="kt_source" />
+      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+      <option name="ALTERNATIVE_JRE_PATH" value="openjdk-22" />
+      <option name="PACKAGE_NAME" value="fctruffle.grammartests" />
+      <option name="MAIN_CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="TEST_OBJECT" value="package" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Tests" type="JUnit" factoryName="JUnit">
+      <module name="kt_source" />
+      <option name="PACKAGE_NAME" value="" />
+      <option name="MAIN_CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="TEST_OBJECT" value="package" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="FCTruffle" type="JetRunConfigurationType">
+      <option name="MAIN_CLASS_NAME" value="fctruffle.main.MainKt" />
+      <module name="kt_source" />
+      <option name="PROGRAM_PARAMETERS" value="${funconsBeta.path}" />
+      <shortenClasspath name="NONE" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="JUnit.Test Grammar" />
+      <item itemvalue="JUnit.Tests" />
+      <item itemvalue="Kotlin.FCTruffle" />
+    </list>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="12fe81c7-c52e-49fe-a79a-fe7dc05b3dd9" name="Changes" comment="" />
+      <created>1724085881733</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1724085881733</updated>
+    </task>
+    <servers />
+  </component>
+</project>

@@ -13,7 +13,7 @@
     <truffle.version>20.0.0</truffle.version>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
-    <junit.jupiter.version>5.10.3</junit.jupiter.version>
+    <junit.jupiter.version>5.11.0</junit.jupiter.version>
     <antlr.version>4.7.2</antlr.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -25,29 +25,41 @@
       <artifactId>kotlin-stdlib</artifactId>
       <version>${kotlin.version}</version>
     </dependency>
+
     <dependency>
       <groupId>org.graalvm.truffle</groupId>
       <artifactId>truffle-api</artifactId>
       <version>${truffle.version}</version>
     </dependency>
+
     <dependency>
       <groupId>org.graalvm.truffle</groupId>
       <artifactId>truffle-dsl-processor</artifactId>
       <version>${truffle.version}</version>
       <scope>provided</scope>
     </dependency>
+
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>
       <version>${junit.jupiter.version}</version>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>
       <version>${junit.jupiter.version}</version>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <version>${junit.jupiter.version}</version>
+      <scope>test</scope>
+    </dependency>
+
     <dependency>
       <groupId>org.antlr</groupId>
       <artifactId>antlr4-runtime</artifactId>
@@ -104,10 +116,10 @@
             </goals>
             <configuration>
               <sourceDirectory>src/main/antlr4/cbs/</sourceDirectory>
-              <outputDirectory>src/main/kotlin/cbsgrammartester/antlr4/</outputDirectory>
+              <outputDirectory>src/main/kotlin/cbstotruffle/antlr4/</outputDirectory>
               <arguments>
                 <argument>-package</argument>
-                <argument>cbsgrammartester.antlr4</argument>
+                <argument>cbstotruffle.antlr4</argument>
               </arguments>
             </configuration>
           </execution>
