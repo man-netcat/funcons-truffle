@@ -104,7 +104,7 @@
             </goals>
             <configuration>
               <sourceDirectory>src/main/antlr4/cbs/</sourceDirectory>
-              <outputDirectory>src/main/kotlin/cbsgrammartester/antrl4/</outputDirectory>
+              <outputDirectory>src/main/kotlin/cbsgrammartester/antlr4/</outputDirectory>
               <arguments>
                 <argument>-package</argument>
                 <argument>cbsgrammartester.antlr4</argument>
