@@ -76,7 +76,7 @@ class CBSLanguage : TruffleLanguage<Nothing>() {
     }
 
     private fun convertToCBSNode(context: FCTParser.GeneralBlockContext): CBSNode {
-        val expr = context.funconTerm().expr()
+        val expr = context.funconTerm()
 
         // Extract the funconName
         val funconName = expr.funcon().funconName().text

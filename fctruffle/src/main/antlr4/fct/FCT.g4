@@ -1,6 +1,6 @@
 grammar FCT;
 
-topLevel: generalBlock inputsBlock? testsBlock? EOF;
+main: generalBlock inputsBlock? testsBlock? EOF;
 
 generalBlock: 'general' '{' funconTerm '}';
 
