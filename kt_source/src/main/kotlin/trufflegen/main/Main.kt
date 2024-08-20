@@ -4,8 +4,6 @@ import trufflegen.antlr4.CBSLexer
 import trufflegen.antlr4.CBSParser
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
-import org.antlr.v4.runtime.tree.ParseTree
-import org.antlr.v4.runtime.tree.Trees
 import java.io.File
 
 fun main() {
@@ -33,21 +31,11 @@ private fun processFile(file: File) {
         val parser = CBSParser(tokens)
 
         val tree = parser.root()
-        println("Parse tree for ${file.name}:")
-        printTree(tree, parser)
 
+        val visitor = CBSVisitor()
+
+        visitor.visit(tree)
     } catch (e: Exception) {
         println("Error processing file ${file.absolutePath}: ${e.message}")
-    }
-}
-
-private fun printTree(tree: ParseTree, parser: CBSParser, indentation: String = "") {
-    // Print the current node with the provided indentation
-    val nodeText = Trees.getNodeText(tree, parser)
-    println("$indentation$nodeText")
-
-    // Recursively process each child node with increased indentation
-    for (i in 0 until tree.childCount) {
-        printTree(tree.getChild(i), parser, "$indentation  ")
     }
 }

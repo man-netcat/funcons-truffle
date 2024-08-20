@@ -1,19 +1,26 @@
 grammar CBS;
-fragment SQUOTE: '\'';
+
+@header {
+package trufflegen.antlr4;
+}
 
 root: (index | object)* EOF;
 
 objectId: DATATYPE | FUNCON | TYPE | ENTITY;
 
-index: '[' (objectId IDENTIFIER ( ALIAS IDENTIFIER)?)+ ']';
+indexLine: (objectId IDENTIFIER ( ALIAS IDENTIFIER)?);
+index: '[' indexLine+ ']';
 
 object:
-	BUILTIN? DATATYPE datatypeDef (ALIAS aliasDef)*
-	| (BUILTIN | AUXILIARY)? FUNCON funconDef (ALIAS aliasDef | RULE ruleDef)*
-	| METAVARIABLES metavariablesDef
-	| ENTITY entityDef (ALIAS aliasDef)*
-	| BUILTIN? TYPE typeDef (ALIAS aliasDef)*
-	| ASSERT assertDef;
+	BUILTIN? DATATYPE datatypeDef (ALIAS aliasDef)* # DatatypeDefinition
+	| (BUILTIN | AUXILIARY)? FUNCON funconDef (
+		ALIAS aliasDef
+		| RULE ruleDef
+	)*											# FunconDefinition
+	| METAVARIABLES metavariablesDef			# MetavariablesDefinition
+	| ENTITY entityDef (ALIAS aliasDef)*		# EntityDefinition
+	| BUILTIN? TYPE typeDef (ALIAS aliasDef)*	# TypeDefinition
+	| ASSERT assertDef							# AssertDefinition;
 
 assertDef: expr '==' expr;
 
@@ -27,38 +34,40 @@ typeDef: expr (REWRITE | '<:') expr | expr;
 aliasDef: IDENTIFIER '=' IDENTIFIER;
 
 expr:
-	 funconExpr
-	|expr STAR
-	| expr PLUS
-	| expr QMARK
-	| expr POWN
-	| NOT expr
-	| COMPUTES expr
-	| expr COMPUTES expr
-	| expr AND expr
-	| expr OR expr
-	| expr COLON expr
-	| expr NOTEQUALS expr
-	| expr EQUALS expr
-	| nestedExpr
-	| listExpr
-	| mapExpr
-	| setExpr
-	| tupleExpr
-	| STRING
-	| NUMBER
-	| IDENTIFIER;
+	funconExpr								# FunconExpression
+	| operand = expr mod = STAR				# StarExpression
+	| operand = expr mod = PLUS				# PlusExpression
+	| operand = expr mod = QMARK			# QuestionMarkExpression
+	| operand = expr mod = POWN				# PowerNExpression
+	| op = NOT operand = expr				# NotExpression
+	| op = COMPUTES operand = expr			# UnaryComputesExpression
+	| lhs = expr op = COMPUTES rhs = expr	# BinaryComputesExpression
+	| lhs = expr op = AND rhs = expr		# AndExpression
+	| lhs = expr op = OR rhs = expr			# OrExpression
+	| lhs = expr op = COLON rhs = expr		# TypeExpression
+	| lhs = expr op = NOTEQUALS rhs = expr	# NotEqualsExpression
+	| lhs = expr op = EQUALS rhs = expr		# EqualsExpression
+	| nestedExpr							# NestedExpression
+	| listExpr								# ListExpression
+	| mapExpr								# MapExpression
+	| setExpr								# SetExpression
+	| tupleExpr								# TupleExpression
+	| STRING								# String
+	| NUMBER								# Number
+	| IDENTIFIER							# Identifier;
 
 exprs: (expr (',' expr)*)?;
 
 nestedExpr: '(' expr ')';
 
-funconExpr: IDENTIFIER '(' exprs ')' | IDENTIFIER expr;
-
-returnType: expr;
+funconExpr:
+	IDENTIFIER '(' args = exprs ')'
+	| IDENTIFIER arg = expr;
 
 funconDef:
-	IDENTIFIER ('(' exprs ')')? COLON returnType (REWRITE expr)?;
+	IDENTIFIER ('(' params = exprs ')')? COLON returnType = expr (
+		REWRITE rewritesTo = expr
+	)?;
 
 action: IDENTIFIER ('!' | '?')? '(' exprs ')';
 actions: action (',' action)*;
@@ -72,19 +81,23 @@ mutableExpr: mutableEntity step mutableEntity;
 context: expr '|-';
 stepExpr: context? expr steps expr;
 
-typeExpr: expr COLON expr;
+typeExpr: value = expr COLON type = expr;
 
-boolExpr: expr (EQUALS | NOTEQUALS) expr;
+boolExpr: lhs = expr op = (EQUALS | NOTEQUALS) rhs = expr;
 
-rewrite: expr REWRITE expr;
+rewriteExpr: expr REWRITE rewritesTo = expr;
 
-premise: stepExpr | mutableExpr | rewrite | boolExpr | typeExpr;
+premise:
+	stepExpr		# StepPremise
+	| mutableExpr	# MutableEntityPremise
+	| rewriteExpr	# RewritePremise
+	| boolExpr		# BooleanPremise
+	| typeExpr		# TypePremise;
 
 transition: premise+ BAR premise;
 ruleDef: transition | premise;
 
-entityDef:
-	stepExpr | mutableExpr;
+entityDef: stepExpr | mutableExpr;
 
 listExpr: '[' exprs ']';
 
@@ -124,5 +137,5 @@ AUXILIARY: 'Auxiliary';
 ASSERT: 'Assert';
 BAR: '----' '-'*;
 REWRITE: '~>';
-//FUNCONID: [a-z][a-z0-9-]+;
+SQUOTE: '\'';
 IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_-]* SQUOTE*;

@@ -125,8 +125,7 @@
               <sourceDirectory>src/main/antlr4/cbs/</sourceDirectory>
               <outputDirectory>src/main/kotlin/trufflegen/antlr4/</outputDirectory>
               <arguments>
-                <argument>-package</argument>
-                <argument>trufflegen.antlr4</argument>
+                <argument>-visitor</argument>
               </arguments>
             </configuration>
           </execution>
@@ -140,8 +139,7 @@
               <sourceDirectory>src/main/antlr4/fct/</sourceDirectory>
               <outputDirectory>src/main/kotlin/fctruffle/antlr4/</outputDirectory>
               <arguments>
-                <argument>-package</argument>
-                <argument>fctruffle.antlr4</argument>
+                <argument>-visitor</argument>
               </arguments>
             </configuration>
           </execution>

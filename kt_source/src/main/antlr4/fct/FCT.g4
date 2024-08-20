@@ -1,5 +1,9 @@
 grammar FCT;
 
+@header{
+package fctruffle.antlr4;
+}
+
 root: generalBlock inputsBlock? testsBlock? EOF;
 
 generalBlock: 'general' '{' funconTerm '}';
