@@ -8,13 +8,11 @@ objectId: DATATYPE | FUNCON | TYPE | ENTITY;
 index: '[' (objectId IDENTIFIER ( ALIAS IDENTIFIER)?)+ ']';
 
 object:
-	BUILTIN? DATATYPE datatypeDef
-	| ALIAS aliasDef
-	| (BUILTIN | AUXILIARY)? FUNCON funconDef
-	| RULE ruleDef
+	BUILTIN? DATATYPE datatypeDef (ALIAS aliasDef)*
+	| (BUILTIN | AUXILIARY)? FUNCON funconDef (ALIAS aliasDef | RULE ruleDef)*
 	| METAVARIABLES metavariablesDef
-	| ENTITY entityDef
-	| BUILTIN? TYPE typeDef
+	| ENTITY entityDef (ALIAS aliasDef)*
+	| BUILTIN? TYPE typeDef (ALIAS aliasDef)*
 	| ASSERT assertDef;
 
 assertDef: expr '==' expr;

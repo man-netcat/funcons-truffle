@@ -82,7 +82,7 @@
     &quot;settings.editor.selected.configurable&quot;: &quot;reference.settings.project.maven.repository.indices&quot;
   }
 }</component>
-  <component name="RunManager" selected="Kotlin.Trufflegen">
+  <component name="RunManager" selected="JUnit.Test Grammar">
     <configuration name="Test Grammar" type="JUnit" factoryName="JUnit">
       <module name="kt_source" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
