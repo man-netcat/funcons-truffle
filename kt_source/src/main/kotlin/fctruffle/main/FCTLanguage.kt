@@ -4,8 +4,8 @@ import com.oracle.truffle.api.CallTarget
 import com.oracle.truffle.api.Truffle
 import com.oracle.truffle.api.TruffleLanguage
 import com.oracle.truffle.api.source.Source
-import fctruffle.antlr4.FCTLexer
-import fctruffle.antlr4.FCTParser
+import fctruffle.antlr.FCTLexer
+import fctruffle.antlr.FCTParser
 import java.lang.reflect.Constructor
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream

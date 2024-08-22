@@ -1,17 +1,19 @@
 grammar CBS;
 
 @header {
-package trufflegen.antlr4;
+package trufflegen.antlr;
 }
 
-root: (index | object)* EOF;
+root: (index | obj)* EOF;
 
 objectId: DATATYPE | FUNCON | TYPE | ENTITY;
 
-indexLine: (objectId IDENTIFIER ( ALIAS IDENTIFIER)?);
+indexLine: (
+		objectId name = IDENTIFIER (ALIAS alias = IDENTIFIER)?
+	);
 index: '[' indexLine+ ']';
 
-object:
+obj:
 	BUILTIN? DATATYPE datatypeDef (ALIAS aliasDef)* # DatatypeDefinition
 	| (BUILTIN | AUXILIARY)? FUNCON funconDef (
 		ALIAS aliasDef
@@ -24,10 +26,10 @@ object:
 
 assertDef: expr '==' expr;
 
-metavariableDef: (exprs '<:' expr);
+metavariableDef: (exprs '<:' definition = expr);
 metavariablesDef: metavariableDef+;
 
-datatypeDef: expr ('::=' | '<:') expr;
+datatypeDef: expr op = ('::=' | '<:') definition = expr;
 
 typeDef: expr (REWRITE | '<:') expr | expr;
 
@@ -44,7 +46,7 @@ expr:
 	| lhs = expr op = COMPUTES rhs = expr	# BinaryComputesExpression
 	| lhs = expr op = AND rhs = expr		# AndExpression
 	| lhs = expr op = OR rhs = expr			# OrExpression
-	| lhs = expr op = COLON rhs = expr		# TypeExpression
+	| value = expr op = COLON type = expr	# TypeExpression
 	| lhs = expr op = NOTEQUALS rhs = expr	# NotEqualsExpression
 	| lhs = expr op = EQUALS rhs = expr		# EqualsExpression
 	| nestedExpr							# NestedExpression
@@ -61,15 +63,15 @@ exprs: (expr (',' expr)*)?;
 nestedExpr: '(' expr ')';
 
 funconExpr:
-	IDENTIFIER '(' args = exprs ')'
-	| IDENTIFIER arg = expr;
+	name = IDENTIFIER '(' args = exprs ')'
+	| name = IDENTIFIER arg = expr;
 
 funconDef:
-	IDENTIFIER ('(' params = exprs ')')? COLON returnType = expr (
+	name = IDENTIFIER ('(' params = exprs ')')? COLON returnType = expr (
 		REWRITE rewritesTo = expr
 	)?;
 
-action: IDENTIFIER ('!' | '?')? '(' exprs ')';
+action: name = IDENTIFIER polarity = ('!' | '?')? '(' exprs ')';
 actions: action (',' action)*;
 
 step: '--->' | '--' actions '->' NUMBER?;
@@ -79,23 +81,20 @@ mutableEntity: '<' expr ',' expr '>';
 mutableExpr: mutableEntity step mutableEntity;
 
 context: expr '|-';
-stepExpr: context? expr steps expr;
-
-typeExpr: value = expr COLON type = expr;
-
-boolExpr: lhs = expr op = (EQUALS | NOTEQUALS) rhs = expr;
-
-rewriteExpr: expr REWRITE rewritesTo = expr;
+stepExpr: context? lhs = expr steps rewritesTo = expr;
 
 premise:
-	stepExpr		# StepPremise
-	| mutableExpr	# MutableEntityPremise
-	| rewriteExpr	# RewritePremise
-	| boolExpr		# BooleanPremise
-	| typeExpr		# TypePremise;
+	stepExpr											# StepPremise
+	| mutableExpr										# MutableEntityPremise
+	| lhs = expr REWRITE rewritesTo = expr				# RewritePremise
+	| lhs = expr op = (EQUALS | NOTEQUALS) rhs = expr	# BooleanPremise
+	| value = expr COLON type = expr					# TypePremise;
 
-transition: premise+ BAR premise;
-ruleDef: transition | premise;
+premises: premise+;
+
+ruleDef:
+	premises BAR conclusion = premise	# TransitionRule
+	| premise							# RewriteRule;
 
 entityDef: stepExpr | mutableExpr;
 

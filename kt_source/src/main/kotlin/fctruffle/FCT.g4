@@ -1,7 +1,7 @@
 grammar FCT;
 
-@header{
-package fctruffle.antlr4;
+@header {
+package fctruffle.antlr;
 }
 
 root: generalBlock inputsBlock? testsBlock? EOF;
@@ -21,14 +21,14 @@ funcon:
 funconName: IDENTIFIER;
 
 expr:
-	unOp expr
-	| expr binOp expr
-	| funcon
-	| listExpr
-	| mapExpr
-	| setExpr
-	| tupleExpr
-	| terminal;
+	unOp expr						# UnopExpression
+	| lhs = expr binOp rhs = expr	# BinOpExpression
+	| funcon						# FunconExpression
+	| listExpr						# ListExpression
+	| mapExpr						# MapExpression
+	| setExpr						# SetExpression
+	| tupleExpr						# TupleExpression
+	| terminal						# TerminalExpression;
 
 exprs: (expr (',' expr)*)?;
 
@@ -42,22 +42,22 @@ mapExpr: '{' pairs '}';
 
 setExpr: '{' exprs '}';
 
-pair: expr '|->' expr;
-termPair: terminal '|->' terminal;
+pair: key = expr '|->' value = expr;
+termPair: key = terminal '|->' value = terminal;
 
 pairs: (pair (',' pair)*)?;
 termPairs: (termPair (',' termPair)*)?;
 
 tupleExpr: 'tuple(' exprs ')';
 
-standardIn: 'standard-in' ':' inputValue ';';
+standardIn: 'standard-in' ':' input ';';
 
-inputValue:
-	'(' terminals ')'
-	| '[' terminals ']'
-	| '{' termPairs
-	| terminals '}'
-	| terminal;
+input:
+	'(' terminals ')'	# InputTuple
+	| '[' terminals ']'	# InputList
+	| '{' termPairs '}'	# InputMap
+	| '{' terminals '}'	# InputSet
+	| terminal			# InputValue;
 
 tests: resultTerm | standardOut | store;
 

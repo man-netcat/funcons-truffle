@@ -1,9 +1,9 @@
 package fctruffle.grammartests
 
-import trufflegen.antlr4.CBSLexer
-import trufflegen.antlr4.CBSParser
-import fctruffle.antlr4.FCTLexer
-import fctruffle.antlr4.FCTParser
+import trufflegen.antlr.CBSLexer
+import trufflegen.antlr.CBSParser
+import fctruffle.antlr.FCTLexer
+import fctruffle.antlr.FCTParser
 import org.antlr.v4.runtime.*
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.ParameterizedTest
@@ -27,7 +27,7 @@ class GrammarTest {
         parser.addErrorListener(ParserErrorListener(parserErrorCollector))
 
         val ruleMethod = parserClass.getMethod("root")
-        val tree = ruleMethod.invoke(parser)
+        ruleMethod.invoke(parser)
 
         if (lexerErrorCollector.isNotEmpty()) {
             throw LexerException(file.name, lexerErrorCollector)
