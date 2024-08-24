@@ -1,0 +1,8 @@
+.vscode
+out
+__pycache__
+tests/test.cfg
+stderr.txt
+stdout.txt
+sandbox.py
+.venv

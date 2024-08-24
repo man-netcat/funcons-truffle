@@ -1,0 +1,182 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.rickteuthof</groupId>
+  <artifactId>funcons-truffle</artifactId>
+  <version>1.0.0</version>
+
+  <properties>
+    <kotlin.version>2.0.0</kotlin.version>
+    <truffle.version>20.0.0</truffle.version>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <junit.jupiter.version>5.10.0</junit.jupiter.version>
+    <antlr.version>4.7.2</antlr.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.jetbrains.kotlin</groupId>
+      <artifactId>kotlin-stdlib</artifactId>
+      <version>${kotlin.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.jetbrains.kotlin</groupId>
+      <artifactId>kotlin-reflect</artifactId>
+      <version>${kotlin.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.graalvm.truffle</groupId>
+      <artifactId>truffle-api</artifactId>
+      <version>${truffle.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.graalvm.truffle</groupId>
+      <artifactId>truffle-dsl-processor</artifactId>
+      <version>${truffle.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>${junit.jupiter.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <version>${junit.jupiter.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <version>${junit.jupiter.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr4-runtime</artifactId>
+      <version>${antlr.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.github.akshay-thakare</groupId>
+      <artifactId>icecream</artifactId>
+      <version>0.1.3</version>
+    </dependency>
+  </dependencies>
+
+  <repositories>
+    <repository>
+      <id>central</id>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </repository>
+  </repositories>
+
+  <build>
+    <sourceDirectory>src/main/kotlin</sourceDirectory>
+    <testSourceDirectory>src/test/kotlin</testSourceDirectory>
+
+    <plugins>
+      <!-- Kotlin Plugin -->
+      <plugin>
+        <artifactId>kotlin-maven-plugin</artifactId>
+        <groupId>org.jetbrains.kotlin</groupId>
+        <version>${kotlin.version}</version>
+        <executions>
+          <execution>
+            <id>compile</id>
+            <phase>process-sources</phase>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>test-compile</id>
+            <phase>test-compile</phase>
+            <goals>
+              <goal>test-compile</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- ANTLR Plugin -->
+      <plugin>
+        <groupId>org.antlr</groupId>
+        <artifactId>antlr4-maven-plugin</artifactId>
+        <version>${antlr.version}</version>
+        <executions>
+          <execution>
+            <id>antlr-cbs</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>antlr4</goal>
+            </goals>
+            <configuration>
+              <sourceDirectory>src/main/kotlin/trufflegen/</sourceDirectory>
+              <outputDirectory>src/main/kotlin/trufflegen/antlr/</outputDirectory>
+              <arguments>
+                <argument>-visitor</argument>
+              </arguments>
+            </configuration>
+          </execution>
+          <execution>
+            <id>antlr-fct</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>antlr4</goal>
+            </goals>
+            <configuration>
+              <sourceDirectory>src/main/kotlin/fctruffle/</sourceDirectory>
+              <outputDirectory>src/main/kotlin/fctruffle/antlr/</outputDirectory>
+              <arguments>
+                <argument>-visitor</argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Maven Compiler Plugin -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <source>${maven.compiler.source}</source>
+          <target>${maven.compiler.target}</target>
+          <compilerArgs>
+            <arg>-Xlint:-options</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+
+      <!-- Maven Surefire Plugin for testing -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.22.2</version>
+        <configuration>
+          <includes>
+            <include>**/*Test.kt</include>
+          </includes>
+          <useFile>false</useFile>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
