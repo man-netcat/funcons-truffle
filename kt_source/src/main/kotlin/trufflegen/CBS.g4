@@ -29,45 +29,47 @@ assertDef: expr '==' expr;
 metavariableDef: (exprs '<:' definition = expr);
 metavariablesDef: metavariableDef+;
 
-datatypeDef: expr op = ('::=' | '<:') definition = expr;
+datatypeDef: name = expr op = ('::=' | '<:') definition = expr;
 
-typeDef: expr (REWRITE | '<:') expr | expr;
+typeDef:
+	name = expr (REWRITE | '<:') definition = expr
+	| name = expr;
 
 aliasDef: IDENTIFIER '=' IDENTIFIER;
 
 expr:
-	funconExpr								# FunconExpression
-	| operand = expr mod = STAR				# StarExpression
-	| operand = expr mod = PLUS				# PlusExpression
-	| operand = expr mod = QMARK			# QuestionMarkExpression
-	| operand = expr mod = POWN				# PowerNExpression
-	| op = NOT operand = expr				# NotExpression
-	| op = COMPUTES operand = expr			# UnaryComputesExpression
-	| lhs = expr op = COMPUTES rhs = expr	# BinaryComputesExpression
-	| lhs = expr op = AND rhs = expr		# AndExpression
-	| lhs = expr op = OR rhs = expr			# OrExpression
-	| value = expr op = COLON type = expr	# TypeExpression
-	| lhs = expr op = NOTEQUALS rhs = expr	# NotEqualsExpression
-	| lhs = expr op = EQUALS rhs = expr		# EqualsExpression
-	| nestedExpr							# NestedExpression
-	| listExpr								# ListExpression
-	| mapExpr								# MapExpression
-	| setExpr								# SetExpression
-	| tupleExpr								# TupleExpression
-	| STRING								# String
-	| NUMBER								# Number
-	| IDENTIFIER							# Identifier;
+	funconExpr														# FunconExpression
+	| operand = expr op = (STAR | PLUS | QMARK | POWN)				# SuffixExpression
+	| op = NOT operand = expr										# NotExpression
+	| op = COMPUTES operand = expr									# UnaryComputesExpression
+	| lhs = expr op = COMPUTES rhs = expr							# BinaryComputesExpression
+	| lhs = expr op = (AND | OR | EQUALS | NOTEQUALS) rhs = expr	# BinaryOpExpression
+	| value = expr op = COLON type = expr							# TypeExpression
+	| nestedExpr													# NestedExpression
+	| listExpr														# ListExpression
+	| mapExpr														# MapExpression
+	| setExpr														# SetExpression
+	| tupleExpr														# TupleExpression
+	| STRING														# String
+	| NUMBER														# Number
+	| IDENTIFIER													# Identifier;
 
 exprs: (expr (',' expr)*)?;
 
 nestedExpr: '(' expr ')';
 
+arg: value = expr (COLON type = expr);
+args: arg (',' arg)*;
+
 funconExpr:
-	name = IDENTIFIER '(' args = exprs ')'
-	| name = IDENTIFIER arg = expr;
+	name = IDENTIFIER '(' args ')'
+	| name = IDENTIFIER expr;
+
+param: (value = expr COLON)? type = expr;
+params: param (',' param)*;
 
 funconDef:
-	name = IDENTIFIER ('(' params = exprs ')')? COLON returnType = expr (
+	name = IDENTIFIER ('(' params ')')? COLON returnType = expr (
 		REWRITE rewritesTo = expr
 	)?;
 

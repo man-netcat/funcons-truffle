@@ -4,35 +4,44 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="12fe81c7-c52e-49fe-a79a-fe7dc05b3dd9" name="Changes" comment="Experimenting with visitors">
+    <list default="true" id="12fe81c7-c52e-49fe-a79a-fe7dc05b3dd9" name="Changes" comment="Doing a lot of visiting">
       <change afterPath="$PROJECT_DIR$/../../CBS-beta/Funcons-beta/Funcons-beta.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/uiDesigner.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/ArgMapper.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/InitVisitor.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/WriteVisitor.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../fctruffle/.idea/workspace.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/DataCollectionVisitor.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/DatatypeObjectData.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/FunconObjectData.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/ObjectDataContainer.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/Param.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/ParamType.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/ReturnType.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/Type.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/TypeCategory.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/TypeData.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/TypeVisitor.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/Value.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/antlr4/cbs/CBS.g4" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/CBS.g4" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/antlr4/fct/FCT.g4" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/fctruffle/FCT.g4" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/fctruffle/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/fctruffle/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/fctruffle/main/FCTLanguage.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/fctruffle/main/FCTLanguage.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/trufflegen/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/CBSNode.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/Util.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/CBSVisitor.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/trufflegen/CBS.g4" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/CBS.g4" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/DeclarationVisitor.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/DefinitionVisitor.kt" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/Main.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/Main.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/kotlin/fctruffle/grammartests/GrammarTest.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/kotlin/fctruffle/grammartests/GrammarTest.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/Util.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/trufflegen/main/Util.kt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="ChangesViewManager">
+    <option name="groupingKeys">
+      <option value="directory" />
+      <option value="module" />
+      <option value="repository" />
+    </option>
+  </component>
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
         <option value="Class" />
+        <option value="Kotlin Enum" />
         <option value="Kotlin Class" />
       </list>
     </option>
@@ -52,6 +61,9 @@
     &quot;accountId&quot;: &quot;08c8778c-3b3c-4c82-9c4c-c351c0b7592f&quot;
   }
 }</component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 2
 }</component>
@@ -72,7 +84,9 @@
     "Kotlin.ArgMapperKt.executor": "Run",
     "Kotlin.CBSGrammarTester.executor": "Run",
     "Kotlin.FCTruffle.executor": "Run",
+    "Kotlin.FunconObjectDataKt.executor": "Run",
     "Kotlin.Trufflegen.executor": "Run",
+    "Kotlin.UtilKt.executor": "Run",
     "Maven.kt_source.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
@@ -144,15 +158,24 @@
         <option name="MakeProject" enabled="true" />
       </method>
     </configuration>
+    <configuration name="UtilKt" type="JetRunConfigurationType" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="trufflegen.main.UtilKt" />
+      <module name="kt_source" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
     <list>
       <item itemvalue="JUnit.Test Grammar" />
       <item itemvalue="JUnit.Tests" />
       <item itemvalue="Kotlin.Trufflegen" />
       <item itemvalue="Kotlin.FCTruffle" />
+      <item itemvalue="Kotlin.UtilKt" />
       <item itemvalue="Kotlin.ArgMapperKt" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Kotlin.UtilKt" />
         <item itemvalue="Kotlin.ArgMapperKt" />
         <item itemvalue="Kotlin.ArgMapperKt" />
       </list>
@@ -183,7 +206,15 @@
       <option name="project" value="LOCAL" />
       <updated>1724188940971</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="Doing a lot of visiting">
+      <option name="closed" value="true" />
+      <created>1724343329675</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1724343329675</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -200,6 +231,7 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Made Rules/Aliases part of other objects" />
     <MESSAGE value="Experimenting with visitors" />
-    <option name="LAST_COMMIT_MESSAGE" value="Experimenting with visitors" />
+    <MESSAGE value="Doing a lot of visiting" />
+    <option name="LAST_COMMIT_MESSAGE" value="Doing a lot of visiting" />
   </component>
 </project>
