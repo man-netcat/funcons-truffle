@@ -31,6 +31,7 @@ class FunconObjectData(
                 "fctruffle.main.*",
                 "com.oracle.truffle.api.frame.VirtualFrame",
                 "com.oracle.truffle.api.nodes.NodeInfo",
+                "com.oracle.truffle.api.nodes.Node.Child"
             )
         )
 

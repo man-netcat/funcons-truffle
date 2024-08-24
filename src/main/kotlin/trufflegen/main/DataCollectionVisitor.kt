@@ -6,10 +6,10 @@ import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.DatatypeDefContext
 import trufflegen.antlr.CBSParser.FunconDefContext
 
-class DataCollectionVisitor : CBSBaseVisitor<Map<String, ObjectDataContainer>>() {
-    private val resultMap = mutableMapOf<String, ObjectDataContainer>()
+class DataCollectionVisitor : CBSBaseVisitor<List<ObjectDataContainer>>() {
+    private val results = mutableListOf<ObjectDataContainer>()
 
-    override fun visitFunconDef(funcon: FunconDefContext): Map<String, ObjectDataContainer> {
+    override fun visitFunconDef(funcon: FunconDefContext): List<ObjectDataContainer> {
         val name = funcon.name.text
         println("Funcon: $name")
 
@@ -21,30 +21,30 @@ class DataCollectionVisitor : CBSBaseVisitor<Map<String, ObjectDataContainer>>()
         val returns = ReturnType(funcon.returnType)
         val dataContainer = FunconObjectData(name, params, returns)
 
-        resultMap[name] = dataContainer
+        results.add(dataContainer)
 
-        return resultMap
+        return results
     }
 
-    override fun visitDatatypeDef(datatype: DatatypeDefContext): Map<String, ObjectDataContainer> {
+    override fun visitDatatypeDef(datatype: DatatypeDefContext): List<ObjectDataContainer> {
         val name = datatype.name.text
         println("datatype: $name")
 
         val definition = datatype.definition.text
         val dataContainer = DatatypeObjectData(name, definition)
 
-        resultMap[name] = dataContainer
+        results.add(dataContainer)
 
-        return resultMap
+        return results
     }
 
-    override fun visitChildren(node: RuleNode): Map<String, ObjectDataContainer> {
+    override fun visitChildren(node: RuleNode): List<ObjectDataContainer> {
         for (i in 0 until node.childCount) {
             val child = node.getChild(i)
             if (child is ParseTree) {
                 child.accept(this)
             }
         }
-        return resultMap
+        return results
     }
 }

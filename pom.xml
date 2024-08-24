@@ -11,8 +11,8 @@
   <properties>
     <kotlin.version>2.0.0</kotlin.version>
     <truffle.version>20.0.0</truffle.version>
-    <maven.compiler.source>1.8</maven.compiler.source>
-    <maven.compiler.target>1.8</maven.compiler.target>
+    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>11</maven.compiler.target>
     <junit.jupiter.version>5.10.0</junit.jupiter.version>
     <antlr.version>4.7.2</antlr.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
