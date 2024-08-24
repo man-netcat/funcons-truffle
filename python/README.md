@@ -1,3 +1,4 @@
+<del>
 WIP project for master's thesis.
 
 Installation:
@@ -13,3 +14,6 @@ For cbs_parser.py:
 For testing suite:
 
 `python3 -m unittest tests/test.py`
+</del>
+
+Deprecated
