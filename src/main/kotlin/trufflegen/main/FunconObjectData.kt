@@ -1,7 +1,10 @@
 package trufflegen.main
 
 class FunconObjectData(
-    override val name: String, private val params: List<Param>?, val returns: ReturnType,
+    override val name: String,
+    private val params: List<Param>?,
+    val returns: ReturnType,
+    private val aliases: List<String>,
 ) : ObjectDataContainer() {
 
     fun argToParam(preVararg: Int, postVararg: Int, argIndex: Int): Int {
@@ -35,10 +38,16 @@ class FunconObjectData(
             )
         )
 
-        val paramsString = (params ?: emptyList()).map { param -> param.string to "FCTNode" }
+        val paramsStr = params.orEmpty().map { param ->
+            val annotation = if (param.type.isVararg) "@Children private vararg val" else "@Child private val"
+            Triple(annotation, param.string, "FCTNode")
+        }
 
-        val cls = makeClass(nodeName, constructorArgs = paramsString)
-        val file = makeFile("fctruffle.generated", imports, cls)
+        val cls = makeClass(nodeName, constructorArgs = paramsStr)
+
+        val aliasStrs = aliases.joinToString("\n") { alias -> makeTypeAlias(toClassName(alias), nodeName) }
+
+        val file = makeFile("fctruffle.generated", imports, cls, aliasStrs)
         return file
     }
 }

@@ -2,9 +2,9 @@ package trufflegen.main
 
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
-import org.antlr.v4.runtime.misc.Utils.writeFile
 import trufflegen.antlr.CBSLexer
 import trufflegen.antlr.CBSParser
+import trufflegen.antlr.CBSParser.RootContext
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
@@ -19,11 +19,11 @@ fun main() {
     // First pass: parse each file and store the parse tree
     val fileTreeMap = generateParseTrees(directory)
 
-    // Second pass: collect data for funcon/type declarations
-    val objects = collectData(fileTreeMap)
+    // Second pass: build objects
+    val funconObjects = buildFuncons(fileTreeMap)
 
-    // Third pass: generate and write code
-    generateCode(objects)
+    // Fourth pass: generate and write code
+//    generateCode(objects)
 }
 
 private fun validateDirectory(directory: File): Boolean {
@@ -35,10 +35,10 @@ private fun validateDirectory(directory: File): Boolean {
     }
 }
 
-private fun generateParseTrees(directory: File): Map<File, CBSParser.RootContext?> {
-    val fileTreeMap = mutableMapOf<File, CBSParser.RootContext?>()
+private fun generateParseTrees(directory: File): Map<File, RootContext?> {
+    val fileTreeMap = mutableMapOf<File, RootContext?>()
 
-    directory.walkTopDown().filter { it.isFile && it.extension == "cbs" }.forEach { file ->
+    directory.walkTopDown().filter { file -> isFileOfType(file, "cbs") }.forEach { file ->
         println("Generating parse tree for file: ${file.name}")
         val tree = parseFile(file)
         fileTreeMap[file] = tree
@@ -47,7 +47,7 @@ private fun generateParseTrees(directory: File): Map<File, CBSParser.RootContext
     return fileTreeMap
 }
 
-private fun parseFile(file: File): CBSParser.RootContext? {
+private fun parseFile(file: File): RootContext? {
     return try {
         val input = CharStreams.fromPath(file.toPath())
         val lexer = CBSLexer(input)
@@ -60,16 +60,16 @@ private fun parseFile(file: File): CBSParser.RootContext? {
     }
 }
 
-private fun collectData(
-    fileTreeMap: Map<File, CBSParser.RootContext?>
+private fun buildFuncons(
+    fileTreeMap: Map<File, RootContext?>
 ): MutableMap<String, ObjectDataContainer> {
-    val dataCollectionVisitor = DataCollectionVisitor()
+    val objectBuilderVisitor = ObjectBuilderVisitor()
     val objects = mutableMapOf<String, ObjectDataContainer>()
 
     fileTreeMap.forEach { (file, tree) ->
         println("Processing data for file: ${file.name}")
         tree?.let {
-            val data = dataCollectionVisitor.visit(it)
+            val data = objectBuilderVisitor.visit(it)
             data?.forEach { obj ->
                 obj.file = file
                 objects[obj.name] = obj

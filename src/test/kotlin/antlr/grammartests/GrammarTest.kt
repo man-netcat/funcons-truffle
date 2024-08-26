@@ -14,26 +14,26 @@ import java.util.stream.Stream
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GrammarTest {
     private fun processFile(file: File, lexerClass: Class<out Lexer>, parserClass: Class<out Parser>) {
-        val input = CharStreams.fromFileName(file.absolutePath)
+        val input = CharStreams.fromFileName(file.path)
         val lexer = lexerClass.getConstructor(CharStream::class.java).newInstance(input)
         val tokens = CommonTokenStream(lexer)
         val parser = parserClass.getConstructor(TokenStream::class.java).newInstance(tokens)
 
         val lexerErrorCollector = mutableListOf<String>()
-        lexer.addErrorListener(LexerErrorListener(lexerErrorCollector))
+        lexer.addErrorListener(LexerErrorListener(file, lexerErrorCollector))
 
         val parserErrorCollector = mutableListOf<String>()
         parser.removeErrorListeners()
-        parser.addErrorListener(ParserErrorListener(parserErrorCollector))
+        parser.addErrorListener(ParserErrorListener(file, parserErrorCollector))
 
         val ruleMethod = parserClass.getMethod("root")
         ruleMethod.invoke(parser)
 
         if (lexerErrorCollector.isNotEmpty()) {
-            throw LexerException(file.name, lexerErrorCollector)
+            throw LexerException(file, lexerErrorCollector)
         }
         if (parserErrorCollector.isNotEmpty()) {
-            throw ParserException(file.name, parserErrorCollector)
+            throw ParserException(file, parserErrorCollector)
         }
     }
 

@@ -1,5 +1,7 @@
 package trufflegen.main
 
+import trufflegen.antlr.CBSParser.ExprContext
+import trufflegen.antlr.CBSParser.ExprsContext
 import java.io.File
 
 fun isFileOfType(file: File, fileType: String = "cbs"): Boolean {
@@ -46,19 +48,19 @@ fun makeVariable(name: String, type: String, value: String): String {
 fun makeClass(
     name: String,
     annotations: List<String> = emptyList(),
-    constructorArgs: List<Pair<String, String>> = emptyList(),
+    constructorArgs: List<Triple<String, String, String>> = emptyList(),
     properties: List<Pair<String, String>> = emptyList(),
     functions: List<String> = emptyList(),
 ): String {
     val annotationsStr = if (annotations.isNotEmpty()) {
-        annotations.joinToString("\n") { "@$it" } + "\n"
+        annotations.joinToString("\n") { str -> "@$str" } + "\n"
     } else {
         ""
     }
 
     // Generate the constructor string
     val constructorStr = if (constructorArgs.isNotEmpty()) {
-        constructorArgs.joinToString(", ") { "@Child private val ${it.first}: ${it.second}" }
+        constructorArgs.joinToString(", ") { "${it.first} ${it.second}: ${it.third}" }
     } else {
         ""
     }
@@ -100,11 +102,19 @@ fun makeImports(packages: List<String>): String {
     return packages.joinToString("\n") { "import $it" }
 }
 
+fun makeTypeAlias(aliasName: String, targetType: String): String {
+    return "typealias $aliasName = $targetType"
+}
+
 fun makeFile(
     packageName: String,
     importsStr: String,
     classStr: String,
+    aliasStrs: String,
 ): String {
-    return "package $packageName\n\n$importsStr\n\n$classStr"
+    return "package $packageName\n\n$importsStr\n\n$classStr\n\n$aliasStrs\n"
 }
 
+fun ExprsContext.joinExprsToString(separator: String = ", ", transform: (ExprContext) -> String): String {
+    return expr().joinToString(separator, transform = transform)
+}

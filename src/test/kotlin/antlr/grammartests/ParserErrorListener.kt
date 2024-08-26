@@ -3,8 +3,10 @@ package antlr.grammartests
 import org.antlr.v4.runtime.BaseErrorListener
 import org.antlr.v4.runtime.RecognitionException
 import org.antlr.v4.runtime.Recognizer
+import java.io.File
 
-class ParserErrorListener(private val errorCollector: MutableList<String>) : BaseErrorListener() {
+class ParserErrorListener(private val file: File, private val errorCollector: MutableList<String>) :
+    BaseErrorListener() {
     override fun syntaxError(
         recognizer: Recognizer<*, *>?,
         offendingSymbol: Any?,
@@ -13,7 +15,7 @@ class ParserErrorListener(private val errorCollector: MutableList<String>) : Bas
         msg: String?,
         e: RecognitionException?
     ) {
-        val errorMsg = "Parser error at line $line:$charPositionInLine - $msg"
+        val errorMsg = "Parser error at line ${file.name}:$line:$charPositionInLine - $msg"
         errorCollector.add(errorMsg)
     }
 }

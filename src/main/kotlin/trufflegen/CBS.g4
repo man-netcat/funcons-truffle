@@ -9,33 +9,34 @@ root: (index | obj)* EOF;
 objectId: DATATYPE | FUNCON | TYPE | ENTITY;
 
 indexLine: (
-		objectId name = IDENTIFIER (ALIAS alias = IDENTIFIER)?
+		objectId name = FUNCONID (ALIAS alias = FUNCONID)?
 	);
 index: '[' indexLine+ ']';
 
 obj:
-	BUILTIN? DATATYPE datatypeDef (ALIAS aliasDef)* # DatatypeDefinition
-	| (BUILTIN | AUXILIARY)? FUNCON funconDef (
-		ALIAS aliasDef
-		| RULE ruleDef
-	)*											# FunconDefinition
-	| METAVARIABLES metavariablesDef			# MetavariablesDefinition
-	| ENTITY entityDef (ALIAS aliasDef)*		# EntityDefinition
-	| BUILTIN? TYPE typeDef (ALIAS aliasDef)*	# TypeDefinition
-	| ASSERT assertDef							# AssertDefinition;
+	BUILTIN? DATATYPE datatypeObj (ALIAS aliasObj)* # DatatypeObject
+	| (BUILTIN | AUXILIARY)? FUNCON funconObj (
+		ALIAS aliasObj
+		| RULE ruleObj
+	)*											# FunconObject
+	| METAVARIABLES metavariablesObj			# MetavariablesObject
+	| ENTITY entityObj (ALIAS aliasObj)*		# EntityObject
+	| BUILTIN? TYPE typeObj (ALIAS aliasObj)*	# TypeObject
+	| ASSERT assertObj							# AssertObject;
 
-assertDef: expr '==' expr;
+assertObj: expr '==' expr;
 
 metavariableDef: (exprs '<:' definition = expr);
-metavariablesDef: metavariableDef+;
+metavariablesObj: metavariableDef+;
 
-datatypeDef: name = expr op = ('::=' | '<:') definition = expr;
+datatypeDefs: (expr ('|' expr)*)?;
+datatypeObj: name = expr op = ('::=' | '<:') datatypeDefs;
 
-typeDef:
+typeObj:
 	name = expr (REWRITE | '<:') definition = expr
 	| name = expr;
 
-aliasDef: IDENTIFIER '=' IDENTIFIER;
+aliasObj: name=FUNCONID '=' original=FUNCONID;
 
 expr:
 	funconExpr														# FunconExpression
@@ -58,22 +59,23 @@ exprs: (expr (',' expr)*)?;
 
 nestedExpr: '(' expr ')';
 
-arg: value = expr (COLON type = expr);
-args: arg (',' arg)*;
+args
+    : '(' exprs ')' # MultipleArgs
+    | expr          # SingleArgs
+    |               # NoArgs;
 
 funconExpr:
-	name = IDENTIFIER '(' args ')'
-	| name = IDENTIFIER expr;
+	name = FUNCONID args;
 
 param: (value = expr COLON)? type = expr;
 params: param (',' param)*;
 
-funconDef:
-	name = IDENTIFIER ('(' params ')')? COLON returnType = expr (
+funconObj:
+	name = FUNCONID ('(' params ')')? COLON returnType = expr (
 		REWRITE rewritesTo = expr
 	)?;
 
-action: name = IDENTIFIER polarity = ('!' | '?')? '(' exprs ')';
+action: name = FUNCONID polarity = ('!' | '?')? '(' exprs ')';
 actions: action (',' action)*;
 
 step: '--->' | '--' actions '->' NUMBER?;
@@ -94,11 +96,11 @@ premise:
 
 premises: premise+;
 
-ruleDef:
+ruleObj:
 	premises BAR conclusion = premise	# TransitionRule
 	| premise							# RewriteRule;
 
-entityDef: stepExpr | mutableExpr;
+entityObj: stepExpr | mutableExpr;
 
 listExpr: '[' exprs ']';
 
@@ -139,4 +141,5 @@ ASSERT: 'Assert';
 BAR: '----' '-'*;
 REWRITE: '~>';
 SQUOTE: '\'';
-IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_-]* SQUOTE*;
+FUNCONID: [a-z][a-zA-Z0-9-]* SQUOTE*;
+IDENTIFIER: [A-Za-z_][a-zA-Z0-9_-]* SQUOTE*;
