@@ -3,7 +3,16 @@ package trufflegen.main
 import trufflegen.antlr.CBSParser.ExprContext
 
 abstract class Type(type: ExprContext) {
-    val typeData: TypeData = TypeVisitor().visit(type)
+    val text: String = type.text
+    val visitor = TypeVisitor()
+    val typeData: TypeData
+        get() {
+            return visitor.getTypeData()
+        }
+
+    init {
+        visitor.visit(type)
+    }
 
     val typeCategory: TypeCategory
         get() = when {

@@ -1,8 +1,6 @@
 package trufflegen.main
 
 import org.antlr.v4.runtime.tree.ParseTree
-import org.antlr.v4.runtime.tree.RuleNode
-import org.icecream.IceCream.ic
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
@@ -11,17 +9,41 @@ class ObjectBuilderVisitor : CBSBaseVisitor<List<ObjectDataContainer>>() {
 
     private val primitives = mutableListOf<String>()
 
-    private fun extractArgs(ctx: FunconExpressionContext): List<ExprContext> {
-        val funcon = ctx.funconExpr()
-        return when (val args = funcon.args()) {
-            is NoArgsContext -> emptyList()
-            is SingleArgsContext -> listOf(args.expr())
-            is MultipleArgsContext -> args.exprs().expr()
-            else -> throw IllegalArgumentException()
+    private fun extractArgs(funcon: ParseTree): List<ExprContext> {
+        return when (funcon) {
+            is FunconExpressionContext -> {
+                when (val args = funcon.funconExpr().args()) {
+                    is NoArgsContext -> emptyList()
+                    is SingleArgsContext -> listOf(args.expr())
+                    is MultipleArgsContext -> args.exprs().expr()
+                    else -> throw IllegalArgumentException("Unexpected args type: ${args::class.simpleName}")
+                }
+            }
+
+            is FunconObjContext -> funcon.params()?.param()?.map { it.value ?: it.type } ?: emptyList()
+
+            else -> throw IllegalStateException("Unexpected funcon type: ${funcon::class.simpleName}")
         }
     }
 
+    private fun rewrite(
+        ruleDef: ParseTree, rewriteExpr: ParseTree, params: List<Param>
+    ): String {
+        val args = when (ruleDef) {
+            is FunconExpressionContext -> extractArgs(ruleDef)
+            is FunconObjContext -> extractArgs(ruleDef)
+            else -> throw IllegalStateException("Unexpected rule definition ${ruleDef::class.simpleName}")
+        }
+
+        val rewriteVisitor = RewriteVisitor(params, args)
+        println("Before: ${rewriteExpr.text}")
+        val rewritten = rewriteVisitor.visit(rewriteExpr)
+        println("After: $rewritten")
+        return rewritten
+    }
+
     private fun buildRules(funconParams: List<Param>, ruleDefs: List<RuleObjContext>): String {
+        var rewritten = ""
         ruleDefs.forEach { rule ->
             when (rule) {
                 is TransitionRuleContext -> {
@@ -50,12 +72,8 @@ class ObjectBuilderVisitor : CBSBaseVisitor<List<ObjectDataContainer>>() {
                         if (premise.lhs !is FunconExpressionContext) {
                             throw IllegalArgumentException("lhs is somehow not a funcon")
                         }
-                        val args = extractArgs(premise.lhs as FunconExpressionContext)
-                        val rewriteVisitor = RewriteVisitor(funconParams, args)
-                        ic(premise.rewritesTo.text)
-                        val rewritten = rewriteVisitor.visit(premise.rewritesTo)
-                        ic(rewritten)
-                        assert(rewritten != null)
+                        println("\nrule: ${premise.text}")
+                        rewritten = rewrite(premise.lhs, premise.rewritesTo, funconParams)
                     }
 
                     is StepPremiseContext -> {}
@@ -65,72 +83,59 @@ class ObjectBuilderVisitor : CBSBaseVisitor<List<ObjectDataContainer>>() {
                 }
             }
         }
-        return ""
+        return rewritten
     }
 
-
     override fun visitFunconObject(funcon: FunconObjectContext): List<ObjectDataContainer> {
-        val funconDef = funcon.funconObj()
-        val name = funconDef.name.text
-        println("\nFuncon: $name")
+        try {
+            val funconDef = funcon.funconObj()
+            val name = funconDef.name.text
+            println("\nFuncon: $name")
 
-        val params = funconDef.params()?.param()?.mapIndexed { index, param ->
-            Param(index, Value(param.value), ParamType(param.type))
-        } ?: emptyList()
+            val params = funconDef.params()?.param()?.mapIndexed { index, param ->
+                Param(index, Value(param.value), ParamType(param.type))
+            } ?: emptyList()
 
-        val rules = buildRules(params, funcon.ruleObj())
+            val returns = ReturnType(funconDef.returnType)
+            val aliases = funcon.aliasObj().map { alias -> alias.name.text }
 
-        val returns = ReturnType(funconDef.returnType)
+            val content = funconDef.rewritesTo?.let { rewriteExpr ->
+                rewrite(funconDef, rewriteExpr, params)
+            } ?: run {
+                buildRules(params, funcon.ruleObj())
+            }
 
-        val aliases = funcon.aliasObj().map { alias -> alias.name.text }
+            val dataContainer = FunconObjectData(name, params, content, returns, aliases)
 
-        val dataContainer = FunconObjectData(name, params, returns, aliases)
-
-        objects.add(dataContainer)
+            objects.add(dataContainer)
+        } catch (e: Exception) {
+            println("Failed to build Funcon: ${funcon.funconObj().name.text}. Error: ${e.message}")
+        }
 
         return objects
     }
 
     override fun visitDatatypeObj(datatype: DatatypeObjContext): List<ObjectDataContainer> {
-        val name = datatype.name.text
-        println("\nDatatype: $name")
+        try {
+            val name = datatype.name.text
+            println("\nDatatype: $name")
 
-        val datatypePrimitives = mutableListOf<String>()
-        val datatypeComposites = mutableListOf<ExprContext>()
+            val datatypePrimitives = mutableListOf<String>()
+            val datatypeComposites = mutableListOf<ExprContext>()
 
-//        datatype.datatypeDefs().expr().map { def ->
-//            if (def !is FunconExpressionContext) {
-//
-//            }
-//            when (def) {
-//                is FunconExpressionContext -> {
-//                    primitives.add(def.text)
-//                    println("Primitive: ${def.text}")
-//                    datatypePrimitives.add(def.text)
-//                }
-//
-//                is CompositeContext -> {
-//                    datatypeComposites.add(def.expr())
-//                }
-//
-//                else -> throw IllegalStateException()
-//            }
-//        }
+            // Uncomment and implement processing if needed
+            // datatype.datatypeDefs().expr().map { def ->
+            //     println(def::class)
+            // }
 
-        val dataContainer = DatatypeObjectData(name, datatypePrimitives, datatypeComposites)
+            // val dataContainer = DatatypeObjectData(name, datatypePrimitives, datatypeComposites)
 
-        objects.add(dataContainer)
+            // objects.add(dataContainer)
 
-        return objects
-    }
-
-    override fun visitChildren(node: RuleNode): List<ObjectDataContainer> {
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i)
-            if (child is ParseTree) {
-                child.accept(this)
-            }
+        } catch (e: Exception) {
+            println("Failed to build Datatype: ${datatype.name.text}. Error: ${e.message}")
         }
+
         return objects
     }
 }

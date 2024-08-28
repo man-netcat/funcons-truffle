@@ -9,7 +9,7 @@ root: (index | obj)* EOF;
 objectId: DATATYPE | FUNCON | TYPE | ENTITY;
 
 indexLine: (
-		objectId name = FUNCONID (ALIAS alias = FUNCONID)?
+		objectId name = IDENTIFIER (ALIAS alias = IDENTIFIER)?
 	);
 index: '[' indexLine+ ']';
 
@@ -29,31 +29,34 @@ assertObj: expr '==' expr;
 metavariableDef: (exprs '<:' definition = expr);
 metavariablesObj: metavariableDef+;
 
-datatypeDefs: (expr ('|' expr)*)?;
+datatypeDefs: expr ('|' expr)*;
 datatypeObj: name = expr op = ('::=' | '<:') datatypeDefs;
 
 typeObj:
 	name = expr (REWRITE | '<:') definition = expr
 	| name = expr;
 
-aliasObj: name=FUNCONID '=' original=FUNCONID;
+aliasObj: name=IDENTIFIER '=' original=IDENTIFIER;
 
-expr:
-	funconExpr														# FunconExpression
-	| operand = expr op = (STAR | PLUS | QMARK | POWN)				# SuffixExpression
-	| op = NOT operand = expr										# NotExpression
-	| op = COMPUTES operand = expr									# UnaryComputesExpression
-	| lhs = expr op = COMPUTES rhs = expr							# BinaryComputesExpression
-	| lhs = expr op = (AND | OR | EQUALS | NOTEQUALS) rhs = expr	# BinaryOpExpression
-	| value = expr op = COLON type = expr							# TypeExpression
-	| nestedExpr													# NestedExpression
-	| listExpr														# ListExpression
-	| mapExpr														# MapExpression
-	| setExpr														# SetExpression
-	| tupleExpr														# TupleExpression
-	| STRING														# String
-	| NUMBER														# Number
-	| IDENTIFIER													# Identifier;
+expr
+    : funconExpr                                                    # FunconExpression
+    | operand = expr op = (STAR | PLUS | QMARK | POWN)              # SuffixExpression
+    | op = COMPLEMENT operand = expr                                # ComplementExpression
+    | op = COMPUTES operand = expr                                  # UnaryComputesExpression
+    | lhs = expr op = COMPUTES rhs = expr                           # BinaryComputesExpression
+    | lhs = expr op = (EQUALS | NOTEQUALS) rhs = expr               # EqualityExpression
+    | lhs = expr op = AND rhs = expr                                # AndExpression
+    | lhs = expr op = OR rhs = expr                                 # OrExpression
+    | value = expr op = COLON type = expr                           # TypeExpression
+    | nestedExpr                                                    # NestedExpression
+    | listExpr                                                      # ListExpression
+    | mapExpr                                                       # MapExpression
+    | setExpr                                                       # SetExpression
+    | tupleExpr                                                     # TupleExpression
+    | STRING                                                        # String
+    | NUMBER                                                        # Number
+    | VARIABLE                                                      # Variable;
+
 
 exprs: (expr (',' expr)*)?;
 
@@ -65,17 +68,17 @@ args
     |               # NoArgs;
 
 funconExpr:
-	name = FUNCONID args;
+	name = IDENTIFIER args;
 
 param: (value = expr COLON)? type = expr;
 params: param (',' param)*;
 
 funconObj:
-	name = FUNCONID ('(' params ')')? COLON returnType = expr (
+	name = IDENTIFIER ('(' params ')')? COLON returnType = expr (
 		REWRITE rewritesTo = expr
 	)?;
 
-action: name = FUNCONID polarity = ('!' | '?')? '(' exprs ')';
+action: name = IDENTIFIER polarity = ('!' | '?')? '(' exprs ')';
 actions: action (',' action)*;
 
 step: '--->' | '--' actions '->' NUMBER?;
@@ -106,7 +109,7 @@ listExpr: '[' exprs ']';
 
 mapExpr: '{' pairs '}';
 setExpr: '{' exprs '}';
-pair: expr '|->' expr;
+pair: key=expr '|->' value=expr;
 pairs: (pair (',' pair)*)?;
 
 tupleExpr: '(' exprs ')';
@@ -116,7 +119,7 @@ PLUS: '+';
 QMARK: '?';
 POWN: '^N';
 COMPUTES: '=>';
-NOT: '~';
+COMPLEMENT: '~';
 AND: '&';
 OR: '|';
 COLON: ':';
@@ -141,5 +144,5 @@ ASSERT: 'Assert';
 BAR: '----' '-'*;
 REWRITE: '~>';
 SQUOTE: '\'';
-FUNCONID: [a-z][a-zA-Z0-9-]* SQUOTE*;
+VARIABLE: [A-Z][a-zA-Z0-9_-]* SQUOTE*;
 IDENTIFIER: [A-Za-z_][a-zA-Z0-9_-]* SQUOTE*;

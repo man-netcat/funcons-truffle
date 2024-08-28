@@ -1,12 +1,6 @@
 package trufflegen.main
 
-import trufflegen.antlr.CBSParser.ExprContext
-import trufflegen.antlr.CBSParser.ExprsContext
 import java.io.File
-
-fun isFileOfType(file: File, fileType: String = "cbs"): Boolean {
-    return file.isFile && file.extension == fileType
-}
 
 fun toClassName(input: String): String {
     return (input.split("-").joinToString("") { word ->
@@ -47,10 +41,10 @@ fun makeVariable(name: String, type: String, value: String): String {
 
 fun makeClass(
     name: String,
-    annotations: List<String> = emptyList(),
-    constructorArgs: List<Triple<String, String, String>> = emptyList(),
-    properties: List<Pair<String, String>> = emptyList(),
-    functions: List<String> = emptyList(),
+    annotations: List<String>,
+    constructorArgs: List<Triple<String, String, String>>,
+    properties: List<Pair<String, String>>,
+    content: String,
 ): String {
     val annotationsStr = if (annotations.isNotEmpty()) {
         annotations.joinToString("\n") { str -> "@$str" } + "\n"
@@ -75,8 +69,8 @@ fun makeClass(
         "class $name {\n"
     }
 
-    // Generate the class body with properties and functions
-    val classBody = listOf(propertiesStr, *functions.toTypedArray()).joinToString("\n\n")
+    // Generate the class body with properties and content
+    val classBody = listOf(propertiesStr, content).joinToString("\n\n")
     val indentedClassBody = makeBody(classBody)
 
     return "${annotationsStr}${classHeader}${indentedClassBody}\n}"
@@ -113,8 +107,4 @@ fun makeFile(
     aliasStrs: String,
 ): String {
     return "package $packageName\n\n$importsStr\n\n$classStr\n\n$aliasStrs\n"
-}
-
-fun ExprsContext.joinExprsToString(separator: String = ", ", transform: (ExprContext) -> String): String {
-    return expr().joinToString(separator, transform = transform)
 }
