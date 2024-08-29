@@ -4,7 +4,7 @@ import trufflegen.antlr.CBSParser.ExprContext
 
 abstract class Type(type: ExprContext) {
     val text: String = type.text
-    val visitor = TypeVisitor()
+    private val visitor = TypeVisitor()
     val typeData: TypeData
         get() {
             return visitor.getTypeData()

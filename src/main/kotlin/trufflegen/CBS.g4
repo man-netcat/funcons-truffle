@@ -57,13 +57,13 @@ expr
     | NUMBER                                                        # Number
     | VARIABLE                                                      # Variable;
 
-
-exprs: (expr (',' expr)*)?;
+exprs: expr (',' expr)*;
 
 nestedExpr: '(' expr ')';
 
 args
     : '(' exprs ')' # MultipleArgs
+    | '[' indices=exprs ']' # ListIndexExpression
     | expr          # SingleArgs
     |               # NoArgs;
 
@@ -78,7 +78,7 @@ funconObj:
 		REWRITE rewritesTo = expr
 	)?;
 
-action: name = IDENTIFIER polarity = ('!' | '?')? '(' exprs ')';
+action: name = IDENTIFIER polarity = ('!' | '?')? '(' exprs? ')';
 actions: action (',' action)*;
 
 step: '--->' | '--' actions '->' NUMBER?;
@@ -105,14 +105,14 @@ ruleObj:
 
 entityObj: stepExpr | mutableExpr;
 
-listExpr: '[' exprs ']';
+listExpr: '[' exprs? ']';
 
 mapExpr: '{' pairs '}';
-setExpr: '{' exprs '}';
+setExpr: '{' exprs? '}';
 pair: key=expr '|->' value=expr;
 pairs: (pair (',' pair)*)?;
 
-tupleExpr: '(' exprs ')';
+tupleExpr: '(' exprs? ')';
 
 STAR: '*';
 PLUS: '+';

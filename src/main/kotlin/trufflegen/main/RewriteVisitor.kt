@@ -20,10 +20,15 @@ class RewriteVisitor(private val params: List<Param>, private val ruleArgs: List
         return "$className($argStr)"
     }
 
-    override fun visitTupleExpression(tuple: TupleExpressionContext): String =
-        "tuple(${visit(tuple.tupleExpr().exprs())})"
+    override fun visitTupleExpression(tuple: TupleExpressionContext): String {
+        val exprs = tuple.tupleExpr().exprs()?.expr()
+        return if (exprs.isNullOrEmpty()) "null" else "tuple(${visit(tuple.tupleExpr().exprs())})"
+    }
 
-    override fun visitListExpression(list: ListExpressionContext): String = "listOf(${visit(list.listExpr().exprs())})"
+    override fun visitListExpression(list: ListExpressionContext): String {
+        val exprs = list.listExpr().exprs()?.expr()
+        return if (exprs.isNullOrEmpty()) "emptyList()" else "listOf(${visit(list.listExpr().exprs())})"
+    }
 
     override fun visitSetExpression(set: SetExpressionContext): String = "setOf(${visit(set.setExpr().exprs())})"
 
@@ -36,6 +41,8 @@ class RewriteVisitor(private val params: List<Param>, private val ruleArgs: List
 
     override fun visitPairs(pairs: PairsContext): String = visitSequences(pairs.pair())
 
+    override fun visitPair(pair: PairContext): String = "${pair.key.text} to ${pair.value.text}"
+
     override fun visitSuffixExpression(suffixExpr: SuffixExpressionContext): String = rewriteExpr(suffixExpr)
 
     override fun visitVariable(varExpr: VariableContext): String = rewriteExpr(varExpr)
@@ -45,45 +52,45 @@ class RewriteVisitor(private val params: List<Param>, private val ruleArgs: List
     override fun visitString(string: StringContext): String = string.text
 
     private fun rewriteExpr(expr: ParseTree): String {
-        val isVararg = when (expr) {
+        val argIsVararg = when (expr) {
             is SuffixExpressionContext -> true
             is VariableContext -> false
             else -> error("Unexpected expression type: ${expr::class.simpleName}")
         }
 
         val argIndex = ruleArgs.map(ArgVisitor(expr.text)::visit).indexOfFirst { it == true }
-        val stringArgs = ruleArgs.map { it.text }
-        if (argIndex == -1) throw Exception("String ${expr.text} not found in $stringArgs")
 
-        val varargIndex = params.indexOfFirst { it.type.isVararg }
+        if (argIndex == -1) {
+            val stringArgs = ruleArgs.map { it.text }
+            throw Exception("String ${expr.text} not found in $stringArgs")
+        }
 
-        val afterVararg = params.size - (varargIndex + 1)
+        val paramVarargIndex = params.indexOfFirst { it.type.isVararg }
 
-        val paramStr = argToParam(varargIndex, afterVararg, argIndex, isVararg)
+        val afterVararg = params.size - (paramVarargIndex + 1)
+
+        val paramStr = argToParam(paramVarargIndex, afterVararg, argIndex, argIsVararg)
 
         return paramStr
     }
 
-    private fun argToParam(varargIndex: Int, afterVararg: Int, argIndex: Int, isVararg: Boolean): String {
+    private fun argToParam(paramVarargIndex: Int, paramsAfterVararg: Int, argIndex: Int, isVararg: Boolean): String {
 //        println("varargIndex: $varargIndex, after: $afterVararg, argIndex: $argIndex, isVararg: $isVararg")
-
-        val paramList = params
-        val totalParams = paramList.size
 
         return when {
             // Argument is in the pre-vararg section
-            argIndex < varargIndex -> "${if (isVararg) "*" else ""}p$argIndex"
+            argIndex < paramVarargIndex -> "${if (isVararg) "*" else ""}p$argIndex"
 
             // Argument is in the vararg section
-            argIndex in varargIndex until (varargIndex + (totalParams - varargIndex - afterVararg)) -> {
-                val varargIndexIndex = argIndex - varargIndex
-                "p$varargIndex[$varargIndexIndex]"
+            argIndex in paramVarargIndex until (paramVarargIndex + (params.size - paramVarargIndex - paramsAfterVararg)) -> {
+                val varargIndexIndex = argIndex - paramVarargIndex
+                "p$paramVarargIndex[$varargIndexIndex]"
             }
 
             // Argument is in the post-vararg section
-            argIndex >= (varargIndex + (totalParams - varargIndex - afterVararg)) -> {
-                val afterVarargIndex = argIndex - (totalParams - afterVararg)
-                "p${varargIndex + 1 + afterVarargIndex}"
+            argIndex >= (paramVarargIndex + (params.size - paramVarargIndex - paramsAfterVararg)) -> {
+                val afterVarargIndex = argIndex - (params.size - paramsAfterVararg)
+                "p${paramVarargIndex + 1 + afterVarargIndex}"
             }
 
             else -> throw IndexOutOfBoundsException()

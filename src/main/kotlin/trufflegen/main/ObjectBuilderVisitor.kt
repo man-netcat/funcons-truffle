@@ -16,6 +16,7 @@ class ObjectBuilderVisitor : CBSBaseVisitor<List<ObjectDataContainer>>() {
                     is NoArgsContext -> emptyList()
                     is SingleArgsContext -> listOf(args.expr())
                     is MultipleArgsContext -> args.exprs().expr()
+                    is ListIndexExpressionContext -> args.indices.expr()
                     else -> throw IllegalArgumentException("Unexpected args type: ${args::class.simpleName}")
                 }
             }
@@ -26,15 +27,13 @@ class ObjectBuilderVisitor : CBSBaseVisitor<List<ObjectDataContainer>>() {
         }
     }
 
-    private fun rewrite(
+    private fun buildRewrite(
         ruleDef: ParseTree, rewriteExpr: ParseTree, params: List<Param>
     ): String {
-        val args = when (ruleDef) {
-            is FunconExpressionContext -> extractArgs(ruleDef)
-            is FunconObjContext -> extractArgs(ruleDef)
-            else -> throw IllegalStateException("Unexpected rule definition ${ruleDef::class.simpleName}")
+        if (ruleDef !is FunconExpressionContext && ruleDef !is FunconObjContext) {
+            throw IllegalStateException("Unexpected rule definition ${ruleDef::class.simpleName}")
         }
-
+        val args = extractArgs(ruleDef)
         val rewriteVisitor = RewriteVisitor(params, args)
         println("Before: ${rewriteExpr.text}")
         val rewritten = rewriteVisitor.visit(rewriteExpr)
@@ -69,11 +68,8 @@ class ObjectBuilderVisitor : CBSBaseVisitor<List<ObjectDataContainer>>() {
 
                 is RewriteRuleContext -> when (val premise = rule.premise()) {
                     is RewritePremiseContext -> {
-                        if (premise.lhs !is FunconExpressionContext) {
-                            throw IllegalArgumentException("lhs is somehow not a funcon")
-                        }
                         println("\nrule: ${premise.text}")
-                        rewritten = rewrite(premise.lhs, premise.rewritesTo, funconParams)
+                        rewritten = buildRewrite(premise.lhs, premise.rewritesTo, funconParams)
                     }
 
                     is StepPremiseContext -> {}
@@ -90,7 +86,7 @@ class ObjectBuilderVisitor : CBSBaseVisitor<List<ObjectDataContainer>>() {
         try {
             val funconDef = funcon.funconObj()
             val name = funconDef.name.text
-            println("\nFuncon: $name")
+            println("\nFuncon: $name\nSignature: ${funconDef.text}")
 
             val params = funconDef.params()?.param()?.mapIndexed { index, param ->
                 Param(index, Value(param.value), ParamType(param.type))
@@ -99,9 +95,9 @@ class ObjectBuilderVisitor : CBSBaseVisitor<List<ObjectDataContainer>>() {
             val returns = ReturnType(funconDef.returnType)
             val aliases = funcon.aliasObj().map { alias -> alias.name.text }
 
-            val content = funconDef.rewritesTo?.let { rewriteExpr ->
-                rewrite(funconDef, rewriteExpr, params)
-            } ?: run {
+            val content = if (funconDef.rewritesTo != null) {
+                buildRewrite(funconDef, funconDef.rewritesTo, params)
+            } else {
                 buildRules(params, funcon.ruleObj())
             }
 
