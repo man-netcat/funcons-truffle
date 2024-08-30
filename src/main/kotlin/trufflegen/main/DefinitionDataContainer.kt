@@ -2,7 +2,7 @@ package trufflegen.main
 
 import java.io.File
 
-abstract class ObjectDataContainer() {
+abstract class DefinitionDataContainer() {
     lateinit var file: File
     abstract val name: String
     abstract fun generateCode(): String

@@ -2,38 +2,38 @@ package trufflegen.main
 
 import org.antlr.v4.runtime.tree.ParseTree
 import org.antlr.v4.runtime.tree.RuleNode
+import org.icecream.IceCream.ic
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
-class RewriteVisitor(private val params: List<Param>, private val ruleArgs: List<ExprContext>) :
+class RewriteVisitor(private val params: List<Param>, private val ruleArgs: List<ExprContext?>) :
     CBSBaseVisitor<String>() {
 
-    override fun visitFunconExpr(funcon: FunconExprContext): String {
+    override fun visitFunconExpression(funcon: FunconExpressionContext): String {
         val name = funcon.name.text
         val argStr = when (val rewriteArgs = funcon.args()) {
             is MultipleArgsContext -> visit(rewriteArgs.exprs())
             is SingleArgsContext -> visit(rewriteArgs.expr())
             is NoArgsContext -> ""
-            else -> throw IllegalStateException()
+            else -> throw Exception("Unexpected arg type: ${rewriteArgs::class.simpleName}")
         }
         val className = toClassName(name)
         return "$className($argStr)"
     }
 
     override fun visitTupleExpression(tuple: TupleExpressionContext): String {
-        val exprs = tuple.tupleExpr().exprs()?.expr()
-        return if (exprs.isNullOrEmpty()) "null" else "tuple(${visit(tuple.tupleExpr().exprs())})"
+        val exprs = tuple.exprs()?.expr()
+        return if (exprs.isNullOrEmpty()) "null" else "tuple(${visit(tuple.exprs())})"
     }
 
     override fun visitListExpression(list: ListExpressionContext): String {
-        val exprs = list.listExpr().exprs()?.expr()
-        return if (exprs.isNullOrEmpty()) "emptyList()" else "listOf(${visit(list.listExpr().exprs())})"
+        val exprs = list.exprs()?.expr()
+        return if (exprs.isNullOrEmpty()) "emptyList()" else "listOf(${visit(list.exprs())})"
     }
 
-    override fun visitSetExpression(set: SetExpressionContext): String = "setOf(${visit(set.setExpr().exprs())})"
+    override fun visitSetExpression(set: SetExpressionContext): String = "setOf(${visit(set.exprs())})"
 
-    override fun visitMapExpression(map: MapExpressionContext): String =
-        "hashMapOf(${visitPairs(map.mapExpr().pairs())})"
+    override fun visitMapExpression(map: MapExpressionContext): String = "hashMapOf(${visitPairs(map.pairs())})"
 
     private fun <T : RuleNode> visitSequences(nodes: List<T>): String = nodes.joinToString(", ") { visit(it) }
 
@@ -47,32 +47,33 @@ class RewriteVisitor(private val params: List<Param>, private val ruleArgs: List
 
     override fun visitVariable(varExpr: VariableContext): String = rewriteExpr(varExpr)
 
+    override fun visitVariableStep(varStep: VariableStepContext): String = rewriteExpr(varStep) + ".execute(frame)"
+
     override fun visitNumber(num: NumberContext): String = num.text
 
     override fun visitString(string: StringContext): String = string.text
 
     private fun rewriteExpr(expr: ParseTree): String {
-        val argIsVararg = when (expr) {
-            is SuffixExpressionContext -> true
-            is VariableContext -> false
-            else -> error("Unexpected expression type: ${expr::class.simpleName}")
+        val (text, argIsVararg) = when (expr) {
+            is SuffixExpressionContext -> expr.text to true
+            is VariableContext -> expr.varname.text to false
+            is VariableStepContext -> expr.varname.text to false
+            else -> throw IllegalArgumentException("Unexpected expression type: ${expr::class.simpleName}")
         }
 
-        val argIndex = ruleArgs.map(ArgVisitor(expr.text)::visit).indexOfFirst { it == true }
-
+        val argIndex = ruleArgs.indexOfFirst { ArgVisitor(text).visit(it) == true }
         if (argIndex == -1) {
-            val stringArgs = ruleArgs.map { it.text }
-            throw Exception("String ${expr.text} not found in $stringArgs")
+            val stringArgs = ruleArgs.map { it?.text }
+            throw IllegalArgumentException("String '$text' not found in $stringArgs")
         }
 
         val paramVarargIndex = params.indexOfFirst { it.type.isVararg }
 
         val afterVararg = params.size - (paramVarargIndex + 1)
 
-        val paramStr = argToParam(paramVarargIndex, afterVararg, argIndex, argIsVararg)
-
-        return paramStr
+        return argToParam(paramVarargIndex, afterVararg, argIndex, argIsVararg)
     }
+
 
     private fun argToParam(paramVarargIndex: Int, paramsAfterVararg: Int, argIndex: Int, isVararg: Boolean): String {
 //        println("varargIndex: $varargIndex, after: $afterVararg, argIndex: $argIndex, isVararg: $isVararg")
@@ -95,5 +96,10 @@ class RewriteVisitor(private val params: List<Param>, private val ruleArgs: List
 
             else -> throw IndexOutOfBoundsException()
         }
+    }
+
+    override fun visitChildren(node: RuleNode): String {
+        ic(node::class.simpleName)
+        return super.visitChildren(node)
     }
 }

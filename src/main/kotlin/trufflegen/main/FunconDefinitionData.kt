@@ -1,12 +1,12 @@
 package trufflegen.main
 
-class FunconObjectData(
+class FunconDefinitionData(
     override val name: String,
     private val params: List<Param>?,
     private val content: String,
     private val returns: ReturnType,
     private val aliases: List<String>,
-) : ObjectDataContainer() {
+) : DefinitionDataContainer() {
 
     override fun generateCode(): String {
         val imports = makeImports(

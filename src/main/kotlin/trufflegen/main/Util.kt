@@ -1,7 +1,5 @@
 package trufflegen.main
 
-import java.io.File
-
 fun toClassName(input: String): String {
     return (input.split("-").joinToString("") { word ->
         word.replaceFirstChar { it.uppercase() }

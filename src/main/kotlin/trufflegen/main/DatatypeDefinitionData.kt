@@ -1,12 +1,12 @@
 package trufflegen.main
 
-import trufflegen.antlr.CBSParser
+import trufflegen.antlr.CBSParser.FunconExpressionContext
 
-class DatatypeObjectData(
+class DatatypeDefinitionData(
     override val name: String,
     val definition: MutableList<String>,
-    val datatypeComposites: MutableList<CBSParser.FunconExprContext>
-) : ObjectDataContainer() {
+    val datatypeComposites: MutableList<FunconExpressionContext>
+) : DefinitionDataContainer() {
 
     override fun generateCode(): String {
         val cls = makeClass(

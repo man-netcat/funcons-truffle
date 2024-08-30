@@ -1,82 +1,174 @@
 grammar FCT;
 
-@header {
+@ header
+{
 package fctruffle.antlr;
 }
+root
+   : generalBlock inputsBlock? testsBlock? EOF
+   ;
 
-root: generalBlock inputsBlock? testsBlock? EOF;
+generalBlock
+   : 'general' '{' funconTerm '}'
+   ;
 
-generalBlock: 'general' '{' funconTerm '}';
+testsBlock
+   : 'tests' '{' tests+ '}'
+   ;
 
-testsBlock: 'tests' '{' tests+ '}';
+inputsBlock
+   : 'inputs' '{' standardIn+ '}'
+   ;
 
-inputsBlock: 'inputs' '{' standardIn+ '}';
+funconTerm
+   : 'funcon-term' ':' funcon ';'
+   ;
 
-funconTerm: 'funcon-term' ':' funcon ';';
+funcon
+   : funconName '(' exprs ')'
+   | funconName expr
+   ; // Single param funcons can omit parentheses (e.g. 'print')
+   
+funconName
+   : IDENTIFIER
+   ;
 
-funcon:
-	funconName '(' exprs ')'
-	| funconName expr; // Single param funcons can omit parentheses (e.g. 'print')
+expr
+   : unOp expr # UnopExpression
+   | lhs = expr binOp rhs = expr # BinOpExpression
+   | funcon # FunconExpression
+   | listExpr # ListExpression
+   | mapExpr # MapExpression
+   | setExpr # SetExpression
+   | tupleExpr # TupleExpression
+   | terminal # TerminalExpression
+   ;
 
-funconName: IDENTIFIER;
+exprs
+   : (expr (',' expr)*)?
+   ;
 
-expr:
-	unOp expr						# UnopExpression
-	| lhs = expr binOp rhs = expr	# BinOpExpression
-	| funcon						# FunconExpression
-	| listExpr						# ListExpression
-	| mapExpr						# MapExpression
-	| setExpr						# SetExpression
-	| tupleExpr						# TupleExpression
-	| terminal						# TerminalExpression;
+terminal
+   : STRING
+   | IDENTIFIER
+   | NUMBER
+   | EMPTY
+   ;
 
-exprs: (expr (',' expr)*)?;
+terminals
+   : (terminal (',' terminal)*)?
+   ;
 
-terminal: STRING | IDENTIFIER | NUMBER | EMPTY;
+listExpr
+   : '[' exprs ']'
+   ;
 
-terminals: (terminal (',' terminal)*)?;
+mapExpr
+   : '{' pairs '}'
+   ;
 
-listExpr: '[' exprs ']';
+setExpr
+   : '{' exprs '}'
+   ;
 
-mapExpr: '{' pairs '}';
+pair
+   : key = expr '|->' value = expr
+   ;
 
-setExpr: '{' exprs '}';
+termPair
+   : key = terminal '|->' value = terminal
+   ;
 
-pair: key = expr '|->' value = expr;
-termPair: key = terminal '|->' value = terminal;
+pairs
+   : (pair (',' pair)*)?
+   ;
 
-pairs: (pair (',' pair)*)?;
-termPairs: (termPair (',' termPair)*)?;
+termPairs
+   : (termPair (',' termPair)*)?
+   ;
 
-tupleExpr: 'tuple(' exprs ')';
+tupleExpr
+   : 'tuple(' exprs ')'
+   ;
 
-standardIn: 'standard-in' ':' input ';';
+standardIn
+   : 'standard-in' ':' input ';'
+   ;
 
-input:
-	'(' terminals ')'	# InputTuple
-	| '[' terminals ']'	# InputList
-	| '{' termPairs '}'	# InputMap
-	| '{' terminals '}'	# InputSet
-	| terminal			# InputValue;
+input
+   : '(' terminals ')' # InputTuple
+   | '[' terminals ']' # InputList
+   | '{' termPairs '}' # InputMap
+   | '{' terminals '}' # InputSet
+   | terminal # InputValue
+   ;
 
-tests: resultTerm | standardOut | store;
+tests
+   : resultTerm
+   | standardOut
+   | store
+   ;
 
-resultTerm: 'result-term' ':' expr ';';
-store: 'store' ':' expr ';';
-standardOut: 'standard-out' ':' '[' exprs ']' ';';
+resultTerm
+   : 'result-term' ':' expr ';'
+   ;
 
-binOp: AND | OR | COMPUTE;
+store
+   : 'store' ':' expr ';'
+   ;
 
-unOp: NOT | COMPUTE;
+standardOut
+   : 'standard-out' ':' '[' exprs ']' ';'
+   ;
 
-NOT: '~';
-AND: '&';
-OR: '|';
-COMPUTE: '=>';
+binOp
+   : AND
+   | OR
+   | COMPUTE
+   ;
 
-EMPTY: '(' WS? ')';
-COMMENT: '//' ~[\r\n]* -> skip;
-STRING: '"' .*? '"';
-IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_-]*;
-NUMBER: [0-9]+;
-WS: [ \t\r\n]+ -> skip;
+unOp
+   : NOT
+   | COMPUTE
+   ;
+
+NOT
+   : '~'
+   ;
+
+AND
+   : '&'
+   ;
+
+OR
+   : '|'
+   ;
+
+COMPUTE
+   : '=>'
+   ;
+
+EMPTY
+   : '(' WS? ')'
+   ;
+
+COMMENT
+   : '//' ~ [\r\n]* -> skip
+   ;
+
+STRING
+   : '"' .*? '"'
+   ;
+
+IDENTIFIER
+   : [a-zA-Z_] [a-zA-Z0-9_-]*
+   ;
+
+NUMBER
+   : [0-9]+
+   ;
+
+WS
+   : [ \t\r\n]+ -> skip
+   ;
+

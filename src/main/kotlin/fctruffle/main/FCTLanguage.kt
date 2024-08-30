@@ -6,9 +6,9 @@ import com.oracle.truffle.api.TruffleLanguage
 import com.oracle.truffle.api.source.Source
 import fctruffle.antlr.FCTLexer
 import fctruffle.antlr.FCTParser
-import java.lang.reflect.Constructor
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
+import java.lang.reflect.Constructor
 
 @TruffleLanguage.Registration(
         id = FCTLanguage.ID,

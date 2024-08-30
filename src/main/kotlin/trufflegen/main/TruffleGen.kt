@@ -62,14 +62,14 @@ class TruffleGen(private val directoryPath: Path) {
 
     private fun buildFuncons(
         fileTreeMap: Map<File, RootContext?>
-    ): MutableMap<String, ObjectDataContainer> {
-        val objectBuilderVisitor = ObjectBuilderVisitor()
-        val objects = mutableMapOf<String, ObjectDataContainer>()
+    ): MutableMap<String, DefinitionDataContainer> {
+        val definitionBuilderVisitor = DefinitionBuilderVisitor()
+        val objects = mutableMapOf<String, DefinitionDataContainer>()
 
         fileTreeMap.forEach { (file, tree) ->
             println("\nProcessing data for file: ${file.name}")
             tree?.let {
-                val data = objectBuilderVisitor.visit(it)
+                val data = definitionBuilderVisitor.visit(it)
                 data?.forEach { obj ->
                     obj.file = file
                     objects[obj.name] = obj
@@ -80,7 +80,7 @@ class TruffleGen(private val directoryPath: Path) {
         return objects
     }
 
-    private fun generateCode(objects: Map<String, ObjectDataContainer>) {
+    private fun generateCode(objects: Map<String, DefinitionDataContainer>) {
         val outputDir = Path.of("src/main/kotlin/fctruffle/generated")
         if (!Files.exists(outputDir)) {
             Files.createDirectories(outputDir)
