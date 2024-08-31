@@ -1,6 +1,9 @@
 package trufflegen.main
 
-class Param(private val index: Int, val value: Value, val type: ParamType) {
-    val string: String
-        get() = "p$index"
+import trufflegen.antlr.CBSParser.*
+
+class Param(private val index: Int, internal val valueExpr: ExprContext?, private val typeExpr: ExprContext) {
+    val name: String = "p$index"
+    val type: ParamType = ParamType(typeExpr)
+    val value: String = valueExpr?.text ?: "None"
 }

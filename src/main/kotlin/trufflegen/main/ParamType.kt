@@ -4,8 +4,8 @@ import trufflegen.antlr.CBSParser
 
 class ParamType(type: CBSParser.ExprContext) : Type(type) {
     override val isVararg: Boolean
-        get() = typeData.stars >= 1 || typeData.pluses >= 1
+        get() = stars >= 1 || pluses >= 1
 
     override val isArray: Boolean
-        get() = typeData.stars == 2 || typeData.pluses == 2
+        get() = stars == 2 || pluses == 2
 }

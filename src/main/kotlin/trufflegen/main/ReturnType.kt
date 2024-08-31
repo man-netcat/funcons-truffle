@@ -7,5 +7,5 @@ class ReturnType(type: ExprContext) : Type(type) {
         get() = false
 
     override val isArray: Boolean
-        get() = typeData.stars == 1 || typeData.pluses == 1
+        get() = stars == 1 || pluses == 1
 }

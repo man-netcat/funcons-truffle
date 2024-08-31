@@ -11,11 +11,13 @@ fun makeBody(content: String, indentLevel: Int = 1): String {
     return content.lines().joinToString("\n") { "$indent$it" }
 }
 
-fun makeFunction(name: String, returnType: String, parameters: List<Pair<String, String>>, body: String): String {
-    val params = parameters.joinToString(", ") { "${it.first}: ${it.second}" }
+fun makeFunction(
+    name: String, returnType: String, parameters: List<Triple<String, String, String>>, body: String
+): String {
+    val params = parameters.joinToString(", ") { "${it.first} ${it.second}: ${it.third}" }
     val functionHeader = "fun $name($params): $returnType {"
-    val indentedBody = makeBody(body)
-    return "$functionHeader\n$indentedBody\n}"
+    val content = makeBody(body)
+    return "$functionHeader\n$content\n}"
 }
 
 fun makeIfStatement(condition: String, trueBranch: String, falseBranch: String? = null): String {
@@ -27,10 +29,14 @@ fun makeIfStatement(condition: String, trueBranch: String, falseBranch: String? 
     }
 }
 
+fun makeExecuteFunction(content: String): String {
+    return makeFunction("execute", "FCTNode", listOf(Triple("private val", "frame", "String")), content)
+}
+
 fun makeForLoop(variable: String, range: String, body: String): String {
     val loopHeader = "for ($variable in $range) {"
-    val indentedBody = makeBody(body)
-    return "$loopHeader\n$indentedBody\n}"
+    val content = makeBody(body)
+    return "$loopHeader\n$content\n}"
 }
 
 fun makeVariable(name: String, type: String, value: String): String {

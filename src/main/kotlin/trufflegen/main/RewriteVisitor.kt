@@ -35,7 +35,8 @@ class RewriteVisitor(private val params: List<Param>, private val ruleArgs: List
 
     override fun visitMapExpression(map: MapExpressionContext): String = "hashMapOf(${visitPairs(map.pairs())})"
 
-    private fun <T : RuleNode> visitSequences(nodes: List<T>): String = nodes.joinToString(", ") { visit(it) }
+    private fun visitSequences(nodes: List<ParseTree>, sep: String = ", "): String =
+        nodes.joinToString(sep) { visit(it) }
 
     override fun visitExprs(exprs: ExprsContext): String = visitSequences(exprs.expr())
 
@@ -58,13 +59,13 @@ class RewriteVisitor(private val params: List<Param>, private val ruleArgs: List
             is SuffixExpressionContext -> expr.text to true
             is VariableContext -> expr.varname.text to false
             is VariableStepContext -> expr.varname.text to false
-            else -> throw IllegalArgumentException("Unexpected expression type: ${expr::class.simpleName}")
+            else -> throw Exception("Unexpected expression type: ${expr::class.simpleName}")
         }
 
         val argIndex = ruleArgs.indexOfFirst { ArgVisitor(text).visit(it) == true }
         if (argIndex == -1) {
             val stringArgs = ruleArgs.map { it?.text }
-            throw IllegalArgumentException("String '$text' not found in $stringArgs")
+            throw Exception("String '$text' not found in $stringArgs")
         }
 
         val paramVarargIndex = params.indexOfFirst { it.type.isVararg }

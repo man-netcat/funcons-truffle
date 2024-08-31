@@ -4,7 +4,7 @@ import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import trufflegen.antlr.CBSLexer
 import trufflegen.antlr.CBSParser
-import trufflegen.antlr.CBSParser.RootContext
+import trufflegen.antlr.CBSParser.*
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
@@ -23,7 +23,7 @@ class TruffleGen(private val directoryPath: Path) {
         val funconObjects = buildFuncons(fileTreeMap)
 
         // Fourth pass: generate and write code
-//        generateCode(funconObjects)
+        generateCode(funconObjects)
     }
 
     private fun validateDirectory(directory: File): Boolean {
@@ -62,15 +62,17 @@ class TruffleGen(private val directoryPath: Path) {
 
     private fun buildFuncons(
         fileTreeMap: Map<File, RootContext?>
-    ): MutableMap<String, DefinitionDataContainer> {
+    ): MutableMap<String, ObjectDefinition> {
         val definitionBuilderVisitor = DefinitionBuilderVisitor()
-        val objects = mutableMapOf<String, DefinitionDataContainer>()
+        val objects = mutableMapOf<String, ObjectDefinition>()
 
         fileTreeMap.forEach { (file, tree) ->
             println("\nProcessing data for file: ${file.name}")
             tree?.let {
-                val data = definitionBuilderVisitor.visit(it)
-                data?.forEach { obj ->
+                definitionBuilderVisitor.visit(it)
+                val data = definitionBuilderVisitor.getObjects()
+                if (data.isEmpty()) throw Exception("No data generated")
+                data.forEach { obj ->
                     obj.file = file
                     objects[obj.name] = obj
                 }
@@ -80,7 +82,7 @@ class TruffleGen(private val directoryPath: Path) {
         return objects
     }
 
-    private fun generateCode(objects: Map<String, DefinitionDataContainer>) {
+    private fun generateCode(objects: Map<String, ObjectDefinition>) {
         val outputDir = Path.of("src/main/kotlin/fctruffle/generated")
         if (!Files.exists(outputDir)) {
             Files.createDirectories(outputDir)
