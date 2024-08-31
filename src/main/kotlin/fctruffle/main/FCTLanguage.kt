@@ -11,10 +11,10 @@ import org.antlr.v4.runtime.CommonTokenStream
 import java.lang.reflect.Constructor
 
 @TruffleLanguage.Registration(
-        id = FCTLanguage.ID,
-        name = "fctlang",
-        defaultMimeType = FCTLanguage.MIME_TYPE,
-        characterMimeTypes = [FCTLanguage.MIME_TYPE]
+    id = FCTLanguage.ID,
+    name = "fctlang",
+    defaultMimeType = FCTLanguage.MIME_TYPE,
+    characterMimeTypes = [FCTLanguage.MIME_TYPE]
 )
 class FCTLanguage : TruffleLanguage<Nothing>() {
     companion object {
@@ -59,9 +59,8 @@ class FCTLanguage : TruffleLanguage<Nothing>() {
     }
 
     private fun toClassName(funconName: String): String {
-        return "fctruffle.generated." +
-                funconName.split('-').joinToString("") { it.replaceFirstChar(Char::titlecase) } +
-                "Node"
+        return "fctruffle.generated." + funconName.split('-')
+            .joinToString("") { it.replaceFirstChar(Char::titlecase) } + "Node"
     }
 
     // Function to instantiate the class from its name
@@ -86,9 +85,8 @@ class FCTLanguage : TruffleLanguage<Nothing>() {
         val className = toClassName(funconName)
 
         // Instantiate the class
-        val FCTNode = instantiateClass(className) as? FCTNode
+        val fctNode = instantiateClass(className) as? FCTNode
 
-        return FCTNode
-                ?: throw IllegalArgumentException("Class $className could not be instantiated")
+        return fctNode ?: throw IllegalArgumentException("Class $className could not be instantiated")
     }
 }

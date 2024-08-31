@@ -2,9 +2,10 @@ package trufflegen.main
 
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
+import org.antlr.v4.runtime.tree.ParseTree
 import trufflegen.antlr.CBSLexer
 import trufflegen.antlr.CBSParser
-import trufflegen.antlr.CBSParser.RootContext
+import trufflegen.antlr.CBSParser.*
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
@@ -23,7 +24,7 @@ class TruffleGen(private val directoryPath: Path) {
         val funconObjects = buildFuncons(fileTreeMap)
 
         // Fourth pass: generate and write code
-//        generateCode(funconObjects)
+        generateCode(funconObjects)
     }
 
     private fun validateDirectory(directory: File): Boolean {
@@ -69,8 +70,10 @@ class TruffleGen(private val directoryPath: Path) {
         fileTreeMap.forEach { (file, tree) ->
             println("\nProcessing data for file: ${file.name}")
             tree?.let {
-                val data = definitionBuilderVisitor.visit(it)
-                data?.forEach { obj ->
+                definitionBuilderVisitor.visit(it)
+                val data = definitionBuilderVisitor.getObjects()
+                if (data.isEmpty()) throw Exception("No data generated")
+                data.forEach { obj ->
                     obj.file = file
                     objects[obj.name] = obj
                 }
