@@ -2,6 +2,7 @@ package trufflegen.main
 
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
+import org.antlr.v4.runtime.tree.ParseTree
 import trufflegen.antlr.CBSLexer
 import trufflegen.antlr.CBSParser
 import trufflegen.antlr.CBSParser.*
