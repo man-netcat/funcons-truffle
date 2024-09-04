@@ -2,10 +2,10 @@ package trufflegen.main
 
 import java.io.File
 
-abstract class ObjectDefinition() {
+abstract class Object() {
     lateinit var file: File
     abstract val name: String
-    abstract fun generateCode(): String
+    abstract fun generateCode(objects: Map<String, Object>): String
 
     internal val nodeName: String
         get() {

@@ -11,7 +11,7 @@ class ArgVisitor(private val str: String) : CBSBaseVisitor<Boolean>() {
             val child = node.getChild(i)
             if (child?.accept(this) == true) return true
         }
-        
+
         return false
     }
 }

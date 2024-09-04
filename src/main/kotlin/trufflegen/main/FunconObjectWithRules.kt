@@ -2,27 +2,24 @@ package trufflegen.main
 
 import trufflegen.antlr.CBSParser.*
 
-class FunconWithRules(
+class FunconObjectWithRules(
     override val context: FunconDefinitionContext,
     override val name: String,
     override val params: List<Param>,
-    private val rules: MutableList<RuleDefinitionContext>,
+    private val rules: List<RuleDefinitionContext>,
     private val returns: ReturnType,
-    private val aliases: MutableList<AliasDefinitionContext>
-) : Funcon(
+    private val aliases: List<AliasDefinitionContext>
+) : FunconObject(
     context, name, params, returns, aliases
 ) {
-    private fun booleanExpr(boolPremise: BooleanPremiseContext, params: List<Param>) {
-        val visitor = RewriteVisitor(params, params.map { param -> param.valueExpr })
-        val lhs = visitor.visit(boolPremise.lhs)
-        val rhs = visitor.visit(boolPremise.rhs)
-    }
-
     private fun buildTransition(rule: TransitionRuleContext): String {
         val premises = rule.premises().premise().toList()
-        val rewritten = when (val conclusion = rule.conclusion) {
+        val conclusion = rule.conclusion
+//        println("params: ${params.joinToString(", ", "(", ")") { param -> param.valueExpr?.text ?: "None" }}")
+//        println("conclusion: ${conclusion.text}")
+        val rewritten = when (conclusion) {
             is RewritePremiseContext -> {
-                println("\nrewrite conclusion: ${conclusion.text}")
+//                println("rewrite conclusion: ${conclusion.text}")
                 buildRewrite(conclusion.lhs, conclusion.rewritesTo, params)
             }
 
@@ -58,7 +55,7 @@ class FunconWithRules(
 
                 is RewriteRuleContext -> when (val premise = rule.premise()) {
                     is RewritePremiseContext -> {
-                        println("\nrewrite premise: ${premise.text}")
+//                        println("rewrite premise: ${premise.text}")
                         buildRewrite(premise.lhs, premise.rewritesTo, params)
                     }
 

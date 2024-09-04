@@ -6,9 +6,9 @@ class Datatype(
     override val name: String,
     val definition: MutableList<String>,
     val datatypeComposites: MutableList<FunconExpressionContext>
-) : ObjectDefinition() {
+) : Object() {
 
-    override fun generateCode(): String {
+    override fun generateCode(objects: Map<String, Object>): String {
         val cls = makeClass(
             name = name,
             annotations = emptyList(),

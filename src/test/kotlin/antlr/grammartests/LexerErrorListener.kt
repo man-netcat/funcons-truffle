@@ -5,7 +5,8 @@ import org.antlr.v4.runtime.RecognitionException
 import org.antlr.v4.runtime.Recognizer
 import java.io.File
 
-class LexerErrorListener(private val file: File, private val errorCollector: MutableList<String>) : BaseErrorListener() {
+class LexerErrorListener(private val file: File, private val errorCollector: MutableList<String>) :
+    BaseErrorListener() {
     override fun syntaxError(
         recognizer: Recognizer<*, *>?,
         offendingSymbol: Any?,

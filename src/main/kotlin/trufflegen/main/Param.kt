@@ -1,8 +1,8 @@
 package trufflegen.main
 
-import trufflegen.antlr.CBSParser.*
+import trufflegen.antlr.CBSParser.ExprContext
 
-class Param(private val index: Int, internal val valueExpr: ExprContext?, private val typeExpr: ExprContext) {
+class Param(index: Int, val valueExpr: ExprContext?, val typeExpr: ExprContext) {
     val name: String = "p$index"
     val type: ParamType = ParamType(typeExpr)
     val value: String = valueExpr?.text ?: "None"

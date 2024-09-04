@@ -20,11 +20,11 @@ index
    ;
 
 obj
-   : (modifier = BUILTIN? DATATYPE name = expr op = ('::=' | '<:') expr ('|' expr)* (ALIAS aliasDefinition | ASSERT assertDefinition)*) # DatatypeDefinition
-   | (modifier = (BUILTIN | AUXILIARY)? FUNCON name = IDENTIFIER ('(' params ')')? COLON returnType = expr (REWRITE rewritesTo = expr)? (ALIAS aliasDefinition | RULE ruleDefinition | ASSERT assertDefinition)*) # FunconDefinition
-   | METAVARIABLES (exprs '<:' definition = expr)+ # MetavariablesDefinition
+   : (modifier = (BUILTIN | AUXILIARY)? FUNCON name = IDENTIFIER ('(' params ')')? COLON returnType = expr (REWRITE rewritesTo = expr)? (ALIAS aliasDefinition | RULE ruleDefinition | ASSERT assertDefinition)*) # FunconDefinition
+   | (modifier = BUILTIN? DATATYPE name = IDENTIFIER ('(' params ')')? op = ('::=' | '<:') expr ('|' expr)* (ALIAS aliasDefinition | ASSERT assertDefinition)*) # DatatypeDefinition
+   | (modifier = BUILTIN? TYPE name = IDENTIFIER ('(' params ')')? (op = (REWRITE | '<:') definition = expr)? (ALIAS aliasDefinition)*) # TypeDefinition
+   | METAVARIABLES (variables = exprs '<:' definition = expr)+ # MetavariablesDefinition
    | ENTITY (stepExpr | mutableExpr) (ALIAS aliasDefinition)* # EntityDefinition
-   | (modifier = BUILTIN? TYPE (name = expr (REWRITE | '<:') definition = expr | name = expr) (ALIAS aliasDefinition)*) # TypeDefinition
    ;
 
 assertDefinition
@@ -47,8 +47,8 @@ expr
    | value = expr op = COLON type = expr # TypeExpression
    | '(' expr ')' # NestedExpression
    | '[' exprs? ']' # ListExpression
-   | '{' pairs '}' # MapExpression
    | '{' exprs? '}' # SetExpression
+   | '{' pairs '}' # MapExpression
    | '(' exprs? ')' # TupleExpression
    | string = STRING # String
    | value = NUMBER # Number
@@ -84,8 +84,8 @@ actions
    ;
 
 step
-   : '--->' NUMBER?
-   | '--' actions '->' NUMBER?
+   : '--->' sequenceNumber = NUMBER? # StepWithAction
+   | '--' actions '->' sequenceNumber = NUMBER? # StepWithoutAction
    ;
 
 steps

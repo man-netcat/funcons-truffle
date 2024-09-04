@@ -1,13 +1,13 @@
 package antlr.grammartests
 
-import trufflegen.antlr.CBSLexer
-import trufflegen.antlr.CBSParser
 import fctruffle.antlr.FCTLexer
 import fctruffle.antlr.FCTParser
 import org.antlr.v4.runtime.*
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import trufflegen.antlr.CBSLexer
+import trufflegen.antlr.CBSParser
 import java.io.File
 import java.util.stream.Stream
 
