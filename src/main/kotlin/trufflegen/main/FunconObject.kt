@@ -8,8 +8,8 @@ abstract class FunconObject(
     override val name: String,
     open val params: List<Param>,
     private val returns: ReturnType,
-    private val aliases: List<AliasDefinitionContext>,
-) : Object() {
+    aliases: List<AliasDefinitionContext>
+) : Object(aliases) {
 
     private fun extractArgs(funcon: ParseTree): List<ExprContext> {
         return when (funcon) {
@@ -45,16 +45,7 @@ abstract class FunconObject(
 
     abstract fun makeContent(): String
 
-    override fun generateCode(objects: Map<String, Object>): String {
-        val imports = makeImports(
-            listOf(
-                "fctruffle.main.*",
-                "com.oracle.truffle.api.frame.VirtualFrame",
-                "com.oracle.truffle.api.nodes.NodeInfo",
-                "com.oracle.truffle.api.nodes.Node.Child"
-            )
-        )
-
+    override fun generateCode(): String {
         val paramsStr = params.map { param ->
             val annotation = if (param.type.isVararg) "@Children private vararg val" else "@Child private val"
             Triple(annotation, param.name, "FCTNode")
@@ -63,11 +54,8 @@ abstract class FunconObject(
         val content = makeContent()
 
         val cls = makeClass(nodeName, emptyList(), paramsStr, emptyList(), content)
-
-        val aliasStrs = aliases.joinToString("\n") { alias -> makeTypeAlias(toClassName(alias.name.text), nodeName) }
-
-        val file = makeFile("fctruffle.generated", imports, cls, aliasStrs)
-        return file
+        
+        return cls
     }
 }
 

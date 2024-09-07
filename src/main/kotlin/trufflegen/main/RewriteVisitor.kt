@@ -73,7 +73,7 @@ class RewriteVisitor(
 
 //        println("paramIsArray: $paramIsArray, exprIsArg: $exprIsArg")
 
-        val argIndex = ruleArgs.indexOfFirst { ArgVisitor(text).visit(it) == true }
+        val argIndex = ruleArgs.indexOfFirst { ArgVisitor(text).visit(it) }
         if (argIndex == -1) {
             val stringArgs = ruleArgs.map { it?.text }
             throw DetailedException("String '$text' not found in $stringArgs")
