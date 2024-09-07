@@ -4,52 +4,48 @@ import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import trufflegen.antlr.CBSLexer
 import trufflegen.antlr.CBSParser
-import trufflegen.antlr.CBSParser.RootContext
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.pathString
 
+private val globalObjects: MutableMap<String, Object> = mutableMapOf()
+
 class TruffleGen(private val path: File) {
-    private val objects: MutableMap<String, Object> = mutableMapOf()
-    private val files: MutableMap<File, RootContext?> = mutableMapOf()
+    private val files: MutableMap<String, CBSFile> = mutableMapOf()
 
     fun process() {
-        // First pass: parse each file and store the parse tree
-        generateParseTrees(path)
-
-        // Second pass: build objects
-        buildObjects()
-
-        // Third pass: generate and write code
+        generateObjects(path)
         generateCode()
     }
 
-    private fun generateParseTrees(directory: File) {
+    private fun generateObjects(directory: File) {
         directory.walkTopDown().filter { file -> file.isFile && file.extension == "cbs" }.forEach { file ->
             println("Generating parse tree for file: ${file.name}")
             val input = CharStreams.fromPath(file.toPath())
             val lexer = CBSLexer(input)
             val tokens = CommonTokenStream(lexer)
             val parser = CBSParser(tokens)
-            files[file] = parser.root()
-        }
-    }
+            val root = parser.root()
 
-    private fun buildObjects() {
-        files.forEach { (file, tree) ->
-            println("\nProcessing data for file: ${file.name}")
-            val objectBuilderVisitor = ObjectBuilderVisitor()
-            tree?.let {
-                objectBuilderVisitor.visit(it)
-                val data = objectBuilderVisitor.getObjects()
-                data.forEach { obj ->
-                    obj.file = file
-                    objects[obj.name] = obj
-                }
+            val cbsFile = CBSFile(file.name, root)
+
+            files[file.name] = cbsFile
+        }
+
+        // Process files after all have been read
+        files.forEach { (name, file) ->
+            println("\nProcessing data for file: $name")
+            val root = file.root
+            file.visit(root)
+            val fileObjects = file.objects
+
+            fileObjects.forEach { obj ->
+                globalObjects[obj.name] = obj
             }
         }
     }
+
 
     private fun generateCode() {
         val outputDir = Path.of("src/main/kotlin/fctruffle/generated")
@@ -57,19 +53,18 @@ class TruffleGen(private val path: File) {
             Files.createDirectories(outputDir)
         }
 
-        objects.forEach { (name, obj) ->
-            println("\nGenerating file for object: $name (file: ${obj.file.name})")
-
+        files.forEach { (name, file) ->
+            println("\nGenerating file for: $name")
             try {
-                val code = obj.generateCode(objects)
+                val code = file.generateCode()
+                val filePath = outputDir.resolve("${toClassName(name)}.kt").pathString
+//                File(filePath).writeText(code)
             } catch (e: DetailedException) {
-                println("Failed to build ${obj::class.simpleName}: ${name}.\n${e.message}")
+                println(e)
             }
-//            println(code)
-            val filePath = outputDir.resolve("${obj.nodeName}.kt").pathString
-//            writeFile(filePath, code)
         }
     }
+
 
     companion object {
         @JvmStatic

@@ -96,19 +96,6 @@ fun makeWhenExpression(
     return "when ($expression) {\n$branchesStr$elseStr\n}"
 }
 
-fun makeImports(packages: List<String>): String {
-    return packages.joinToString("\n") { "import $it" }
-}
-
 fun makeTypeAlias(aliasName: String, targetType: String): String {
     return "typealias $aliasName = $targetType"
-}
-
-fun makeFile(
-    packageName: String,
-    importsStr: String,
-    classStr: String,
-    aliasStrs: String,
-): String {
-    return "package $packageName\n\n$importsStr\n\n$classStr\n\n$aliasStrs\n"
 }

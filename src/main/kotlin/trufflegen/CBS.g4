@@ -21,7 +21,7 @@ index
 
 obj
    : (modifier = (BUILTIN | AUXILIARY)? FUNCON name = IDENTIFIER ('(' params ')')? COLON returnType = expr (REWRITE rewritesTo = expr)? (ALIAS aliasDefinition | RULE ruleDefinition | ASSERT assertDefinition)*) # FunconDefinition
-   | (modifier = BUILTIN? DATATYPE name = IDENTIFIER ('(' params ')')? op = ('::=' | '<:') expr ('|' expr)* (ALIAS aliasDefinition | ASSERT assertDefinition)*) # DatatypeDefinition
+   | (modifier = BUILTIN? DATATYPE name = IDENTIFIER ('(' params ')')? op = ('::=' | '<:') definition = expr (ALIAS aliasDefinition | ASSERT assertDefinition)*) # DatatypeDefinition
    | (modifier = BUILTIN? TYPE name = IDENTIFIER ('(' params ')')? (op = (REWRITE | '<:') definition = expr)? (ALIAS aliasDefinition)*) # TypeDefinition
    | METAVARIABLES (variables = exprs '<:' definition = expr)+ # MetavariablesDefinition
    | ENTITY (stepExpr | mutableExpr) (ALIAS aliasDefinition)* # EntityDefinition

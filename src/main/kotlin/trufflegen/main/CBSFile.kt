@@ -4,12 +4,10 @@ import org.antlr.v4.runtime.tree.ParseTree
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
-class ObjectBuilderVisitor : CBSBaseVisitor<Unit>() {
-    private val objects = mutableListOf<Object>()
-
+class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() {
     private val metavariables = mutableMapOf<ExprContext, ExprContext>()
 
-    fun getObjects(): List<Object> = objects
+    internal val objects = mutableListOf<Object>()
 
     override fun visitMetavariablesDefinition(metavars: MetavariablesDefinitionContext) {
         metavariables.putAll(metavars.variables.expr().mapNotNull { variable ->
@@ -60,9 +58,18 @@ class ObjectBuilderVisitor : CBSBaseVisitor<Unit>() {
 
         val params = extractParams(datatype)
 
-        val definitions = datatype.expr()
+        tailrec fun extractAndExprs(
+            expr: ExprContext, definitions: List<ExprContext> = emptyList()
+        ): List<ExprContext> = when (expr) {
+            is OrExpressionContext -> extractAndExprs(expr.lhs, definitions + expr.rhs)
+            else -> definitions + expr
+        }
 
-        val dataContainer = DatatypeObject(name, params, definitions)
+        val definitions = extractAndExprs(datatype.definition)
+
+        val aliases = datatype.aliasDefinition()
+
+        val dataContainer = DatatypeObject(name, params, definitions, aliases)
 
         objects.add(dataContainer)
     }
@@ -77,8 +84,27 @@ class ObjectBuilderVisitor : CBSBaseVisitor<Unit>() {
 
         val definition = type.definition
 
-        val dataContainer = TypeObject(type, name, params, definition)
+        val aliases = type.aliasDefinition()
+
+        val dataContainer = TypeObject(type, name, params, definition, aliases)
 
         objects.add(dataContainer)
+    }
+
+    fun generateCode(): String {
+        val imports = listOf(
+            "fctruffle.main.*",
+            "com.oracle.truffle.api.frame.VirtualFrame",
+            "com.oracle.truffle.api.nodes.NodeInfo",
+            "com.oracle.truffle.api.nodes.Node.Child"
+        ).joinToString("\n") { "import $it" }
+
+        val classes = objects.map { obj ->
+            println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $name)")
+            "${obj.generateCode()}\n\n${obj.aliasStr()}"
+        }
+
+        val file = "package fctruffle.generated\n\n$imports\n\n$classes"
+        return file
     }
 }
