@@ -99,7 +99,7 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
             "com.oracle.truffle.api.nodes.Node.Child"
         ).joinToString("\n") { "import $it" }
 
-        val classes = objects.map { obj ->
+        val classes = objects.joinToString("\n") { obj ->
             println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $name)")
             "${obj.generateCode()}\n\n${obj.aliasStr()}"
         }
