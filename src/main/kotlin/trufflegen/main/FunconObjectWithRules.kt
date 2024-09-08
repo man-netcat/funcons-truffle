@@ -15,37 +15,70 @@ class FunconObjectWithRules(
     private fun buildTransition(rule: TransitionRuleContext): String {
         val premises = rule.premises().premise().toList()
         val conclusion = rule.conclusion
-//        println("params: ${params.joinToString(", ", "(", ")") { param -> param.valueExpr?.text ?: "None" }}")
 //        println("conclusion: ${conclusion.text}")
-        val rewritten = when (conclusion) {
+
+        val ruleDef: ExprContext
+        val rewriteExpr: ExprContext
+
+        when (conclusion) {
             is RewritePremiseContext -> {
-//                println("rewrite conclusion: ${conclusion.text}")
-                buildRewrite(conclusion.lhs, conclusion.rewritesTo, params)
+                ruleDef = conclusion.lhs
+                rewriteExpr = conclusion.rewritesTo
             }
 
             is StepPremiseContext -> {
                 val stepExpr = conclusion.stepExpr()
-                buildRewrite(stepExpr.lhs, stepExpr.rewritesTo, params)
+                ruleDef = stepExpr.lhs
+                rewriteExpr = stepExpr.rewritesTo
 
             }
 
             is MutableEntityPremiseContext -> {
-                ""
+                val mutableExpr = conclusion.mutableExpr()
+                ruleDef = mutableExpr.lhs
+                rewriteExpr = mutableExpr.rhs
             }
 
             else -> throw Exception("Unexpected conclusion type: ${conclusion::class.simpleName}")
         }
+//        println("Conclusion type: ${conclusion::class.simpleName}")
+        val conclusionRewrite = buildRewrite(ruleDef, rewriteExpr, params)
+//        println("Conclusion rewrite: $conclusionRewrite")
 
-        premises.forEach { premise ->
+        val conditions = premises.map { premise ->
             when (premise) {
                 is RewritePremiseContext -> {}
                 is StepPremiseContext -> {}
                 is MutableEntityPremiseContext -> {}
-                is BooleanPremiseContext -> {}
-                is TypePremiseContext -> {}
+                is BooleanPremiseContext -> {
+//                    println("Boolean Premise Expression")
+                    val value = buildRewrite(ruleDef, premise.lhs, params)
+                    val op = when (premise.op.text) {
+                        "==" -> "=="
+                        "=/=" -> "!="
+                        else -> throw Exception("Unexpected operator type: ${premise.op.text}")
+                    }
+                    "$value $op ${premise.rhs.text}"
+                }
+
+                is TypePremiseContext -> {
+//                    println("Type Premise Expression")
+                    val value = buildRewrite(ruleDef, premise.value, params)
+                    when (val premiseType = premise.type) {
+                        is ComplementExpressionContext -> {
+                            "$value !is ${premiseType.operand.text}"
+                        }
+
+                        else -> "$value is ${premiseType.text}"
+                    }
+                }
+
+                else -> throw Exception("Unexpected premise type: ${premise::class.simpleName}")
             }
         }
-        return rewritten
+//        println("Conditions:")
+//        conditions.forEach { condition -> println(condition) }
+        return ""
     }
 
     override fun makeContent(): String {

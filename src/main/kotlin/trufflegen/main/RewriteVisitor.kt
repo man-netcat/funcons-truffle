@@ -2,22 +2,25 @@ package trufflegen.main
 
 import org.antlr.v4.runtime.tree.ParseTree
 import org.antlr.v4.runtime.tree.RuleNode
-import org.icecream.IceCream.ic
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
 class RewriteVisitor(
     private val rootExpr: ParseTree, private val params: List<Param>, private val ruleArgs: List<ExprContext?>
 ) : CBSBaseVisitor<String>() {
+    private val callStack = ArrayDeque<String>()
+    private val steps = mutableMapOf<String, String>()
 
     override fun visitFunconExpression(funcon: FunconExpressionContext): String {
         val name = funcon.name.text
+        callStack.addLast(name)
         val argStr = when (val rewriteArgs = funcon.args()) {
             is MultipleArgsContext -> visit(rewriteArgs.exprs())
             is SingleArgsContext -> visit(rewriteArgs.expr())
             is NoArgsContext -> ""
             else -> throw DetailedException("Unexpected arg type: ${rewriteArgs::class.simpleName}")
         }
+        callStack.removeLast()
         val className = toClassName(name)
         return "$className($argStr)"
     }
@@ -59,10 +62,14 @@ class RewriteVisitor(
     override fun visitString(string: StringContext): String = string.text
 
     private fun rewriteExpr(expr: ParseTree): String {
-        val (text, paramIsArray) = when (expr) {
-            is SuffixExpressionContext -> expr.text to true
-            is VariableContext -> expr.varname.text to false
-            is VariableStepContext -> expr.varname.text to false
+        val (text, argIsArray, executeStr) = when (expr) {
+            is SuffixExpressionContext -> Triple(expr.text, true, "")
+            is VariableContext -> Triple(expr.varname.text, false, "")
+            is VariableStepContext -> {
+                var numSteps = expr.squote().size
+                Triple(expr.varname.text, false, "p".repeat(numSteps))
+            }
+
             else -> throw DetailedException("Unexpected expression type: ${expr::class.simpleName}")
         }
 
@@ -71,54 +78,52 @@ class RewriteVisitor(
             else -> false
         }
 
-//        println("paramIsArray: $paramIsArray, exprIsArg: $exprIsArg")
-
         val argIndex = ruleArgs.indexOfFirst { ArgVisitor(text).visit(it) }
         if (argIndex == -1) {
             val stringArgs = ruleArgs.map { it?.text }
             throw DetailedException("String '$text' not found in $stringArgs")
         }
+        val varargParamIndex = params.indexOfFirst { it.type.isVararg }
+        val starPrefix = if (exprIsArg && argIsArray) "*" else ""
+        if (varargParamIndex == -1) return "${starPrefix}p$argIndex$executeStr"
 
-        val paramVarargIndex = params.indexOfFirst { it.type.isVararg }
-
-        val afterVararg = params.size - (paramVarargIndex + 1)
-
-        val starPrefix = if (exprIsArg && paramIsArray) "*" else ""
-
-        val paramStr = when {
-            // Argument is in the pre-vararg section
-            argIndex < paramVarargIndex -> "${starPrefix}p$argIndex"
-
-            // Argument is in the vararg section
-            argIndex in paramVarargIndex until (paramVarargIndex + (params.size - paramVarargIndex - afterVararg)) -> {
-                val varargIndexIndex = argIndex - paramVarargIndex
-                val param = if (paramIsArray) {
-                    if (argIndex == 0) {
-                        "p$paramVarargIndex"
-                    } else {
-                        "slice(p$paramVarargIndex, $argIndex, $afterVararg)"
-                    }
-                } else {
-                    "p$paramVarargIndex[$varargIndexIndex]"
-                }
-                starPrefix + param
-            }
-
-            // Argument is in the post-vararg section
-            argIndex >= (paramVarargIndex + (params.size - paramVarargIndex - afterVararg)) -> {
-                val afterVarargIndex = argIndex - (params.size - afterVararg)
-                // TODO: Explicitly assign args to post-vararg params of funcons
-                "${starPrefix}p${paramVarargIndex + 1 + afterVarargIndex}"
-            }
-
-            else -> throw IndexOutOfBoundsException()
+        val argsSize = ruleArgs.size
+        val paramsSize = params.size
+        val nVarargArgs = argsSize - (paramsSize - 1)
+        val paramsAfterVararg = paramsSize - (varargParamIndex + 1)
+        val argsAfterVararg = argsSize - (varargParamIndex + nVarargArgs)
+        if (paramsAfterVararg != argsAfterVararg) {
+            throw DetailedException("Unequal args for params after vararg")
         }
 
-        return paramStr
+        return starPrefix + if (argIndex < varargParamIndex) {
+            // Arg is pre-vararg param index
+            val paramIndex = argIndex
+            "p$paramIndex$executeStr"
+        } else if (argIndex in varargParamIndex until varargParamIndex + nVarargArgs) {
+            // Arg is vararg param index
+            val paramIndex = varargParamIndex
+            val varargParamIndexed = argIndex - varargParamIndex
+            if (!argIsArray) {
+                "p${paramIndex}$executeStr[$varargParamIndexed]"
+            } else if (argsAfterVararg > 0) {
+                "slice(p$paramIndex$executeStr, $argIndex, $argsAfterVararg)"
+            } else if (argIndex != 0) {
+                "slice(p$paramIndex$executeStr, $argIndex)"
+            } else {
+                "p$paramIndex$executeStr"
+            }
+        } else if (argIndex < argsSize) {
+            println("post-vararg, num varargs: $nVarargArgs")
+            // Arg is post-vararg param index
+            val paramIndex = argIndex - (nVarargArgs - 1)
+            "p$paramIndex$executeStr"
+        } else {
+            throw IndexOutOfBoundsException()
+        }
     }
 
     override fun visitChildren(node: RuleNode): String {
-        ic(node::class.simpleName)
         return super.visitChildren(node)
     }
 }

@@ -11,6 +11,12 @@ abstract class FunconObject(
     aliases: List<AliasDefinitionContext>
 ) : Object(aliases) {
 
+    private val paramsAfterVarargs: Int
+        get() {
+            val varargParamIndex = params.indexOfFirst { it.type.isVararg }
+            return params.size - varargParamIndex
+        }
+
     private fun extractArgs(funcon: ParseTree): List<ExprContext> {
         return when (funcon) {
             is FunconExpressionContext -> {
@@ -54,7 +60,7 @@ abstract class FunconObject(
         val content = makeContent()
 
         val cls = makeClass(nodeName, emptyList(), paramsStr, emptyList(), content)
-        
+
         return cls
     }
 }

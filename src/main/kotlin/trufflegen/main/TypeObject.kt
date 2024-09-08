@@ -16,8 +16,6 @@ open class TypeObject(
             return ""
         }
 
-        println(context.text)
-
         val aliasStrs = aliasStr()
 
         val args = params.map { param -> param.valueExpr ?: param.typeExpr }

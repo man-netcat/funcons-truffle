@@ -13,6 +13,7 @@ abstract class Type(type: ExprContext) : CBSBaseVisitor<Unit>() {
 
     init {
         this.visit(type)
+//        println("pluses: $pluses, stars: $stars, qmarks: $qmarks, powns: $powns")
     }
 
     val typeCategory: TypeCategory
@@ -46,7 +47,9 @@ abstract class Type(type: ExprContext) : CBSBaseVisitor<Unit>() {
         super.visitUnaryComputesExpression(ctx)
     }
 
-    override fun visitFunconExpression(ctx: FunconExpressionContext?) {
-        super.visitFunconExpression(ctx)
-    }
+    override fun visitFunconExpression(ctx: FunconExpressionContext?) {}
+    override fun visitTupleExpression(ctx: TupleExpressionContext?) {}
+    override fun visitListExpression(ctx: ListExpressionContext?) {}
+    override fun visitSetExpression(ctx: SetExpressionContext?) {}
+    override fun visitMapExpression(ctx: MapExpressionContext?) {}
 }

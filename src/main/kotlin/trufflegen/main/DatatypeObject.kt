@@ -10,7 +10,7 @@ class DatatypeObject(
     aliases: MutableList<CBSParser.AliasDefinitionContext>
 ) : Object(aliases) {
     override fun generateCode(): String {
-        definitions.map { def -> println("${def::class.simpleName}: ${def.text}") }
+//        definitions.map { def -> println("${def::class.simpleName}: ${def.text}") }
 
         val aliasStrs = aliasStr()
 

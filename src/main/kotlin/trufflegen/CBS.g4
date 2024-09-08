@@ -15,8 +15,12 @@ definitionId
    | ENTITY
    ;
 
+indexLine
+   : (definitionId name = IDENTIFIER (ALIAS alias = IDENTIFIER)?)
+   ;
+
 index
-   : '[' (definitionId name = IDENTIFIER (ALIAS alias = IDENTIFIER)?)+ ']'
+   : '[' indexLine+ ']'
    ;
 
 obj
@@ -33,6 +37,10 @@ assertDefinition
 
 aliasDefinition
    : name = IDENTIFIER '=' original = IDENTIFIER
+   ;
+
+squote
+   : SQUOTE
    ;
 
 expr
@@ -52,7 +60,7 @@ expr
    | '(' exprs? ')' # TupleExpression
    | string = STRING # String
    | value = NUMBER # Number
-   | varname = VARIABLE rewriteSteps = SQUOTE+ # VariableStep
+   | varname = VARIABLE squote+ # VariableStep
    | varname = VARIABLE # Variable
    ;
 
@@ -92,12 +100,8 @@ steps
    : step (';' step)*
    ;
 
-mutableEntity
-   : '<' expr ',' expr '>'
-   ;
-
 mutableExpr
-   : mutableEntity step mutableEntity
+   : '<' lhs = expr ',' entityLhs = expr '>' step '<' rhs = expr ',' entityRhs = expr '>'
    ;
 
 stepExpr

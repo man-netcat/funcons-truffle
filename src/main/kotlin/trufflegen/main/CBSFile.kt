@@ -4,7 +4,7 @@ import org.antlr.v4.runtime.tree.ParseTree
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
-class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() {
+class CBSFile(val name: String, val root: RootContext, private val index: List<String>?) : CBSBaseVisitor<Unit>() {
     private val metavariables = mutableMapOf<ExprContext, ExprContext>()
 
     internal val objects = mutableListOf<Object>()
@@ -30,6 +30,9 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
 
     override fun visitFunconDefinition(funcon: FunconDefinitionContext) {
         val name = funcon.name.text
+        if (index != null && name !in index) {
+            return
+        }
 
         val modifierText = funcon.modifier?.text.orEmpty()
         println("${modifierText}Funcon: $name")
@@ -52,6 +55,9 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
 
     override fun visitDatatypeDefinition(datatype: DatatypeDefinitionContext) {
         val name = datatype.name.text
+        if (index != null && name !in index) {
+            return
+        }
 
         val modifierText = datatype.modifier?.text.orEmpty()
         println("${modifierText}Datatype: $name")
@@ -76,6 +82,9 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
 
     override fun visitTypeDefinition(type: TypeDefinitionContext) {
         val name = type.name.text
+        if (index != null && name !in index) {
+            return
+        }
 
         val modifierText = type.modifier?.text.orEmpty()
         println("${modifierText}Type: $name")
