@@ -4,6 +4,7 @@ import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import trufflegen.antlr.CBSLexer
 import trufflegen.antlr.CBSParser
+import trufflegen.antlr.CBSParser.RootContext
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
@@ -13,15 +14,27 @@ private val globalObjects: MutableMap<String, Object> = mutableMapOf()
 
 class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
     private val files: MutableMap<String, CBSFile> = mutableMapOf()
-    private var index: List<String>? = mutableListOf<String>()
+    private var index: MutableSet<String> = mutableSetOf<String>()
+    private var dependencies: MutableSet<String> = mutableSetOf<String>()
+    private var parseTrees: MutableMap<String, RootContext> = mutableMapOf<String, RootContext>()
 
     fun process() {
-        index = buildIndex()
+        buildIndex()
+        index.forEach { println("Index: $it") }
+        generateParseTrees()
+        findDependencies()
+        dependencies.forEach { println("Dependency: $it") }
+        if (languageIndex != null) {
+            println("Index: ${index.size}, Dependencies: ${dependencies.size}, Total: ${index.size + dependencies.size}")
+        }
         generateObjects()
         generateCode()
     }
 
-    fun buildIndex() = if (languageIndex != null) {
+    fun buildIndex() {
+        if (languageIndex == null) {
+            return
+        }
         val input = CharStreams.fromPath(languageIndex.toPath())
         val lexer = CBSLexer(input)
         val tokens = CommonTokenStream(lexer)
@@ -29,24 +42,50 @@ class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
         val root = parser.root()
         val indexVisitor = IndexVisitor()
         indexVisitor.visit(root)
-        indexVisitor.index
-    } else {
-        null
+        index = indexVisitor.index
     }
 
-    private fun generateObjects() {
+    private fun generateParseTrees() {
         cbsDir.walkTopDown().filter { file -> file.isFile && file.extension == "cbs" }.forEach { file ->
-            println("\nProcessing data for file: ${file.name}")
             val input = CharStreams.fromPath(file.toPath())
             val lexer = CBSLexer(input)
             val tokens = CommonTokenStream(lexer)
             val parser = CBSParser(tokens)
             val root = parser.root()
-            val cbsFile = CBSFile(file.name, root, index)
+            parseTrees[file.name] = root
+        }
+    }
+
+    // Iteratively finds all dependencies of the provided language.
+    private fun findDependencies() {
+        if (languageIndex == null) {
+            return
+        }
+        var newDependenciesFound: Boolean
+
+        do {
+            newDependenciesFound = false
+            parseTrees.forEach { name, root ->
+                val depVisitor = DependencyVisitor(index)
+                depVisitor.visit(root)
+                val newDependencies = depVisitor.dependencies.filter { it !in index }
+
+                if (newDependencies.isNotEmpty()) {
+                    newDependenciesFound = true
+                    dependencies.addAll(newDependencies)
+                    index.addAll(newDependencies)
+                }
+            }
+        } while (newDependenciesFound)
+    }
+
+    private fun generateObjects() {
+        parseTrees.forEach { name, root ->
+            val cbsFile = CBSFile(name, root, index)
             cbsFile.visit(root)
             val fileObjects = cbsFile.objects
             if (fileObjects.isNotEmpty()) {
-                files[file.name] = cbsFile
+                files[name] = cbsFile
                 fileObjects.forEach { obj -> globalObjects[obj.name] = obj }
             }
         }
@@ -59,14 +98,9 @@ class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
         }
 
         files.forEach { (name, file) ->
-            println("\nGenerating file for: $name")
-            try {
-                val code = file.generateCode()
-                val filePath = outputDir.resolve("${toClassName(name)}.kt").pathString
-//                File(filePath).writeText(code)
-            } catch (e: DetailedException) {
-                println(e)
-            }
+            val code = file.generateCode()
+            val filePath = outputDir.resolve("${toClassName(name)}.kt").pathString
+//            File(filePath).writeText(code)
         }
     }
 
@@ -94,7 +128,7 @@ class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
                 }
                 languageIndexPath.toFile()
             } else {
-                println("No language index provided. Proceeding without it.")
+                println("No language index provided. Generating code for all Funcons in CBS dir.")
                 null
             }
 

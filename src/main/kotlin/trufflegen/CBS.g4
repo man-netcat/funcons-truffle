@@ -250,10 +250,11 @@ SQUOTE
    ;
 
 VARIABLE
-   : [A-Z] [a-zA-Z0-9_-]*
+   : [A-Z] [a-zA-Z0-9-]*
+   | '_'
    ;
 
 IDENTIFIER
-   : [A-Za-z_] [a-zA-Z0-9_-]*
+   : [A-Za-z] [a-zA-Z0-9-]*
    ;
 

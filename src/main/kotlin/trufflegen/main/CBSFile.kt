@@ -4,7 +4,7 @@ import org.antlr.v4.runtime.tree.ParseTree
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
-class CBSFile(val name: String, val root: RootContext, private val index: List<String>?) : CBSBaseVisitor<Unit>() {
+class CBSFile(val name: String, val root: RootContext, private val index: Set<String>?) : CBSBaseVisitor<Unit>() {
     private val metavariables = mutableMapOf<ExprContext, ExprContext>()
 
     internal val objects = mutableListOf<Object>()
@@ -23,19 +23,16 @@ class CBSFile(val name: String, val root: RootContext, private val index: List<S
             else -> throw DetailedException("Unexpected object: ${obj::class.simpleName}")
         }
 
-        return params?.param()?.mapIndexed { index, param ->
-            Param(index, param.value, param.type)
+        return params?.param()?.mapIndexed { paramIndex, param ->
+            Param(paramIndex, param.value, param.type)
         } ?: emptyList()
     }
 
     override fun visitFunconDefinition(funcon: FunconDefinitionContext) {
         val name = funcon.name.text
-        if (index != null && name !in index) {
+        if (index?.isNotEmpty() == true && name !in index) {
             return
         }
-
-        val modifierText = funcon.modifier?.text.orEmpty()
-        println("${modifierText}Funcon: $name")
 
         val params = extractParams(funcon)
 
@@ -55,12 +52,9 @@ class CBSFile(val name: String, val root: RootContext, private val index: List<S
 
     override fun visitDatatypeDefinition(datatype: DatatypeDefinitionContext) {
         val name = datatype.name.text
-        if (index != null && name !in index) {
+        if (index?.isNotEmpty() == true && name !in index) {
             return
         }
-
-        val modifierText = datatype.modifier?.text.orEmpty()
-        println("${modifierText}Datatype: $name")
 
         val params = extractParams(datatype)
 
@@ -82,12 +76,9 @@ class CBSFile(val name: String, val root: RootContext, private val index: List<S
 
     override fun visitTypeDefinition(type: TypeDefinitionContext) {
         val name = type.name.text
-        if (index != null && name !in index) {
+        if (index?.isNotEmpty() == true && name !in index) {
             return
         }
-
-        val modifierText = type.modifier?.text.orEmpty()
-        println("${modifierText}Type: $name")
 
         val params = extractParams(type)
 
@@ -110,9 +101,14 @@ class CBSFile(val name: String, val root: RootContext, private val index: List<S
 
         val classes = objects.joinToString("\n") { obj ->
             println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $name)")
-            "${obj.generateCode()}\n\n${obj.aliasStr()}"
+            try {
+                val code = obj.generateCode()
+                "${code}\n\n${obj.aliasStr()}"
+            } catch (e: DetailedException) {
+                println(e)
+                ""
+            }
         }
-
         val file = "package fctruffle.generated\n\n$imports\n\n$classes"
         return file
     }

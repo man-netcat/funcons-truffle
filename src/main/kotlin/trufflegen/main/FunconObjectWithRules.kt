@@ -30,7 +30,6 @@ class FunconObjectWithRules(
                 val stepExpr = conclusion.stepExpr()
                 ruleDef = stepExpr.lhs
                 rewriteExpr = stepExpr.rewritesTo
-
             }
 
             is MutableEntityPremiseContext -> {
@@ -45,9 +44,17 @@ class FunconObjectWithRules(
         val conclusionRewrite = buildRewrite(ruleDef, rewriteExpr, params)
 //        println("Conclusion rewrite: $conclusionRewrite")
 
+        val rewritePremiseMap = mutableMapOf<String, Pair<String, String>>()
+        var nRewritePremises = 0
         val conditions = premises.map { premise ->
             when (premise) {
-                is RewritePremiseContext -> {}
+                is RewritePremiseContext -> {
+                    val rewritePremise = buildRewrite(ruleDef, premise.lhs, params)
+                    rewritePremiseMap[premise.rewritesTo.text] = Pair(rewritePremise, "r$nRewritePremises")
+                    println("rewritePremise: ${premise.rewritesTo.text} -> r$nRewritePremises = $rewritePremise")
+                    nRewritePremises += 1
+                }
+
                 is StepPremiseContext -> {}
                 is MutableEntityPremiseContext -> {}
                 is BooleanPremiseContext -> {
@@ -76,8 +83,8 @@ class FunconObjectWithRules(
                 else -> throw Exception("Unexpected premise type: ${premise::class.simpleName}")
             }
         }
-//        println("Conditions:")
-//        conditions.forEach { condition -> println(condition) }
+        println("Conditions:")
+        conditions.forEach { condition -> println(condition) }
         return ""
     }
 
