@@ -25,9 +25,9 @@ index
 
 obj
    : (modifier = (BUILTIN | AUXILIARY)? FUNCON name = IDENTIFIER ('(' params ')')? COLON returnType = expr (REWRITE rewritesTo = expr)? (ALIAS aliasDefinition | RULE ruleDefinition | ASSERT assertDefinition)*) # FunconDefinition
-   | (modifier = BUILTIN? DATATYPE name = IDENTIFIER ('(' params ')')? op = ('::=' | '<:') definition = expr (ALIAS aliasDefinition | ASSERT assertDefinition)*) # DatatypeDefinition
-   | (modifier = BUILTIN? TYPE name = IDENTIFIER ('(' params ')')? (op = (REWRITE | '<:') definition = expr)? (ALIAS aliasDefinition)*) # TypeDefinition
-   | METAVARIABLES (variables = exprs '<:' definition = expr)+ # MetavariablesDefinition
+   | (modifier = BUILTIN? DATATYPE name = IDENTIFIER ('(' params ')')? op = ('::=' | SUBTYPE) definition = expr (ALIAS aliasDefinition | ASSERT assertDefinition)*) # DatatypeDefinition
+   | (modifier = BUILTIN? TYPE name = IDENTIFIER ('(' params ')')? (op = (REWRITE | SUBTYPE) definition = expr)? (ALIAS aliasDefinition)*) # TypeDefinition
+   | METAVARIABLES (variables = exprs SUBTYPE definition = expr)+ # MetavariablesDefinition
    | ENTITY (stepExpr | mutableExpr) (ALIAS aliasDefinition)* # EntityDefinition
    ;
 
@@ -53,6 +53,7 @@ expr
    | lhs = expr op = AND rhs = expr # AndExpression
    | lhs = expr op = OR rhs = expr # OrExpression
    | value = expr op = COLON type = expr # TypeExpression
+   | value = expr op = SUBTYPE type = expr # SubTypeExpression
    | '(' expr ')' # NestedExpression
    | '[' exprs? ']' # ListExpression
    | '{' exprs? '}' # SetExpression
@@ -83,17 +84,17 @@ params
    : param (',' param)*
    ;
 
-action
+label
    : name = IDENTIFIER polarity = ('!' | '?')? '(' exprs? ')'
    ;
 
-actions
-   : action (',' action)*
+labels
+   : label (',' label)*
    ;
 
 step
-   : '--->' sequenceNumber = NUMBER? # StepWithAction
-   | '--' actions '->' sequenceNumber = NUMBER? # StepWithoutAction
+   : '--->' sequenceNumber = NUMBER? # StepWithoutLabel
+   | '--' labels '->' sequenceNumber = NUMBER? # StepWithLabel
    ;
 
 steps
@@ -243,6 +244,10 @@ BAR
 
 REWRITE
    : '~>'
+   ;
+
+SUBTYPE
+   : '<:'
    ;
 
 SQUOTE

@@ -4,7 +4,7 @@ import org.antlr.v4.runtime.tree.ParseTree
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
-class CBSFile(val name: String, val root: RootContext, private val index: Set<String>?) : CBSBaseVisitor<Unit>() {
+class CBSFile(val name: String, val root: RootContext, private val index: Set<String>) : CBSBaseVisitor<Unit>() {
     private val metavariables = mutableMapOf<ExprContext, ExprContext>()
 
     internal val objects = mutableListOf<Object>()
@@ -30,7 +30,7 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
 
     override fun visitFunconDefinition(funcon: FunconDefinitionContext) {
         val name = funcon.name.text
-        if (index?.isNotEmpty() == true && name !in index) {
+        if (name !in index) {
             return
         }
 
@@ -52,9 +52,7 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
 
     override fun visitDatatypeDefinition(datatype: DatatypeDefinitionContext) {
         val name = datatype.name.text
-        if (index?.isNotEmpty() == true && name !in index) {
-            return
-        }
+        if (name !in index) return
 
         val params = extractParams(datatype)
 
@@ -76,9 +74,7 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
 
     override fun visitTypeDefinition(type: TypeDefinitionContext) {
         val name = type.name.text
-        if (index?.isNotEmpty() == true && name !in index) {
-            return
-        }
+        if (name !in index) return
 
         val params = extractParams(type)
 

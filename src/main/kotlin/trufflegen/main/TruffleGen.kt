@@ -16,25 +16,32 @@ class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
     private val files: MutableMap<String, CBSFile> = mutableMapOf()
     private var index: MutableSet<String> = mutableSetOf<String>()
     private var dependencies: MutableSet<String> = mutableSetOf<String>()
+    private var builtins: MutableSet<String> = mutableSetOf<String>()
     private var parseTrees: MutableMap<String, RootContext> = mutableMapOf<String, RootContext>()
 
     fun process() {
         buildIndex()
-        index.forEach { println("Index: $it") }
+
         generateParseTrees()
         findDependencies()
+
+        index.removeAll(builtins)
+        index.forEach { println("Index: $it") }
         dependencies.forEach { println("Dependency: $it") }
+        builtins.forEach { println("Builtin: $it") }
+
         if (languageIndex != null) {
-            println("Index: ${index.size}, Dependencies: ${dependencies.size}, Total: ${index.size + dependencies.size}")
+            println("Index: ${index.size}, Dependencies: ${dependencies.size}, Total: ${index.size + dependencies.size} (Builtins: ${builtins.size})")
         }
+        index.addAll(dependencies)
+
         generateObjects()
         generateCode()
     }
 
+
     fun buildIndex() {
-        if (languageIndex == null) {
-            return
-        }
+        if (languageIndex == null) return
         val input = CharStreams.fromPath(languageIndex.toPath())
         val lexer = CBSLexer(input)
         val tokens = CommonTokenStream(lexer)
@@ -56,28 +63,27 @@ class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
         }
     }
 
-    // Iteratively finds all dependencies of the provided language.
+    // Iteratively finds all dependencies of the provided language and keeps track of passes.
     private fun findDependencies() {
-        if (languageIndex == null) {
-            return
-        }
+        if (languageIndex == null) return
+
         var newDependenciesFound: Boolean
 
         do {
+            val previousDependencies = dependencies.toSet()
+
             newDependenciesFound = false
             parseTrees.forEach { name, root ->
-                val depVisitor = DependencyVisitor(index)
+                val depVisitor = DependencyVisitor(index, dependencies, builtins)
                 depVisitor.visit(root)
-                val newDependencies = depVisitor.dependencies.filter { it !in index }
+            }
 
-                if (newDependencies.isNotEmpty()) {
-                    newDependenciesFound = true
-                    dependencies.addAll(newDependencies)
-                    index.addAll(newDependencies)
-                }
+            if (dependencies != previousDependencies) {
+                newDependenciesFound = true
             }
         } while (newDependenciesFound)
     }
+
 
     private fun generateObjects() {
         parseTrees.forEach { name, root ->
@@ -131,10 +137,10 @@ class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
                 println("No language index provided. Generating code for all Funcons in CBS dir.")
                 null
             }
+            println("Generating code for Funcons in ${languageIndex?.name}")
 
             val truffleGen = TruffleGen(cbsDir, languageIndex)
             truffleGen.process()
         }
     }
-
 }
