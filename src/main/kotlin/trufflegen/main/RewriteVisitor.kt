@@ -9,7 +9,6 @@ class RewriteVisitor(
     private val rootExpr: ParseTree, private val params: List<Param>, private val ruleArgs: List<ExprContext?>
 ) : CBSBaseVisitor<String>() {
     private val callStack = ArrayDeque<String>()
-    private val steps = mutableMapOf<String, String>()
 
     override fun visitFunconExpression(funcon: FunconExpressionContext): String {
         val name = funcon.name.text
