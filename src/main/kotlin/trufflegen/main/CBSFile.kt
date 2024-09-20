@@ -103,6 +103,9 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
             } catch (e: DetailedException) {
                 println(e)
                 ""
+            } catch (e: NotImplementedError) {
+                println(e)
+                ""
             }
         }
         val file = "package fctruffle.generated\n\n$imports\n\n$classes"

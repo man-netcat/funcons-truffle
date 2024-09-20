@@ -85,7 +85,7 @@ params
    ;
 
 label
-   : name = IDENTIFIER polarity = ('!' | '?')? '(' exprs? ')'
+   : name = IDENTIFIER polarity = ('!' | '?')? '(' value = expr? ')'
    ;
 
 labels
@@ -93,8 +93,8 @@ labels
    ;
 
 step
-   : '--->' sequenceNumber = NUMBER? # StepWithoutLabel
-   | '--' labels '->' sequenceNumber = NUMBER? # StepWithLabel
+   : '--->' sequenceNumber = NUMBER? # StepWithoutLabels
+   | '--' labels '->' sequenceNumber = NUMBER? # StepWithLabels
    ;
 
 steps
@@ -102,17 +102,18 @@ steps
    ;
 
 mutableExpr
-   : '<' lhs = expr ',' entityLhs = expr '>' step '<' rhs = expr ',' entityRhs = expr '>'
+   : '<' lhs = expr ',' entityLhs = label '>' '--->' '<' rhs = expr ',' entityRhs = label '>'
    ;
 
 stepExpr
-   : (context = expr '|-')? lhs = expr steps rewritesTo = expr
+   : (context = expr '|-')? lhs = expr step rhs = expr # StepExprWithSingleStep
+   | (context = expr '|-')? lhs = expr steps rhs = expr # StepExprWithMultipleSteps
    ;
 
 premise
    : stepExpr # StepPremise
    | mutableExpr # MutableEntityPremise
-   | lhs = expr REWRITE rewritesTo = expr # RewritePremise
+   | lhs = expr REWRITE rhs = expr # RewritePremise
    | lhs = expr op = (EQUALS | NOTEQUALS) rhs = expr # BooleanPremise
    | value = expr COLON type = expr # TypePremise
    ;
@@ -122,8 +123,7 @@ premises
    ;
 
 ruleDefinition
-   : premises BAR conclusion = premise # TransitionRule
-   | premise # RewriteRule
+   : (premises BAR)? conclusion = premise
    ;
 
 pair

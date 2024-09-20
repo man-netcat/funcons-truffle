@@ -137,7 +137,7 @@ class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
                 println("No language index provided. Generating code for all Funcons in CBS dir.")
                 null
             }
-            println("Generating code for Funcons in ${languageIndex?.name}")
+            if (languageIndex != null) println("Generating code for Funcons in ${languageIndex.name}")
 
             val truffleGen = TruffleGen(cbsDir, languageIndex)
             truffleGen.process()

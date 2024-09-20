@@ -5,9 +5,4 @@
       <excludeFolder url="file://$MODULE_DIR$/python" />
     </content>
   </component>
-  <component name="FacetManager">
-    <facet type="Python" name="Python">
-      <configuration sdkName="Python 3.12 (funcons-truffle)" />
-    </facet>
-  </component>
 </module>
