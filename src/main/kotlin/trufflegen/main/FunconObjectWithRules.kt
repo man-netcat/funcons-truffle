@@ -2,6 +2,7 @@ package trufflegen.main
 
 import trufflegen.antlr.CBSParser.*
 import kotlin.collections.contains
+import kotlin.collections.mapNotNull
 import kotlin.collections.set
 
 class FunconObjectWithRules(
@@ -18,7 +19,7 @@ class FunconObjectWithRules(
     var nRewritePremises = 0
 
 
-    private fun processConclusion(conclusion: PremiseContext): Triple<ExprContext, ExprContext, String> {
+    private fun processConclusion(conclusion: PremiseContext): Triple<ExprContext, String, String> {
         fun processConclusionStep(step: StepContext, rewrite: String, ruleDef: ExprContext): String {
             return when (step) {
                 is StepWithoutLabelsContext -> rewrite
@@ -38,26 +39,26 @@ class FunconObjectWithRules(
         return when (conclusion) {
             is RewritePremiseContext -> {
                 val rewrite = buildRewrite(conclusion.lhs, conclusion.rhs, params)
-                return Triple(conclusion.lhs, conclusion.rhs, rewrite)
+                Triple(conclusion.lhs, "TODO", rewrite)
             }
 
             is StepPremiseContext -> {
                 val stepExpr = conclusion.stepExpr()
-                return when (stepExpr) {
+                when (stepExpr) {
                     is StepExprWithMultipleStepsContext -> {
                         val rewrite = buildRewrite(stepExpr.lhs, stepExpr.rhs, params)
                         val steps = stepExpr.steps().step()
                         val stepStr = steps.joinToString("\n") { step ->
                             processConclusionStep(step, rewrite, stepExpr.lhs)
                         }
-                        Triple(stepExpr.lhs, stepExpr.rhs, stepStr)
+                        Triple(stepExpr.lhs, "TODO", stepStr)
                     }
 
                     is StepExprWithSingleStepContext -> {
                         val rewrite = buildRewrite(stepExpr.lhs, stepExpr.rhs, params)
                         val step = stepExpr.step()
                         val stepStr = processConclusionStep(step, rewrite, stepExpr.lhs)
-                        Triple(stepExpr.lhs, stepExpr.rhs, stepStr)
+                        Triple(stepExpr.lhs, "TODO", stepStr)
                     }
 
                     else -> throw Exception("Unexpected stepExpr type: ${stepExpr::class.simpleName}")
@@ -67,7 +68,7 @@ class FunconObjectWithRules(
             is MutableEntityPremiseContext -> {
                 val mutableExpr = conclusion.mutableExpr()
                 val rewrite = buildRewrite(mutableExpr.lhs, mutableExpr.rhs, params)
-                return Triple(mutableExpr.lhs, mutableExpr.rhs, rewrite)
+                Triple(mutableExpr.lhs, "TODO", rewrite)
             }
 
             else -> throw Exception("Unexpected conclusion type: ${conclusion::class.simpleName}")
@@ -167,17 +168,25 @@ class FunconObjectWithRules(
 
     override fun makeContent(): String {
         val pairs = rules.map { rule ->
-            val (ruleDef, rewriteExpr, conclusionRewrite) = processConclusion(rule.conclusion)
+            val (ruleDef, conclusionConditions, conclusionRewrite) = processConclusion(rule.conclusion)
             val premises = rule.premises()?.premise()?.toList() ?: emptyList()
-            val (conditions, rewrites) = processPremises(premises, ruleDef)
-            if (rewrites.isEmpty()) {
-                Pair(conditions, conclusionRewrite)
-            } else {
-                Pair(conditions, "$rewrites\n$conclusionRewrite")
-            }
+
+            premises.forEach { println("premise: ${it.text}") }
+            println("conclusion: ${rule.conclusion.text}")
+
+            val (premiseConditions, premiseRewrite) = processPremises(premises, ruleDef)
+
+            val finalConditions =
+                listOf(premiseConditions, conclusionConditions).filter { it.isNotEmpty() }.joinToString(" && ")
+
+            val finalRewrite = listOf(premiseRewrite, conclusionRewrite).filter { it.isNotEmpty() }.joinToString("\n")
+
+            Pair(finalConditions, finalRewrite)
         }
+
         val content = makeIfStatement(*pairs.toTypedArray(), elseBranch = "throw Exception(\"Illegal Argument\")")
         println(content)
         return content
     }
+
 }
