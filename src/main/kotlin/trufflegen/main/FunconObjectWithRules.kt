@@ -14,147 +14,169 @@ class FunconObjectWithRules(
 ) : FunconObject(
     context, name, params, returns, aliases
 ) {
-    val rewritePremiseMap = mutableMapOf<String, Pair<String, String>>()
+    val rewritePremiseMap = mutableMapOf<String, String>()
     var nRewritePremises = 0
 
-    private fun processConclusionStep(step: StepContext, rewrite: String, ruleDef: ExprContext): String {
-        return when (step) {
-            is StepWithoutLabelsContext -> rewrite
-            is StepWithLabelsContext -> {
-                val labelAssigns = step.labels().label().joinToString("/n") { label ->
-                    println("label: ${label.name.text}, value: ${label.value?.text}")
-                    val labelValue = if (label.value != null) buildRewrite(ruleDef, label.value, params) else "null"
-                    "labelMap[\"${label.name.text}\"] = $labelValue"
-                }
-                "$labelAssigns\n$rewrite"
-            }
-
-            else -> throw Exception("Unexpected step type: ${step::class.simpleName}")
-        }
-    }
-
-    private fun processConclusionStepPremise(conclusion: StepPremiseContext): Triple<ExprContext, ExprContext, String> {
-        val stepExpr = conclusion.stepExpr()
-        return when (stepExpr) {
-            is StepExprWithMultipleStepsContext -> {
-                val rewrite = buildRewrite(stepExpr.lhs, stepExpr.rhs, params)
-                val stepStr = stepExpr.steps().step().joinToString("\n") { step ->
-                    processConclusionStep(step, rewrite, stepExpr.lhs)
-                }
-                Triple(stepExpr.lhs, stepExpr.rhs, stepStr)
-            }
-
-            is StepExprWithSingleStepContext -> {
-                val rewrite = buildRewrite(stepExpr.lhs, stepExpr.rhs, params)
-                val stepStr = processConclusionStep(stepExpr.step(), rewrite, stepExpr.lhs)
-                Triple(stepExpr.lhs, stepExpr.rhs, stepStr)
-            }
-
-            else -> throw Exception("Unexpected stepExpr type: ${stepExpr::class.simpleName}")
-        }
-    }
 
     private fun processConclusion(conclusion: PremiseContext): Triple<ExprContext, ExprContext, String> {
-        return when (conclusion) {
-            is RewritePremiseContext -> Triple(
-                conclusion.lhs, conclusion.rhs, buildRewrite(conclusion.lhs, conclusion.rhs, params)
-            )
+        fun processConclusionStep(step: StepContext, rewrite: String, ruleDef: ExprContext): String {
+            return when (step) {
+                is StepWithoutLabelsContext -> rewrite
+                is StepWithLabelsContext -> {
+                    val labelAssigns = step.labels().label().joinToString("\n") { label ->
+                        println("label: ${label.name.text}, value: ${label.value?.text}")
+                        val labelValue = if (label.value != null) buildRewrite(ruleDef, label.value, params) else "null"
+                        "labelMap[\"${label.name.text}\"] = $labelValue"
+                    }
+                    "$labelAssigns\n$rewrite"
+                }
 
-            is StepPremiseContext -> processConclusionStepPremise(conclusion)
+                else -> throw Exception("Unexpected step type: ${step::class.simpleName}")
+            }
+        }
+
+
+        return when (conclusion) {
+            is RewritePremiseContext -> {
+                val rewrite = buildRewrite(conclusion.lhs, conclusion.rhs, params)
+                return Triple(conclusion.lhs, conclusion.rhs, rewrite)
+            }
+
+            is StepPremiseContext -> {
+                val stepExpr = conclusion.stepExpr()
+                return when (stepExpr) {
+                    is StepExprWithMultipleStepsContext -> {
+                        val rewrite = buildRewrite(stepExpr.lhs, stepExpr.rhs, params)
+                        val steps = stepExpr.steps().step()
+                        val stepStr = steps.joinToString("\n") { step ->
+                            processConclusionStep(step, rewrite, stepExpr.lhs)
+                        }
+                        Triple(stepExpr.lhs, stepExpr.rhs, stepStr)
+                    }
+
+                    is StepExprWithSingleStepContext -> {
+                        val rewrite = buildRewrite(stepExpr.lhs, stepExpr.rhs, params)
+                        val step = stepExpr.step()
+                        val stepStr = processConclusionStep(step, rewrite, stepExpr.lhs)
+                        Triple(stepExpr.lhs, stepExpr.rhs, stepStr)
+                    }
+
+                    else -> throw Exception("Unexpected stepExpr type: ${stepExpr::class.simpleName}")
+                }
+            }
 
             is MutableEntityPremiseContext -> {
                 val mutableExpr = conclusion.mutableExpr()
-                Triple(mutableExpr.lhs, mutableExpr.rhs, buildRewrite(mutableExpr.lhs, mutableExpr.rhs, params))
+                val rewrite = buildRewrite(mutableExpr.lhs, mutableExpr.rhs, params)
+                return Triple(mutableExpr.lhs, mutableExpr.rhs, rewrite)
             }
 
             else -> throw Exception("Unexpected conclusion type: ${conclusion::class.simpleName}")
         }
     }
 
-    private fun processRewrite(premise: RewritePremiseContext, ruleDef: ExprContext): String {
-        val rewritePremise = buildRewrite(ruleDef, premise.lhs, params)
-        println("rewritePremise: ${premise.rhs.text} -> r$nRewritePremises = $rewritePremise")
-        if (premise.rhs.text !in rewritePremiseMap) {
-            rewritePremiseMap[premise.rhs.text] = Pair(rewritePremise, "r$nRewritePremises")
-            nRewritePremises += 1
-        }
-        return "" // TODO
-    }
-
-    private fun processStep(step: StepContext, rewrite: String, premiseLhs: ExprContext): String {
-        return when (step) {
-            is StepWithoutLabelsContext -> rewrite
-            is StepWithLabelsContext -> {
-                val labelAssigns = step.labels().label().joinToString("/n") { label ->
-                    println("label: ${label.name.text}, value: ${label.value?.text}")
-                    val labelValue = if (label.value != null) buildRewrite(premiseLhs, label.value, params) else "null"
-                    "labelMap[\"${label.name.text}\"] = $labelValue"
-                }
-                "$labelAssigns\n$rewrite"
+    private fun processPremises(
+        premises: List<PremiseContext>,
+        ruleDef: ExprContext,
+    ): Pair<String, String> {
+        fun processPremiseStep(step: StepWithLabelsContext, ruleDef: ExprContext): String {
+            return step.labels().label().joinToString("\n") { label ->
+                val labelValue = if (label.value != null) buildRewrite(ruleDef, label.value, params) else "null"
+                "labelMap[\"${label.name.text}\"] == $labelValue"
             }
-
-            else -> throw Exception("Unexpected step type: ${step::class.simpleName}")
         }
-    }
 
-    private fun processStepPremise(premise: StepPremiseContext, ruleDef: ExprContext): String {
-        val stepExpr = premise.stepExpr()
-        return when (stepExpr) {
-            is StepExprWithMultipleStepsContext -> {
-                val rewrite = buildRewrite(stepExpr.lhs, stepExpr.rhs, params)
-                stepExpr.steps().step().joinToString("\n") { step ->
-                    processStep(step, rewrite, stepExpr.lhs)
-                }
-            }
 
-            is StepExprWithSingleStepContext -> {
-                val rewrite = buildRewrite(stepExpr.lhs, stepExpr.rhs, params)
-                processStep(stepExpr.step(), rewrite, stepExpr.lhs)
-            }
-
-            else -> throw Exception("Unexpected stepExpr type: ${stepExpr::class.simpleName}")
-        }
-    }
-
-    private fun processBooleanPremise(premise: BooleanPremiseContext, ruleDef: ExprContext): String {
-        val value = buildRewrite(ruleDef, premise.lhs, params)
-        val op = when (premise.op.text) {
-            "==" -> "=="
-            "=/=" -> "!="
-            else -> throw Exception("Unexpected operator type: ${premise.op.text}")
-        }
-        return "$value $op ${premise.rhs.text}"
-    }
-
-    private fun processTypePremise(premise: TypePremiseContext, ruleDef: ExprContext): String {
-        val value = buildRewrite(ruleDef, premise.value, params)
-        return when (val premiseType = premise.type) {
-            is ComplementExpressionContext -> "$value !is ${premiseType.operand.text}"
-            else -> "$value is ${premiseType.text}"
-        }
-    }
-
-    private fun processConditions(premises: List<PremiseContext>, ruleDef: ExprContext): String {
-        return premises.joinToString(" && ") { premise ->
+        val result = premises.map { premise ->
             when (premise) {
-                is RewritePremiseContext -> processRewrite(premise, ruleDef)
-                is StepPremiseContext -> processStepPremise(premise, ruleDef)
-                is BooleanPremiseContext -> processBooleanPremise(premise, ruleDef)
-                is TypePremiseContext -> processTypePremise(premise, ruleDef)
+                is StepPremiseContext -> {
+                    val stepExpr = premise.stepExpr()
+                    when (stepExpr) {
+                        is StepExprWithMultipleStepsContext -> {
+                            val rewriteLhs = buildRewrite(ruleDef, stepExpr.lhs, params)
+                            val rewriteRhs = buildRewrite(ruleDef, stepExpr.rhs, params)
+                            val condition = "$rewriteLhs is Computation"
+                            val rewrite = "$rewriteRhs = $rewriteLhs.execute(frame)"
+                            val steps = stepExpr.steps().step().filterIsInstance<StepWithLabelsContext>()
+                            if (steps.isNotEmpty()) {
+                                val labelConditions = steps.joinToString(" && ") { step ->
+                                    processPremiseStep(step, stepExpr.lhs)
+                                }
+                                Pair("$condition && $labelConditions", rewrite)
+                            } else {
+                                Pair(condition, rewrite)
+                            }
+                        }
+
+                        is StepExprWithSingleStepContext -> {
+                            val rewriteLhs = buildRewrite(ruleDef, stepExpr.lhs, params)
+                            val rewriteRhs = buildRewrite(ruleDef, stepExpr.rhs, params)
+                            val condition = "$rewriteLhs is Computation"
+                            val rewrite = "$rewriteRhs = $rewriteLhs.execute(frame)"
+                            val step = stepExpr.step()
+                            if (step is StepWithLabelsContext) {
+                                val labelCondition = processPremiseStep(step, stepExpr.lhs)
+                                Pair("$condition && $labelCondition", rewrite)
+                            } else {
+                                Pair(condition, rewrite)
+                            }
+                        }
+
+                        else -> throw Exception("Unexpected stepExpr type: ${stepExpr::class.simpleName}")
+                    }
+                }
+
+                is RewritePremiseContext -> {
+                    println("REWRITE: ${premise.text}")
+                    val rewriteLhs = buildRewrite(ruleDef, premise.lhs, params)
+                    val rewriteRhs = buildRewrite(ruleDef, premise.rhs, params)
+                    println("rewritePremise: ${premise.rhs.text} ~> r$nRewritePremises = $rewriteLhs")
+                    if (premise.rhs.text !in rewritePremiseMap) {
+                        val rewrite = "r$nRewritePremises = $rewriteRhs"
+                        rewritePremiseMap[premise.rhs.text] = rewrite
+                        nRewritePremises += 1
+                    }
+                    Pair(null, rewritePremiseMap[premise.rhs.text])
+                }
+
+                is BooleanPremiseContext -> {
+                    val value = buildRewrite(ruleDef, premise.lhs, params)
+                    val op = when (premise.op.text) {
+                        "==" -> "=="
+                        "=/=" -> "!="
+                        else -> throw Exception("Unexpected operator type: ${premise.op.text}")
+                    }
+                    val condition = "$value $op ${premise.rhs.text}"
+                    Pair(condition, null)
+                }
+
+                is TypePremiseContext -> {
+                    val value = buildRewrite(ruleDef, premise.value, params)
+                    val condition = when (val premiseType = premise.type) {
+                        is ComplementExpressionContext -> "$value !is ${premiseType.operand.text}"
+                        else -> "$value is ${premiseType.text}"
+                    }
+                    Pair(condition, null)
+                }
+
                 else -> throw Exception("Unexpected premise type: ${premise::class.simpleName}")
             }
         }
+
+        val conditions = result.mapNotNull { it.first }.joinToString(" && ")
+        val rewrites = result.mapNotNull { it.second }.joinToString("\n")
+
+        return Pair(conditions, rewrites)
     }
 
-
     override fun makeContent(): String {
-        val content = rules.joinToString("\n") { rule ->
+        val pairs = rules.map { rule ->
             val (ruleDef, rewriteExpr, conclusionRewrite) = processConclusion(rule.conclusion)
             val premises = rule.premises()?.premise()?.toList() ?: emptyList()
-            val conditions = processConditions(premises, ruleDef)
-            if (!conditions.isEmpty()) makeIfStatement(conditions, conclusionRewrite)
-            else conclusionRewrite
+            val (conditions, rewrites) = processPremises(premises, ruleDef)
+            Pair(conditions, conclusionRewrite)
         }
+        val content = makeIfStatement(*pairs.toTypedArray(), elseBranch = "throw Exception(\"Illegal Argument\")")
         println(content)
         return content
     }

@@ -8,13 +8,18 @@ abstract class FunconObject(
     override val name: String,
     open val params: List<Param>,
     private val returns: ReturnType,
-    aliases: List<AliasDefinitionContext>
+    aliases: List<AliasDefinitionContext>,
 ) : Object(aliases) {
 
     private val paramsAfterVarargs: Int
         get() {
             val varargParamIndex = params.indexOfFirst { it.type.isVararg }
             return params.size - varargParamIndex
+        }
+
+    private val numVarargs: Int
+        get() {
+            return params.count { param -> param.type.isVararg }
         }
 
     private fun extractArgs(funcon: ParseTree): List<ExprContext> {
@@ -36,15 +41,12 @@ abstract class FunconObject(
     }
 
     internal fun buildRewrite(
-        ruleDef: ParseTree, rewriteExpr: ParseTree, params: List<Param>
+        ruleDef: ParseTree, rewritesTo: ParseTree, params: List<Param>,
     ): String {
-        if (ruleDef !is FunconExpressionContext && ruleDef !is FunconDefinitionContext) {
-            throw DetailedException("Unexpected rule definition ${ruleDef::class.simpleName}")
-        }
         val args = extractArgs(ruleDef)
-        val rewriteVisitor = RewriteVisitor(rewriteExpr, params, args)
-        println("Before: ${rewriteExpr.text}")
-        val rewritten = rewriteVisitor.visit(rewriteExpr)
+        val rewriteVisitor = RewriteVisitor(rewritesTo, params, args)
+        println("Before: ${rewritesTo.text}")
+        val rewritten = rewriteVisitor.visit(rewritesTo)
         println("After: $rewritten")
         return rewritten
     }

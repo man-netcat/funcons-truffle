@@ -12,7 +12,7 @@ fun makeBody(content: String, indentLevel: Int = 1): String {
 }
 
 fun makeFunction(
-    name: String, returnType: String, parameters: List<Triple<String, String, String>>, body: String
+    name: String, returnType: String, parameters: List<Triple<String, String, String>>, body: String,
 ): String {
     val params = parameters.joinToString(", ") { "${it.first} ${it.second}: ${it.third}" }
     val functionHeader = "fun $name($params): $returnType {"
@@ -20,13 +20,14 @@ fun makeFunction(
     return "$functionHeader\n$content\n}"
 }
 
-fun makeIfStatement(condition: String, trueBranch: String, falseBranch: String? = null): String {
-    val ifStatement = "if ($condition) {\n${makeBody(trueBranch)}\n}"
-    return if (falseBranch != null) {
-        "$ifStatement else {\n${makeBody(falseBranch)}\n}"
-    } else {
-        ifStatement
-    }
+fun makeIfStatement(vararg conditions: Pair<String, String>, elseBranch: String? = null): String {
+    val ifStatements = conditions.mapIndexed { index, (condition, block) ->
+        (if (index == 0) "" else "else ") + "if ($condition) {\n${makeBody(block)}\n}"
+    }.joinToString(" ")
+
+    val elseStatement = elseBranch?.let { " else {\n${makeBody(it)}\n}" } ?: ""
+
+    return "$ifStatements$elseStatement"
 }
 
 fun makeExecuteFunction(content: String): String {
