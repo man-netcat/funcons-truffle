@@ -35,7 +35,6 @@ class FunconObjectWithRules(
             }
         }
 
-
         return when (conclusion) {
             is RewritePremiseContext -> {
                 val rewrite = buildRewrite(conclusion.lhs, conclusion.rhs, params)
@@ -86,7 +85,6 @@ class FunconObjectWithRules(
             }
         }
 
-
         val result = premises.map { premise ->
             when (premise) {
                 is StepPremiseContext -> {
@@ -96,7 +94,7 @@ class FunconObjectWithRules(
                             val rewriteLhs = buildRewrite(ruleDef, stepExpr.lhs, params)
                             val rewriteRhs = buildRewrite(ruleDef, stepExpr.rhs, params)
                             val condition = "$rewriteLhs is Computation"
-                            val rewrite = "$rewriteRhs = $rewriteLhs.execute(frame)"
+                            val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
                             val steps = stepExpr.steps().step().filterIsInstance<StepWithLabelsContext>()
                             if (steps.isNotEmpty()) {
                                 val labelConditions = steps.joinToString(" && ") { step ->
@@ -112,7 +110,7 @@ class FunconObjectWithRules(
                             val rewriteLhs = buildRewrite(ruleDef, stepExpr.lhs, params)
                             val rewriteRhs = buildRewrite(ruleDef, stepExpr.rhs, params)
                             val condition = "$rewriteLhs is Computation"
-                            val rewrite = "$rewriteRhs = $rewriteLhs.execute(frame)"
+                            val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
                             val step = stepExpr.step()
                             if (step is StepWithLabelsContext) {
                                 val labelCondition = processPremiseStep(step, stepExpr.lhs)
@@ -127,12 +125,10 @@ class FunconObjectWithRules(
                 }
 
                 is RewritePremiseContext -> {
-                    println("REWRITE: ${premise.text}")
                     val rewriteLhs = buildRewrite(ruleDef, premise.lhs, params)
                     val rewriteRhs = buildRewrite(ruleDef, premise.rhs, params)
-                    println("rewritePremise: ${premise.rhs.text} ~> r$nRewritePremises = $rewriteLhs")
                     if (premise.rhs.text !in rewritePremiseMap) {
-                        val rewrite = "r$nRewritePremises = $rewriteRhs"
+                        val rewrite = "val r$nRewritePremises = $rewriteLhs"
                         rewritePremiseMap[premise.rhs.text] = rewrite
                         nRewritePremises += 1
                     }
@@ -174,7 +170,11 @@ class FunconObjectWithRules(
             val (ruleDef, rewriteExpr, conclusionRewrite) = processConclusion(rule.conclusion)
             val premises = rule.premises()?.premise()?.toList() ?: emptyList()
             val (conditions, rewrites) = processPremises(premises, ruleDef)
-            Pair(conditions, conclusionRewrite)
+            if (rewrites.isEmpty()) {
+                Pair(conditions, conclusionRewrite)
+            } else {
+                Pair(conditions, "$rewrites\n$conclusionRewrite")
+            }
         }
         val content = makeIfStatement(*pairs.toTypedArray(), elseBranch = "throw Exception(\"Illegal Argument\")")
         println(content)
