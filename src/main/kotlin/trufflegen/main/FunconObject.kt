@@ -29,9 +29,20 @@ abstract class FunconObject(
             Triple(annotation, param.name, "FCTNode")
         }
 
-        val content = "return " + makeContent()
+        val content = makeContent()
 
         val cls = makeClass(nodeName, emptyList(), paramsStr, emptyList(), content)
+
+        return cls
+    }
+
+    override fun generateBuiltinTemplate(): String {
+        val paramsStr = params.map { param ->
+            val annotation = if (param.type.isVararg) "@Children private vararg val" else "@Child private val"
+            Triple(annotation, param.name, "FCTNode")
+        }
+
+        val cls = makeClass(nodeName, emptyList(), paramsStr, emptyList(), "TODO(\"Implement me\")")
 
         return cls
     }

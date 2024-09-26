@@ -21,4 +21,15 @@ open class TypeObject(
         val rewritten = rewriteVisitor.visit(definition)
         return rewritten
     }
+
+    override fun generateBuiltinTemplate(): String {
+        if (definition == null) {
+            return ""
+        }
+
+        val args = params.map { param -> param.valueExpr ?: param.typeExpr }
+        val rewriteVisitor = RewriteVisitor(definition, params, args)
+        val rewritten = rewriteVisitor.visit(definition)
+        return rewritten
+    }
 }

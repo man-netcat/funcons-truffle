@@ -222,8 +222,7 @@ class FunconObjectWithRules(
         }
 
         val content = makeIfStatement(*pairs.toTypedArray(), elseBranch = "throw Exception(\"Illegal Argument\")")
-        println(content)
-        return content
+        return makeExecuteFunction(content)
     }
 
 }

@@ -94,25 +94,26 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
             "com.oracle.truffle.api.nodes.NodeInfo",
             "com.oracle.truffle.api.nodes.Node.Child"
         ).joinToString("\n") { "import $it" }
-        val (generatedObjs, builtinObjs) = objects.partition { it.name !in builtins }
-        val classes = generatedObjs.joinToString("\n") { obj ->
-            println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $name)")
-            try {
-                val code = obj.generateCode()
-                "${code}\n\n${obj.aliasStr()}"
-            } catch (e: DetailedException) {
-                println(e)
-                ""
-            } catch (e: NotImplementedError) {
-                println(e)
-                ""
+
+        val code = objects.joinToString("\n\n") { obj ->
+            if (obj.name in builtins) {
+                println("\nGenerating code for builtin ${obj::class.simpleName} ${obj.name} (File $name)")
+                val code = obj.generateBuiltinTemplate()
+                val aliasStr = obj.aliasStr()
+                if (aliasStr.isNotBlank()) "$code\n\n$aliasStr" else code
+            } else {
+                println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $name)")
+                try {
+                    val code = obj.generateCode()
+                    val aliasStr = obj.aliasStr()
+                    if (aliasStr.isNotBlank()) "$code\n\n$aliasStr" else code
+                } catch (e: Exception) {
+                    println(e)
+                    ""
+                }
             }
-        } + builtinObjs.joinToString("\n") { obj ->
-            println("\nGenerating code for builtin ${obj::class.simpleName} ${obj.name} (File $name)")
-            val code = obj.generateBuiltin()
-            "${code}\n\n${obj.aliasStr()}"
-        }
-        val file = "package fctruffle.generated\n\n$imports\n\n$classes"
-        return file
+        }.trim()
+
+        return "package fctruffle.generated\n\n$imports\n\n$code".trim()
     }
 }

@@ -74,8 +74,8 @@ fun makeClass(
         "class $name {\n"
     }
 
-    // Generate the class body with properties and content
-    val classBody = listOf(propertiesStr, content).joinToString("\n\n")
+    // Generate the class body with properties and content, filter out empty sections
+    val classBody = listOf(propertiesStr, content).filter { it.isNotBlank() }.joinToString("\n\n")
     val indentedClassBody = makeBody(classBody)
 
     return "${annotationsStr}${classHeader}${indentedClassBody}\n}"

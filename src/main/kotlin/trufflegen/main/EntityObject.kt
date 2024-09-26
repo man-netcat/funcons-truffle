@@ -6,4 +6,8 @@ class EntityObject(override val name: String, aliases: List<AliasDefinitionConte
     override fun generateCode(): String {
         TODO("Not yet implemented")
     }
+
+    override fun generateBuiltinTemplate(): String {
+        TODO("Not yet implemented")
+    }
 }

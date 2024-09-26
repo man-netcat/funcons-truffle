@@ -13,4 +13,8 @@ class DatatypeObject(
 //        definitions.map { def -> println("${def::class.simpleName}: ${def.text}") }
         return ""
     }
+
+    override fun generateBuiltinTemplate(): String {
+        return ""
+    }
 }

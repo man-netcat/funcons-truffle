@@ -13,16 +13,7 @@ import trufflegen.antlr.CBSParser.SingleArgsContext
 abstract class Object(private val aliases: List<AliasDefinitionContext>) {
     abstract val name: String
     abstract fun generateCode(): String
-    fun generateBuiltin(): String {
-        val cls = makeClass(
-            name = name,
-            annotations = emptyList(),
-            constructorArgs = emptyList(),
-            properties = emptyList(),
-            content = "TODO(\"Implement me\")"
-        )
-        return cls
-    }
+    abstract fun generateBuiltinTemplate(): String
 
     fun aliasStr(): String {
         return aliases.joinToString("\n") { alias -> makeTypeAlias(toClassName(alias.name.text), nodeName) }

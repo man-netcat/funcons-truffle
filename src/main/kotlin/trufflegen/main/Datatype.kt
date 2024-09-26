@@ -11,13 +11,12 @@ class Datatype(
 ) : Object(aliases) {
 
     override fun generateCode(): String {
-        val cls = makeClass(
-            name = name,
-            annotations = emptyList(),
-            constructorArgs = emptyList(),
-            properties = emptyList(),
-            content = ""
-        )
+        val cls = makeClass(name, emptyList(), emptyList(), emptyList(), "")
+        return cls
+    }
+
+    override fun generateBuiltinTemplate(): String {
+        val cls = makeClass(name, emptyList(), emptyList(), emptyList(), "TODO(\"Implement me\")")
         return cls
     }
 }
