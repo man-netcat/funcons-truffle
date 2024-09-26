@@ -104,7 +104,7 @@ class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
         }
 
         files.forEach { (name, file) ->
-            val code = file.generateCode()
+            val code = file.generateCode(builtins)
             val filePath = outputDir.resolve("${toClassName(name)}.kt").pathString
 //            File(filePath).writeText(code)
         }

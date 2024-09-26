@@ -1,9 +1,8 @@
 package trufflegen.main
 
 import trufflegen.antlr.CBSParser.*
-import kotlin.collections.contains
+import trufflegen.main.RewriteVisitor.Companion.getParamIndex
 import kotlin.collections.mapNotNull
-import kotlin.collections.set
 
 class FunconObjectWithRules(
     override val context: FunconDefinitionContext,
@@ -15,17 +14,12 @@ class FunconObjectWithRules(
 ) : FunconObject(
     context, name, params, returns, aliases
 ) {
-    val rewritePremiseMap = mutableMapOf<String, String>()
-    var nRewritePremises = 0
-
-
     private fun processConclusion(conclusion: PremiseContext): Triple<ExprContext, String, String> {
         fun processConclusionStep(step: StepContext, rewrite: String, ruleDef: ExprContext): String {
             return when (step) {
                 is StepWithoutLabelsContext -> rewrite
                 is StepWithLabelsContext -> {
                     val labelAssigns = step.labels().label().joinToString("\n") { label ->
-                        println("label: ${label.name.text}, value: ${label.value?.text}")
                         val labelValue = if (label.value != null) buildRewrite(ruleDef, label.value, params) else "null"
                         "labelMap[\"${label.name.text}\"] = $labelValue"
                     }
@@ -36,10 +30,50 @@ class FunconObjectWithRules(
             }
         }
 
+        fun argsConditions(def: FunconExpressionContext): String {
+            fun rewriteArg(args: List<ExprContext>): String {
+                // First extract the actual value from the argument, or the type if no value available.
+                val processedArgs = args.map { arg ->
+                    when (arg) {
+                        is TypeExpressionContext -> arg.value ?: arg.type
+                        else -> arg
+                    }
+                }
+                return processedArgs.mapIndexed { index, arg ->
+                    val (index, varargIndex) = getParamIndex(index, params, processedArgs)
+                    val paramStr = if (varargIndex != null) "p$index[$varargIndex]" else "p$index"
+                    when (arg) {
+                        is FunconExpressionContext -> "$paramStr is ${
+                            buildRewrite(
+                                def, arg, params
+                            )
+                        }".removeSuffix("()")
+
+                        is NumberContext -> "$paramStr == ${arg.text}"
+                        is VariableContext -> null
+                        is VariableStepContext -> null
+                        is SuffixExpressionContext -> null
+                        is TupleExpressionContext -> "$paramStr == ${buildRewrite(def, arg, params)}"
+                        is ListExpressionContext -> "$paramStr == ${buildRewrite(def, arg, params)}"
+                        else -> throw Exception("Unexpected arg type: ${arg::class.simpleName}")
+                    }
+                }.filterNotNull().joinToString(" && ")
+            }
+
+            return when (val args = def.args()) {
+                is MultipleArgsContext -> rewriteArg(args.exprs().expr())
+                is SingleArgsContext -> rewriteArg(listOf(args.expr()))
+                else -> ""
+            }
+        }
+
         return when (conclusion) {
             is RewritePremiseContext -> {
                 val rewrite = buildRewrite(conclusion.lhs, conclusion.rhs, params)
-                Triple(conclusion.lhs, "TODO", rewrite)
+                val conditions = if (conclusion.lhs is FunconExpressionContext) {
+                    argsConditions(conclusion.lhs as FunconExpressionContext)
+                } else ""
+                Triple(conclusion.lhs, conditions, rewrite)
             }
 
             is StepPremiseContext -> {
@@ -51,14 +85,20 @@ class FunconObjectWithRules(
                         val stepStr = steps.joinToString("\n") { step ->
                             processConclusionStep(step, rewrite, stepExpr.lhs)
                         }
-                        Triple(stepExpr.lhs, "TODO", stepStr)
+                        val conditions = if (stepExpr.lhs is FunconExpressionContext) {
+                            argsConditions(stepExpr.lhs as FunconExpressionContext)
+                        } else ""
+                        Triple(stepExpr.lhs, conditions, stepStr)
                     }
 
                     is StepExprWithSingleStepContext -> {
                         val rewrite = buildRewrite(stepExpr.lhs, stepExpr.rhs, params)
                         val step = stepExpr.step()
                         val stepStr = processConclusionStep(step, rewrite, stepExpr.lhs)
-                        Triple(stepExpr.lhs, "TODO", stepStr)
+                        val conditions = if (stepExpr.lhs is FunconExpressionContext) {
+                            argsConditions(stepExpr.lhs as FunconExpressionContext)
+                        } else ""
+                        Triple(stepExpr.lhs, conditions, stepStr)
                     }
 
                     else -> throw Exception("Unexpected stepExpr type: ${stepExpr::class.simpleName}")
@@ -68,7 +108,11 @@ class FunconObjectWithRules(
             is MutableEntityPremiseContext -> {
                 val mutableExpr = conclusion.mutableExpr()
                 val rewrite = buildRewrite(mutableExpr.lhs, mutableExpr.rhs, params)
-                Triple(mutableExpr.lhs, "TODO", rewrite)
+                val conditions = if (mutableExpr.lhs is FunconExpressionContext) {
+                    argsConditions(mutableExpr.lhs as FunconExpressionContext)
+                } else ""
+                Triple(mutableExpr.lhs, conditions, rewrite)
+                // TODO: also modify the entity
             }
 
             else -> throw Exception("Unexpected conclusion type: ${conclusion::class.simpleName}")
@@ -128,12 +172,8 @@ class FunconObjectWithRules(
                 is RewritePremiseContext -> {
                     val rewriteLhs = buildRewrite(ruleDef, premise.lhs, params)
                     val rewriteRhs = buildRewrite(ruleDef, premise.rhs, params)
-                    if (premise.rhs.text !in rewritePremiseMap) {
-                        val rewrite = "val r$nRewritePremises = $rewriteLhs"
-                        rewritePremiseMap[premise.rhs.text] = rewrite
-                        nRewritePremises += 1
-                    }
-                    Pair(null, rewritePremiseMap[premise.rhs.text])
+                    val rewrite = "val $rewriteRhs = $rewriteLhs"
+                    Pair(null, rewrite)
                 }
 
                 is BooleanPremiseContext -> {
@@ -170,9 +210,6 @@ class FunconObjectWithRules(
         val pairs = rules.map { rule ->
             val (ruleDef, conclusionConditions, conclusionRewrite) = processConclusion(rule.conclusion)
             val premises = rule.premises()?.premise()?.toList() ?: emptyList()
-
-            premises.forEach { println("premise: ${it.text}") }
-            println("conclusion: ${rule.conclusion.text}")
 
             val (premiseConditions, premiseRewrite) = processPremises(premises, ruleDef)
 

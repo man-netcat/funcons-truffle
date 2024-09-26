@@ -57,7 +57,7 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
         val params = extractParams(datatype)
 
         tailrec fun extractAndExprs(
-            expr: ExprContext, definitions: List<ExprContext> = emptyList()
+            expr: ExprContext, definitions: List<ExprContext> = emptyList(),
         ): List<ExprContext> = when (expr) {
             is OrExpressionContext -> extractAndExprs(expr.lhs, definitions + expr.rhs)
             else -> definitions + expr
@@ -87,15 +87,15 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
         objects.add(dataContainer)
     }
 
-    fun generateCode(): String {
+    fun generateCode(builtins: MutableSet<String>): String {
         val imports = listOf(
             "fctruffle.main.*",
             "com.oracle.truffle.api.frame.VirtualFrame",
             "com.oracle.truffle.api.nodes.NodeInfo",
             "com.oracle.truffle.api.nodes.Node.Child"
         ).joinToString("\n") { "import $it" }
-
-        val classes = objects.joinToString("\n") { obj ->
+        val (generatedObjs, builtinObjs) = objects.partition { it.name !in builtins }
+        val classes = generatedObjs.joinToString("\n") { obj ->
             println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $name)")
             try {
                 val code = obj.generateCode()
@@ -107,6 +107,10 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
                 println(e)
                 ""
             }
+        } + builtinObjs.joinToString("\n") { obj ->
+            println("\nGenerating code for builtin ${obj::class.simpleName} ${obj.name} (File $name)")
+            val code = obj.generateBuiltin()
+            "${code}\n\n${obj.aliasStr()}"
         }
         val file = "package fctruffle.generated\n\n$imports\n\n$classes"
         return file

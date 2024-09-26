@@ -6,7 +6,9 @@ import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
 class RewriteVisitor(
-    private val rootExpr: ParseTree, private val params: List<Param>, private val ruleArgs: List<ExprContext?>
+    private val rootExpr: ParseTree,
+    private val params: List<Param>,
+    private val ruleArgs: List<ExprContext?>,
 ) : CBSBaseVisitor<String>() {
     private val callStack = ArrayDeque<String>()
 
@@ -91,18 +93,15 @@ class RewriteVisitor(
         val nVarargArgs = argsSize - (paramsSize - 1)
         val paramsAfterVararg = paramsSize - (varargParamIndex + 1)
         val argsAfterVararg = argsSize - (varargParamIndex + nVarargArgs)
-        if (paramsAfterVararg != argsAfterVararg) {
-            throw DetailedException("Unequal args for params after vararg")
-        }
+        if (paramsAfterVararg != argsAfterVararg) throw DetailedException("Unequal args for params after vararg")
+
+        val (paramIndex, varargParamIndexed) = getParamIndex(argIndex, params, ruleArgs)
 
         return starPrefix + if (argIndex < varargParamIndex) {
             // Arg is pre-vararg param index
-            val paramIndex = argIndex
             "p$paramIndex$executeStr"
         } else if (argIndex in varargParamIndex until varargParamIndex + nVarargArgs) {
             // Arg is vararg param index
-            val paramIndex = varargParamIndex
-            val varargParamIndexed = argIndex - varargParamIndex
             if (!argIsArray) {
                 "p${paramIndex}$executeStr[$varargParamIndexed]"
             } else if (argsAfterVararg > 0) {
@@ -113,9 +112,7 @@ class RewriteVisitor(
                 "p$paramIndex$executeStr"
             }
         } else if (argIndex < argsSize) {
-            println("post-vararg, num varargs: $nVarargArgs")
             // Arg is post-vararg param index
-            val paramIndex = argIndex - (nVarargArgs - 1)
             "p$paramIndex$executeStr"
         } else {
             throw IndexOutOfBoundsException()
@@ -124,5 +121,36 @@ class RewriteVisitor(
 
     override fun visitChildren(node: RuleNode): String {
         return super.visitChildren(node)
+    }
+
+    companion object {
+        fun getParamIndex(argIndex: Int, params: List<Param>, ruleArgs: List<ExprContext?>): Pair<Int, Int?> {
+            val varargParamIndex = params.indexOfFirst { it.type.isVararg }
+            val argsSize = ruleArgs.size
+            val paramsSize = params.size
+            val nVarargArgs = argsSize - (paramsSize - 1)
+            val paramsAfterVararg = paramsSize - (varargParamIndex + 1)
+            val argsAfterVararg = argsSize - (varargParamIndex + nVarargArgs)
+            if (paramsAfterVararg != argsAfterVararg) {
+                throw DetailedException("Unequal args for params after vararg")
+            }
+
+            return if (argIndex < varargParamIndex) {
+                // Arg is pre-vararg param index
+                val paramIndex = argIndex
+                Pair(paramIndex, null)
+            } else if (argIndex in varargParamIndex until varargParamIndex + nVarargArgs) {
+                // Arg is vararg param index
+                val paramIndex = varargParamIndex
+                val varargParamIndexed = argIndex - varargParamIndex
+                Pair(paramIndex, varargParamIndexed)
+            } else if (argIndex < argsSize) {
+                // Arg is post-vararg param index
+                val paramIndex = argIndex - (nVarargArgs - 1)
+                Pair(paramIndex, null)
+            } else {
+                throw IndexOutOfBoundsException()
+            }
+        }
     }
 }

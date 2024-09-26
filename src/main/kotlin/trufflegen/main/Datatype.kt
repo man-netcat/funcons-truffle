@@ -7,7 +7,7 @@ class Datatype(
     override val name: String,
     val definition: MutableList<String>,
     val datatypeComposites: MutableList<FunconExpressionContext>,
-    aliases: List<AliasDefinitionContext>
+    aliases: List<AliasDefinitionContext>,
 ) : Object(aliases) {
 
     override fun generateCode(): String {

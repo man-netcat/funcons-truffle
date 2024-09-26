@@ -7,8 +7,8 @@ class FunconObjectWithRewrite(
     override val name: String,
     override val params: List<Param>,
     private val rewritesTo: ExprContext,
-    private val returns: ReturnType,
-    private val aliases: List<AliasDefinitionContext>
+    returns: ReturnType,
+    aliases: List<AliasDefinitionContext>,
 ) : FunconObject(
     context, name, params, returns, aliases
 ) {

@@ -100,3 +100,4 @@ fun makeWhenExpression(
 fun makeTypeAlias(aliasName: String, targetType: String): String {
     return "typealias $aliasName = $targetType"
 }
+
