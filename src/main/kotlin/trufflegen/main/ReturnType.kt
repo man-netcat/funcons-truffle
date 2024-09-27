@@ -2,7 +2,7 @@ package trufflegen.main
 
 import trufflegen.antlr.CBSParser.ExprContext
 
-class ReturnType(type: ExprContext) : Type(type) {
+open class ReturnType(expr: ExprContext) : Type(expr) {
     override val isVararg: Boolean
         get() = false
 

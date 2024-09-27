@@ -1,15 +1,13 @@
 package trufflegen.main
 
-import trufflegen.antlr.CBSParser
-import trufflegen.antlr.CBSParser.ExprContext
-import trufflegen.antlr.CBSParser.TypeDefinitionContext
+import trufflegen.antlr.CBSParser.*
 
 open class TypeObject(
     internal open val context: TypeDefinitionContext,
     override val name: String,
     private val params: List<Param>,
     private val definition: ExprContext?,
-    aliases: MutableList<CBSParser.AliasDefinitionContext>,
+    aliases: MutableList<AliasDefinitionContext>,
 ) : Object(aliases) {
     override fun generateCode(): String {
         if (definition == null) {

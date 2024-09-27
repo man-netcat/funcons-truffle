@@ -30,8 +30,8 @@ fun makeIfStatement(vararg conditions: Pair<String, String>, elseBranch: String?
     return "$ifStatements$elseStatement"
 }
 
-fun makeExecuteFunction(content: String): String {
-    return makeFunction("execute", "FCTNode", listOf(Triple("private val", "frame", "String")), content)
+fun makeExecuteFunction(content: String, returns: String): String {
+    return makeFunction("execute", returns, listOf(Triple("private val", "frame", "VirtualFrame")), content)
 }
 
 fun makeForLoop(variable: String, range: String, body: String): String {

@@ -1,8 +1,8 @@
 package trufflegen.main
 
-import trufflegen.antlr.CBSParser
+import trufflegen.antlr.CBSParser.ExprContext
 
-class ParamType(type: CBSParser.ExprContext) : Type(type) {
+class ParamType(expr: ExprContext) : Type(expr) {
     override val isVararg: Boolean
         get() = stars >= 1 || pluses >= 1
 

@@ -9,7 +9,7 @@ class FunconObjectWithRules(
     override val name: String,
     override val params: List<Param>,
     private val rules: List<RuleDefinitionContext>,
-    returns: ReturnType,
+    private val returns: ReturnType,
     aliases: List<AliasDefinitionContext>,
 ) : FunconObject(
     context, name, params, returns, aliases
@@ -222,7 +222,8 @@ class FunconObjectWithRules(
         }
 
         val content = makeIfStatement(*pairs.toTypedArray(), elseBranch = "throw Exception(\"Illegal Argument\")")
-        return makeExecuteFunction(content)
+        val returnStr = buildTypeRewrite(returns)
+        return makeExecuteFunction(content, returnStr)
     }
 
 }

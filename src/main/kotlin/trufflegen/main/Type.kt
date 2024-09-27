@@ -3,17 +3,16 @@ package trufflegen.main
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
-abstract class Type(type: ExprContext) : CBSBaseVisitor<Unit>() {
+abstract class Type(val expr: ExprContext) : CBSBaseVisitor<Unit>() {
     private var computes: Int = 0
     private var qmarks: Int = 0
     var pluses: Int = 0
     var stars: Int = 0
     private var powns: Int = 0
-    val text: String = type.text
+    val text: String = expr.text
 
     init {
-        this.visit(type)
-//        println("pluses: $pluses, stars: $stars, qmarks: $qmarks, powns: $powns")
+        this.visit(expr)
     }
 
     val typeCategory: TypeCategory

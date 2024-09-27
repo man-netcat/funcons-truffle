@@ -1,14 +1,7 @@
 package trufflegen.main
 
 import org.antlr.v4.runtime.tree.ParseTree
-import trufflegen.antlr.CBSParser.AliasDefinitionContext
-import trufflegen.antlr.CBSParser.ExprContext
-import trufflegen.antlr.CBSParser.FunconDefinitionContext
-import trufflegen.antlr.CBSParser.FunconExpressionContext
-import trufflegen.antlr.CBSParser.ListIndexExpressionContext
-import trufflegen.antlr.CBSParser.MultipleArgsContext
-import trufflegen.antlr.CBSParser.NoArgsContext
-import trufflegen.antlr.CBSParser.SingleArgsContext
+import trufflegen.antlr.CBSParser.*
 
 abstract class Object(private val aliases: List<AliasDefinitionContext>) {
     abstract val name: String
@@ -43,12 +36,16 @@ abstract class Object(private val aliases: List<AliasDefinitionContext>) {
         }
     }
 
-    fun buildRewrite(
-        ruleDef: ParseTree, rewritesTo: ParseTree, params: List<Param>,
-    ): String {
+    fun buildRewrite(ruleDef: ParseTree, rewritesTo: ParseTree, params: List<Param>): String {
         val args = extractArgs(ruleDef)
         val rewriteVisitor = RewriteVisitor(rewritesTo, params, args)
         val rewritten = rewriteVisitor.visit(rewritesTo)
+        return rewritten
+    }
+
+    fun buildTypeRewrite(type: Type): String {
+        val rewriteVisitor = TypeRewriteVisitor(type)
+        val rewritten = rewriteVisitor.visit(type.expr)
         return rewritten
     }
 }

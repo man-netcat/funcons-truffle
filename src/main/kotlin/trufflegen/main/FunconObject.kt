@@ -26,7 +26,8 @@ abstract class FunconObject(
     override fun generateCode(): String {
         val paramsStr = params.map { param ->
             val annotation = if (param.type.isVararg) "@Children private vararg val" else "@Child private val"
-            Triple(annotation, param.name, "FCTNode")
+            val paramTypeStr = buildTypeRewrite(param.type)
+            Triple(annotation, param.name, paramTypeStr)
         }
 
         val content = makeContent()
@@ -39,7 +40,9 @@ abstract class FunconObject(
     override fun generateBuiltinTemplate(): String {
         val paramsStr = params.map { param ->
             val annotation = if (param.type.isVararg) "@Children private vararg val" else "@Child private val"
-            Triple(annotation, param.name, "FCTNode")
+            println(context.text)
+            val paramTypeStr = buildTypeRewrite(param.type)
+            Triple(annotation, param.name, paramTypeStr)
         }
 
         val cls = makeClass(nodeName, emptyList(), paramsStr, emptyList(), "TODO(\"Implement me\")")

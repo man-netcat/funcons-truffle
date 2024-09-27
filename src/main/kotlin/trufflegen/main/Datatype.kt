@@ -1,7 +1,6 @@
 package trufflegen.main
 
-import trufflegen.antlr.CBSParser.AliasDefinitionContext
-import trufflegen.antlr.CBSParser.FunconExpressionContext
+import trufflegen.antlr.CBSParser.*
 
 class Datatype(
     override val name: String,
