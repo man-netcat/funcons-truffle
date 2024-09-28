@@ -4,6 +4,8 @@ import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
 class TypeRewriteVisitor(private val type: Type) : CBSBaseVisitor<String>() {
+    var nestedValue = 0
+
     override fun visitFunconExpression(ctx: FunconExpressionContext): String {
         val funconName = ctx.name.text
         return when (funconName) {
@@ -45,30 +47,26 @@ class TypeRewriteVisitor(private val type: Type) : CBSBaseVisitor<String>() {
         }
     }
 
-    override fun visitVariable(ctx: VariableContext): String = ctx.varname.text
-
     override fun visitSuffixExpression(ctx: SuffixExpressionContext): String {
         return when (val op = ctx.op.text) {
             "?" -> visit(ctx.expr()) + "?"
-            "*" -> visit(ctx.expr()) + {
-                when (type) {
-                    is ReturnType -> "List<${visit(ctx.expr())}>"
-                    is ParamType -> {
-                        if (type.isArray) "List<${visit(ctx.expr())}>" else visit(ctx.expr())
-                    }
-                }
+            "*", "+" -> when (type) {
+                is ReturnType -> "List<${visit(ctx.expr())}>"
+                is ParamType -> if (nestedValue == 0) {
+                    nestedValue++
+                    visit(ctx.expr())
+                } else "List<${visit(ctx.expr())}>"
+
+                else -> throw DetailedException("Unexpected type: ${ctx::class.simpleName}")
             }
 
             else -> throw DetailedException("Unexpected operator: $op, ${ctx.text}")
         }
     }
 
-    override fun visitNestedExpression(ctx: NestedExpressionContext): String? {
-        return visit(ctx.expr())
-    }
 
-//    override fun visitChildren(node: RuleNode): String {
-//        println("${node::class.simpleName}: ${node.text}")
-//        return super.visitChildren(node)
-//    }
+    override fun visitVariable(ctx: VariableContext): String = ctx.varname.text
+    override fun visitVariableStep(ctx: VariableStepContext): String = ctx.varname.text + "p".repeat(ctx.squote().size)
+    override fun visitNestedExpression(ctx: NestedExpressionContext): String = visit(ctx.expr())
+    override fun visitUnaryComputesExpression(ctx: UnaryComputesExpressionContext): String = visit(ctx.expr())
 }
