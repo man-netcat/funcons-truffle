@@ -6,9 +6,9 @@ abstract class FunconObject(
     internal open val context: FunconDefinitionContext,
     override val name: String,
     open val params: List<Param>,
-    private val returns: ReturnType,
     aliases: List<AliasDefinitionContext>,
-) : Object(aliases) {
+    val metavariables: Map<ExprContext, ExprContext>,
+) : Object(aliases, metavariables) {
 
     private val paramsAfterVarargs: Int
         get() {
@@ -30,9 +30,12 @@ abstract class FunconObject(
             Triple(annotation, param.name, paramTypeStr)
         }
 
+        val mvarVisitor = MetavariableVisitor()
+        val typeParams = metavariables.keys.map { key -> mvarVisitor.visit(key) }
+
         val content = makeContent()
 
-        val cls = makeClass(nodeName, emptyList(), paramsStr, emptyList(), content)
+        val cls = makeClass(nodeName, emptyList(), paramsStr, emptyList(), content, typeParams)
 
         return cls
     }

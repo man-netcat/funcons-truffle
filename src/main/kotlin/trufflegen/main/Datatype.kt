@@ -7,7 +7,8 @@ class Datatype(
     val definition: MutableList<String>,
     val datatypeComposites: MutableList<FunconExpressionContext>,
     aliases: List<AliasDefinitionContext>,
-) : Object(aliases) {
+    metavariables: MutableMap<ExprContext, ExprContext>,
+) : Object(aliases, metavariables) {
 
     override fun generateCode(): String {
         val cls = makeClass(name, emptyList(), emptyList(), emptyList(), "")

@@ -5,29 +5,25 @@ import trufflegen.antlr.CBSParser.*
 open class TypeObject(
     internal open val context: TypeDefinitionContext,
     override val name: String,
-    private val params: List<Param>,
     private val definition: ExprContext?,
     aliases: MutableList<AliasDefinitionContext>,
-) : Object(aliases) {
+    metavariables: MutableMap<ExprContext, ExprContext>,
+) : Object(aliases, metavariables) {
     override fun generateCode(): String {
+        println(context.text)
         if (definition == null) {
             return ""
         }
 
-        val args = params.map { param -> param.valueExpr ?: param.typeExpr }
-        val rewriteVisitor = RewriteVisitor(definition, params, args)
+        val type = ReturnType(definition)
+        val rewriteVisitor = TypeRewriteVisitor(type)
         val rewritten = rewriteVisitor.visit(definition)
-        return rewritten
+        return makeClass(nodeName, emptyList(), emptyList(), emptyList(), rewritten)
     }
 
     override fun generateBuiltinTemplate(): String {
-        if (definition == null) {
-            return ""
-        }
+        val cls = makeClass(nodeName, emptyList(), emptyList(), emptyList(), "TODO(\"Implement me\")")
 
-        val args = params.map { param -> param.valueExpr ?: param.typeExpr }
-        val rewriteVisitor = RewriteVisitor(definition, params, args)
-        val rewritten = rewriteVisitor.visit(definition)
-        return rewritten
+        return cls
     }
 }

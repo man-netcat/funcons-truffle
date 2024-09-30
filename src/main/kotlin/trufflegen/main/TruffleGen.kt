@@ -63,7 +63,6 @@ class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
         }
     }
 
-    // Iteratively finds all dependencies of the provided language and keeps track of passes.
     private fun findDependencies() {
         if (languageIndex == null) return
 
@@ -106,7 +105,8 @@ class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
         files.forEach { (name, file) ->
             val code = file.generateCode(builtins)
             println("code\n\n$code")
-            val filePath = outputDir.resolve("${toClassName(name)}.kt").pathString
+            val fileNameWithoutExtension = name.removeSuffix(".cbs")
+            val filePath = outputDir.resolve("$fileNameWithoutExtension.kt").pathString
 //            File(filePath).writeText(code)
         }
     }

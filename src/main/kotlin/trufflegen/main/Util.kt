@@ -50,6 +50,7 @@ fun makeClass(
     constructorArgs: List<Triple<String, String, String>>,
     properties: List<Pair<String, String>>,
     content: String,
+    typeParams: List<String> = emptyList(),
 ): String {
     val annotationsStr = if (annotations.isNotEmpty()) {
         annotations.joinToString("\n") { str -> "@$str" } + "\n"
@@ -67,11 +68,18 @@ fun makeClass(
     // Generate the properties string
     val propertiesStr = properties.joinToString("\n") { "val ${it.first}: ${it.second}" }
 
+    // Generate the type parameters string, but omit if empty
+    val typeParamStr = if (typeParams.isNotEmpty()) {
+        "<" + typeParams.joinToString() + "> "
+    } else {
+        ""
+    }
+
     // Combine constructor and properties
     val classHeader = if (constructorStr.isNotEmpty()) {
-        "class $name($constructorStr) {\n"
+        "class $typeParamStr$name($constructorStr) {\n"
     } else {
-        "class $name {\n"
+        "class $typeParamStr$name {\n"
     }
 
     // Generate the class body with properties and content, filter out empty sections

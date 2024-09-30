@@ -3,7 +3,10 @@ package trufflegen.main
 import org.antlr.v4.runtime.tree.ParseTree
 import trufflegen.antlr.CBSParser.*
 
-abstract class Object(private val aliases: List<AliasDefinitionContext>) {
+abstract class Object(
+    private val aliases: List<AliasDefinitionContext>,
+    private val metavariables: Map<ExprContext, ExprContext>,
+) {
     abstract val name: String
     abstract fun generateCode(): String
     abstract fun generateBuiltinTemplate(): String
@@ -38,7 +41,7 @@ abstract class Object(private val aliases: List<AliasDefinitionContext>) {
 
     fun buildRewrite(ruleDef: ParseTree, rewritesTo: ParseTree, params: List<Param>): String {
         val args = extractArgs(ruleDef)
-        val rewriteVisitor = RewriteVisitor(rewritesTo, params, args)
+        val rewriteVisitor = RewriteVisitor(rewritesTo, params, args, metavariables)
         val rewritten = rewriteVisitor.visit(rewritesTo)
         return rewritten
     }

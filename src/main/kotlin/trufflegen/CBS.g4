@@ -53,7 +53,7 @@ expr
    | lhs = expr op = AND rhs = expr # AndExpression
    | lhs = expr op = OR rhs = expr # OrExpression
    | value = expr op = COLON type = expr # TypeExpression
-   | value = expr op = SUBTYPE type = expr # SubTypeExpression
+   //   | value = expr op = SUBTYPE type = expr # SubTypeExpression
    | '(' expr ')' # NestedExpression
    | '[' exprs? ']' # ListExpression
    | '{' exprs? '}' # SetExpression
