@@ -44,11 +44,10 @@ class FunconObjectWithRules(
                     val (index, varargIndex) = getParamIndex(index, params, processedArgs)
                     val paramStr = if (varargIndex != null) "p$index[$varargIndex]" else "p$index"
                     when (arg) {
-                        is FunconExpressionContext -> "$paramStr is ${
-                            buildRewrite(
-                                def, arg, params
-                            )
-                        }".removeSuffix("()")
+                        is FunconExpressionContext -> {
+                            val rewrite = buildTypeRewrite(ReturnType(arg))
+                            "$paramStr is $rewrite"
+                        }
 
                         is NumberContext -> "$paramStr == ${arg.text}"
                         is VariableContext -> null

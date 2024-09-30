@@ -35,7 +35,7 @@ abstract class FunconObject(
 
         val content = makeContent()
 
-        val cls = makeClass(nodeName, emptyList(), paramsStr, emptyList(), content, typeParams)
+        val cls = makeClass(nodeName, emptyList(), paramsStr, emptyList(), content, typeParams, "Computation")
 
         return cls
     }
