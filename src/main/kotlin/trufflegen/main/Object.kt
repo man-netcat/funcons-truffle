@@ -51,4 +51,10 @@ abstract class Object(
         val rewritten = rewriteVisitor.visit(type.expr)
         return rewritten
     }
+
+    fun makeTypeParams(): Set<String> {
+        val mvarVisitor = MetavariableVisitor()
+        val typeParams = metavariables.keys.map { key -> mvarVisitor.visit(key) }.filterNotNull().toSet()
+        return typeParams
+    }
 }

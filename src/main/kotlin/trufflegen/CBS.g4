@@ -23,11 +23,15 @@ index
    : '[' indexLine+ ']'
    ;
 
+metavarDef
+   : variables = exprs SUBTYPE definition = expr
+   ;
+
 obj
    : (modifier = (BUILTIN | AUXILIARY)? FUNCON name = IDENTIFIER ('(' params ')')? COLON returnType = expr (REWRITE rewritesTo = expr)? (ALIAS aliasDefinition | RULE ruleDefinition | ASSERT assertDefinition)*) # FunconDefinition
    | (modifier = BUILTIN? DATATYPE name = IDENTIFIER ('(' params ')')? op = ('::=' | SUBTYPE) definition = expr (ALIAS aliasDefinition | ASSERT assertDefinition)*) # DatatypeDefinition
    | (modifier = BUILTIN? TYPE name = IDENTIFIER ('(' params ')')? (op = (REWRITE | SUBTYPE) definition = expr)? (ALIAS aliasDefinition)*) # TypeDefinition
-   | METAVARIABLES (variables = exprs SUBTYPE definition = expr)+ # MetavariablesDefinition
+   | METAVARIABLES metavarDef+ # MetavariablesDefinition
    | ENTITY (stepExpr | mutableExpr) (ALIAS aliasDefinition)* # EntityDefinition
    ;
 
@@ -56,7 +60,7 @@ expr
    //   | value = expr op = SUBTYPE type = expr # SubTypeExpression
    | '(' expr ')' # NestedExpression
    | '[' exprs? ']' # ListExpression
-   | '{' exprs? '}' # SetExpression
+   | '{' expr? '}' # SetExpression
    | '{' pairs '}' # MapExpression
    | '(' exprs? ')' # TupleExpression
    | string = STRING # String

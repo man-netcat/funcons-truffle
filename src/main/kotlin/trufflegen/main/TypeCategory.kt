@@ -1,5 +1,9 @@
 package trufflegen.main
 
 enum class TypeCategory {
-    PLUS, STAR, QMARK, POWN, SINGLE
+    PLUS, // One or More
+    STAR, // Zero or More
+    QMARK, // Zero or One
+    POWN, // N values
+    SINGLE, // One value
 }

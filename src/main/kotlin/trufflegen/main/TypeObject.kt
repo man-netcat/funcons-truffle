@@ -18,11 +18,11 @@ open class TypeObject(
         val type = ReturnType(definition)
         val rewriteVisitor = TypeRewriteVisitor(type)
         val rewritten = rewriteVisitor.visit(definition)
-        return makeClass(nodeName, emptyList(), emptyList(), emptyList(), rewritten)
+        return makeTypeAlias(nodeName, rewritten)
     }
 
     override fun generateBuiltinTemplate(): String {
-        val cls = makeClass(nodeName, emptyList(), emptyList(), emptyList(), "TODO(\"Implement me\")")
+        val cls = makeTypeAlias(nodeName, "TODO(\"Implement me\")")
 
         return cls
     }

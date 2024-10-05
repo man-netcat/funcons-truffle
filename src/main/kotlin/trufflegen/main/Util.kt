@@ -68,11 +68,11 @@ fun makeVariable(name: String, type: String, value: String): String {
 
 fun makeClass(
     name: String,
-    annotations: List<String>,
-    constructorArgs: List<Triple<String, String, String>>,
-    properties: List<Pair<String, String>>,
     content: String,
-    typeParams: List<String> = emptyList(),
+    annotations: List<String> = emptyList(),
+    constructorArgs: List<Triple<String, String, String>> = emptyList(),
+    properties: List<Pair<String, String>> = emptyList(),
+    typeParams: Set<String> = emptySet(),
     superClass: String? = null,
     interfaces: List<String> = emptyList(),
     superClassArgs: List<String> = emptyList()
@@ -136,7 +136,12 @@ fun makeWhenExpression(
     return "when ($expression) {\n$branchesStr$elseStr\n}"
 }
 
-fun makeTypeAlias(aliasName: String, targetType: String): String {
-    return "typealias $aliasName = $targetType"
+fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<String> = emptySet()): String {
+    val typeParamStr = if (typeParams.isNotEmpty()) {
+        "<" + typeParams.joinToString() + "> "
+    } else {
+        ""
+    }
+    return "typealias $aliasName$typeParamStr = $targetType"
 }
 

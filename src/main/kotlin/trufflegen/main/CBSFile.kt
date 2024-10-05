@@ -9,10 +9,8 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
 
     internal val objects = mutableListOf<Object>()
 
-    override fun visitMetavariablesDefinition(metavars: MetavariablesDefinitionContext) {
-        metavariables.putAll(metavars.variables.expr().mapNotNull { variable ->
-            variable to metavars.definition
-        }.toMap())
+    override fun visitMetavarDef(def: MetavarDefContext) {
+        metavariables.putAll(def.variables.expr().mapNotNull { variable -> variable to def.definition }.toMap())
     }
 
     private fun extractParams(obj: ParseTree): List<Param> {
@@ -67,7 +65,7 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
 
         val aliases = datatype.aliasDefinition()
 
-        val dataContainer = DatatypeObject(name, params, definitions, aliases, metavariables)
+        val dataContainer = DatatypeObject(datatype, name, params, definitions, aliases, metavariables)
 
         objects.add(dataContainer)
     }
@@ -89,8 +87,8 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
         val imports = listOf(
             "fctruffle.main.*",
             "com.oracle.truffle.api.frame.VirtualFrame",
-            "com.oracle.truffle.api.nodes.NodeInfo",
-            "com.oracle.truffle.api.nodes.Node.Child"
+            "com.oracle.truffle.api.nodes.Node.Child",
+            "com.oracle.truffle.api.nodes.Node.Children"
         ).joinToString("\n") { "import $it" }
 
         val code = objects.joinToString("\n\n") { obj ->

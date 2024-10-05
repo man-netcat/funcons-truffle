@@ -14,7 +14,7 @@ class FunconObjectWithRewrite(
     context, name, params, aliases, metavariables
 ) {
     override fun makeContent(): String {
-        val content = buildRewrite(context, rewritesTo, params)
+        val content = "return " + buildRewrite(context, rewritesTo, params)
         val returnStr = buildTypeRewrite(returns)
         return makeExecuteFunction(content, returnStr)
     }

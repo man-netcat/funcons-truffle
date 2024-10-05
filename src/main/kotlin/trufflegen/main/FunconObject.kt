@@ -7,7 +7,7 @@ abstract class FunconObject(
     override val name: String,
     open val params: List<Param>,
     aliases: List<AliasDefinitionContext>,
-    val metavariables: Map<ExprContext, ExprContext>,
+    metavariables: Map<ExprContext, ExprContext>,
 ) : Object(aliases, metavariables) {
 
     private val paramsAfterVarargs: Int
@@ -30,12 +30,17 @@ abstract class FunconObject(
             Triple(annotation, param.name, paramTypeStr)
         }
 
-        val mvarVisitor = MetavariableVisitor()
-        val typeParams = metavariables.keys.map { key -> mvarVisitor.visit(key) }
+        val typeParams = makeTypeParams()
 
         val content = makeContent()
 
-        val cls = makeClass(nodeName, emptyList(), paramsStr, emptyList(), content, typeParams, "Computation")
+        val cls = makeClass(
+            nodeName,
+            content,
+            constructorArgs = paramsStr,
+            typeParams = typeParams,
+            superClass = "Computation"
+        )
 
         return cls
     }
@@ -43,12 +48,11 @@ abstract class FunconObject(
     override fun generateBuiltinTemplate(): String {
         val paramsStr = params.map { param ->
             val annotation = if (param.type.isVararg) "@Children private vararg val" else "@Child private val"
-            println(context.text)
             val paramTypeStr = buildTypeRewrite(param.type)
             Triple(annotation, param.name, paramTypeStr)
         }
 
-        val cls = makeClass(nodeName, emptyList(), paramsStr, emptyList(), "TODO(\"Implement me\")")
+        val cls = makeClass(nodeName, "TODO(\"Implement me\")", constructorArgs = paramsStr)
 
         return cls
     }

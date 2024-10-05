@@ -38,8 +38,8 @@ class RewriteVisitor(
     }
 
     override fun visitSetExpression(set: SetExpressionContext): String {
-        val exprs = set.exprs()?.expr()
-        return if (exprs.isNullOrEmpty()) "emptySet()" else "setOf(${visit(set.exprs())})"
+        val expr = set.expr()
+        return if (expr == null) "emptySet()" else "setOf(${visit(set.expr())})"
     }
 
     override fun visitMapExpression(map: MapExpressionContext): String = "hashMapOf(${visitPairs(map.pairs())})"

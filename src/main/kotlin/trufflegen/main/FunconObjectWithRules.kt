@@ -54,7 +54,12 @@ class FunconObjectWithRules(
                         is VariableStepContext -> null
                         is SuffixExpressionContext -> null
                         is TupleExpressionContext -> "$paramStr == ${buildRewrite(def, arg, params)}"
-                        is ListExpressionContext -> "$paramStr == ${buildRewrite(def, arg, params)}"
+                        is ListExpressionContext -> {
+                            val rewrite = buildRewrite(def, arg, params)
+                            if (rewrite == "emptyList()") "$paramStr.isEmpty()"
+                            else "$paramStr == $rewrite"
+                        }
+
                         else -> throw Exception("Unexpected arg type: ${arg::class.simpleName}")
                     }
                 }.filterNotNull().joinToString(" && ")
@@ -221,7 +226,8 @@ class FunconObjectWithRules(
             Pair(finalConditions, finalRewrite)
         }
 
-        val content = makeIfStatement(*pairs.toTypedArray(), elseBranch = "throw Exception(\"Illegal Argument\")")
+        val content =
+            "return " + makeIfStatement(*pairs.toTypedArray(), elseBranch = "throw Exception(\"Illegal Argument\")")
         val returnStr = buildTypeRewrite(returns)
         return makeExecuteFunction(content, returnStr)
     }
