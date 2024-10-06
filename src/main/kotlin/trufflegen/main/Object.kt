@@ -6,10 +6,10 @@ import trufflegen.antlr.CBSParser.*
 abstract class Object(
     private val aliases: List<AliasDefinitionContext>,
     private val metavariables: Map<ExprContext, ExprContext>,
+    builtin: Boolean = false
 ) {
     abstract val name: String
     abstract fun generateCode(): String
-    abstract fun generateBuiltinTemplate(): String
 
     fun aliasStr(): String {
         return aliases.joinToString("\n") { alias -> makeTypeAlias(toClassName(alias.name.text), nodeName) }

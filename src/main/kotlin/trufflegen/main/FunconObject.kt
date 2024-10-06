@@ -8,7 +8,8 @@ abstract class FunconObject(
     open val params: List<Param>,
     aliases: List<AliasDefinitionContext>,
     metavariables: Map<ExprContext, ExprContext>,
-) : Object(aliases, metavariables) {
+    val builtin: Boolean,
+) : Object(aliases, metavariables, builtin) {
 
     private val paramsAfterVarargs: Int
         get() {
@@ -30,31 +31,26 @@ abstract class FunconObject(
             Triple(annotation, param.name, paramTypeStr)
         }
 
-        val typeParams = makeTypeParams()
+        return if (builtin) {
+            makeClass(
+                nodeName,
+                content = "TODO(\"Implement me\")",
+                constructorArgs = paramsStr,
+                superClass = "Computation"
+            )
+        } else {
+            val typeParams = makeTypeParams()
 
-        val content = makeContent()
+            val content = makeContent()
 
-        val cls = makeClass(
-            nodeName,
-            content,
-            constructorArgs = paramsStr,
-            typeParams = typeParams,
-            superClass = "Computation"
-        )
-
-        return cls
-    }
-
-    override fun generateBuiltinTemplate(): String {
-        val paramsStr = params.map { param ->
-            val annotation = if (param.type.isVararg) "@Children private vararg val" else "@Child private val"
-            val paramTypeStr = buildTypeRewrite(param.type)
-            Triple(annotation, param.name, paramTypeStr)
+            makeClass(
+                nodeName,
+                content = content,
+                constructorArgs = paramsStr,
+                typeParams = typeParams,
+                superClass = "Computation"
+            )
         }
-
-        val cls = makeClass(nodeName, "TODO(\"Implement me\")", constructorArgs = paramsStr)
-
-        return cls
     }
 }
 

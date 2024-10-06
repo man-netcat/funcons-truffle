@@ -12,8 +12,9 @@ class FunconObjectWithRules(
     private val returns: ReturnType,
     aliases: List<AliasDefinitionContext>,
     metavariables: MutableMap<ExprContext, ExprContext>,
+    builtin: Boolean,
 ) : FunconObject(
-    context, name, params, aliases, metavariables
+    context, name, params, aliases, metavariables, builtin
 ) {
     private fun processConclusion(conclusion: PremiseContext): Triple<ExprContext, String, String> {
         fun processConclusionStep(step: StepContext, rewrite: String, ruleDef: ExprContext): String {

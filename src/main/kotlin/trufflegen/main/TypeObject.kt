@@ -8,22 +8,22 @@ open class TypeObject(
     private val definition: ExprContext?,
     aliases: MutableList<AliasDefinitionContext>,
     metavariables: MutableMap<ExprContext, ExprContext>,
-) : Object(aliases, metavariables) {
+    val builtin: Boolean,
+) : Object(aliases, metavariables, builtin) {
     override fun generateCode(): String {
         println(context.text)
         if (definition == null) {
             return ""
         }
 
-        val type = ReturnType(definition)
-        val rewriteVisitor = TypeRewriteVisitor(type)
-        val rewritten = rewriteVisitor.visit(definition)
-        return makeTypeAlias(nodeName, rewritten)
-    }
+        val content = if (builtin) {
+            "TODO(\"Implement me\")"
+        } else {
+            val type = ReturnType(definition)
+            val rewriteVisitor = TypeRewriteVisitor(type)
+            rewriteVisitor.visit(definition)
+        }
 
-    override fun generateBuiltinTemplate(): String {
-        val cls = makeTypeAlias(nodeName, "TODO(\"Implement me\")")
-
-        return cls
+        return makeTypeAlias(nodeName, content)
     }
 }

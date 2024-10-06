@@ -68,14 +68,16 @@ fun makeVariable(name: String, type: String, value: String): String {
 
 fun makeClass(
     name: String,
-    content: String,
+    content: String = "",
+    body: Boolean = true,
+    keywords: List<String> = emptyList(),
     annotations: List<String> = emptyList(),
     constructorArgs: List<Triple<String, String, String>> = emptyList(),
     properties: List<Pair<String, String>> = emptyList(),
     typeParams: Set<String> = emptySet(),
     superClass: String? = null,
     interfaces: List<String> = emptyList(),
-    superClassArgs: List<String> = emptyList()
+    superClassArgs: List<String> = emptyList(),
 ): String {
     val annotationsStr = if (annotations.isNotEmpty()) {
         annotations.joinToString("\n") { str -> "@$str" } + "\n"
@@ -107,16 +109,25 @@ fun makeClass(
         else -> ""
     }
 
-    val classHeader = if (constructorStr.isNotEmpty()) {
-        "class $name$typeParamStr($constructorStr) $inheritanceStr {\n"
+    val keywordsStr = if (keywords.isNotEmpty()) {
+        keywords.joinToString(" ") + " "
     } else {
-        "class $name$typeParamStr $inheritanceStr {\n"
+        ""
     }
 
-    val classBody = listOf(propertiesStr, content).filter { it.isNotBlank() }.joinToString("\n\n")
-    val indentedClassBody = makeBody(classBody)
+    val classHeader = if (constructorStr.isNotEmpty()) {
+        "${keywordsStr}class $name$typeParamStr($constructorStr) $inheritanceStr"
+    } else {
+        "${keywordsStr}class $name$typeParamStr $inheritanceStr"
+    }
 
-    return "${annotationsStr}${classHeader}${indentedClassBody}\n}"
+    return if (body) {
+        val classBody = listOf(propertiesStr, content).filter { it.isNotBlank() }.joinToString("\n\n")
+        val indentedClassBody = makeBody(classBody)
+        "${annotationsStr}${classHeader} {\n$indentedClassBody\n}"
+    } else {
+        "${annotationsStr}${classHeader}"
+    }
 }
 
 
@@ -145,3 +156,14 @@ fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<String>
     return "typealias $aliasName$typeParamStr = $targetType"
 }
 
+infix fun <T, R> Iterable<T>.zip(other: Iterable<R>): List<Pair<T, R>> {
+    val iterator1 = this.iterator()
+    val iterator2 = other.iterator()
+    val result = mutableListOf<Pair<T, R>>()
+
+    while (iterator1.hasNext() && iterator2.hasNext()) {
+        result.add(Pair(iterator1.next(), iterator2.next()))
+    }
+
+    return result
+}

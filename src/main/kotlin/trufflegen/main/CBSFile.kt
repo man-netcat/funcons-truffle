@@ -37,12 +37,14 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
         val returns = ReturnType(funcon.returnType)
         val aliases = funcon.aliasDefinition()
 
+        val builtin = funcon.modifier != null
+
         val dataContainer = if (funcon.rewritesTo != null) {
             val rewritesTo = funcon.rewritesTo
-            FunconObjectWithRewrite(funcon, name, params, rewritesTo, returns, aliases, metavariables)
+            FunconObjectWithRewrite(funcon, name, params, rewritesTo, returns, aliases, metavariables, builtin)
         } else {
             val rules: List<RuleDefinitionContext> = funcon.ruleDefinition()
-            FunconObjectWithRules(funcon, name, params, rules, returns, aliases, metavariables)
+            FunconObjectWithRules(funcon, name, params, rules, returns, aliases, metavariables, builtin)
         }
 
         objects.add(dataContainer)
@@ -65,7 +67,9 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
 
         val aliases = datatype.aliasDefinition()
 
-        val dataContainer = DatatypeObject(datatype, name, params, definitions, aliases, metavariables)
+        val builtin = datatype.modifier != null
+
+        val dataContainer = DatatypeObject(datatype, name, params, definitions, aliases, metavariables, builtin)
 
         objects.add(dataContainer)
     }
@@ -78,7 +82,9 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
 
         val aliases = type.aliasDefinition()
 
-        val dataContainer = TypeObject(type, name, definition, aliases, metavariables)
+        val builtin = type.modifier != null
+
+        val dataContainer = TypeObject(type, name, definition, aliases, metavariables, builtin)
 
         objects.add(dataContainer)
     }
@@ -92,21 +98,14 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
         ).joinToString("\n") { "import $it" }
 
         val code = objects.joinToString("\n\n") { obj ->
-            if (obj.name in builtins) {
-                println("\nGenerating code for builtin ${obj::class.simpleName} ${obj.name} (File $name)")
-                val code = obj.generateBuiltinTemplate()
+            println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $name)")
+            try {
+                val code = obj.generateCode()
                 val aliasStr = obj.aliasStr()
                 if (aliasStr.isNotBlank()) "$code\n\n$aliasStr" else code
-            } else {
-                println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $name)")
-                try {
-                    val code = obj.generateCode()
-                    val aliasStr = obj.aliasStr()
-                    if (aliasStr.isNotBlank()) "$code\n\n$aliasStr" else code
-                } catch (e: Exception) {
-                    println(e)
-                    ""
-                }
+            } catch (e: Exception) {
+                println(e)
+                ""
             }
         }.trim()
 

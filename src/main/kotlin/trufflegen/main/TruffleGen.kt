@@ -86,6 +86,7 @@ class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
 
     private fun generateObjects() {
         parseTrees.forEach { name, root ->
+            println("Generating objects for file $name...")
             val cbsFile = CBSFile(name, root, index)
             cbsFile.visit(root)
             val fileObjects = cbsFile.objects
@@ -103,6 +104,7 @@ class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
         }
 
         files.forEach { (name, file) ->
+            println("Generating code for file $name...")
             val code = file.generateCode(builtins)
             println(code)
             val fileNameWithoutExtension = name.removeSuffix(".cbs")

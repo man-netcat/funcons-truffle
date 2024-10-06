@@ -10,8 +10,4 @@ class EntityObject(
     override fun generateCode(): String {
         TODO("Not yet implemented")
     }
-
-    override fun generateBuiltinTemplate(): String {
-        TODO("Not yet implemented")
-    }
 }

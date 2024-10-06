@@ -7,44 +7,51 @@ class TypeRewriteVisitor(private val type: Type) : CBSBaseVisitor<String>() {
     var nestedValue = 0
 
     override fun visitFunconExpression(ctx: FunconExpressionContext): String {
-        val funconName = ctx.name.text
-        return when (funconName) {
-            "maps" -> {
-                val args = (ctx.args() as MultipleArgsContext).exprs().expr()
-                assert(args.size == 2)
-                val argStr = args.joinToString { visit(it) }
-                "Map<$argStr>"
-            }
-
-            "sets", "set" -> {
-                val args = (ctx.args() as MultipleArgsContext).exprs().expr()
-                assert(args.size == 1)
-                "Set<${visit(args[0])}>"
-            }
-
-            "lists" -> {
-                val args = (ctx.args() as MultipleArgsContext).exprs().expr()
-                assert(args.size == 1)
-                "List<${visit(args[0])}>"
-            }
-
-            "tuples" -> {
-                val args = (ctx.args() as MultipleArgsContext).exprs().expr()
-                val cls = when (args.size) {
-                    2 -> "Tuple"
-                    3 -> "Triple"
-                    else -> throw DetailedException("Unexpected arg size: ${args.size}")
-                }
-                val argStr = args.joinToString { visit(it) }
-                "$cls<$argStr>"
-            }
-
-            else -> when (ctx.args()) {
-                is NoArgsContext -> toClassName(funconName)
-                else -> throw DetailedException("Unexpected funcon ${ctx::class.simpleName}: ${ctx.text}")
-            }
-
+        val funconName = toClassName(ctx.name.text)
+        val argStr = when (val args = ctx.args()) {
+            is NoArgsContext -> null
+            is SingleArgsContext -> visit(args.expr())
+            is MultipleArgsContext -> args.exprs().expr().joinToString { visit(it) }
+            else -> throw DetailedException("Unexpected arg type: ${args::class.simpleName}")
         }
+        return funconName + if (argStr != null) "<$argStr>" else ""
+//        TODO: Could be useful for hardcoding types
+//        return when (funconName) {
+//            "map" -> {
+//                val args = (ctx.args() as MultipleArgsContext).exprs().expr()
+//                assert(args.size == 2)
+//                val argStr = args.joinToString { visit(it) }
+//                "Map<$argStr>"
+//            }
+//
+//            "set" -> {
+//                val args = (ctx.args() as MultipleArgsContext).exprs().expr()
+//                assert(args.size == 1)
+//                "Set<${visit(args[0])}>"
+//            }
+//
+//            "list" -> {
+//                val args = (ctx.args() as MultipleArgsContext).exprs().expr()
+//                assert(args.size == 1)
+//                "List<${visit(args[0])}>"
+//            }
+//
+//            "tuple" -> {
+//                val args = (ctx.args() as MultipleArgsContext).exprs().expr()
+//                val cls = when (args.size) {
+//                    2 -> "Tuple"
+//                    3 -> "Triple"
+//                    else -> throw DetailedException("Unexpected arg size: ${args.size}")
+//                }
+//                val argStr = args.joinToString { visit(it) }
+//                "$cls<$argStr>"
+//            }
+//
+//            else -> when (ctx.args()) {
+//                is NoArgsContext -> toClassName(funconName)
+//                else -> throw DetailedException("Unexpected funcon ${ctx::class.simpleName}: ${ctx.text}")
+//            }
+//    }
     }
 
     override fun visitSuffixExpression(ctx: SuffixExpressionContext): String {
@@ -64,6 +71,20 @@ class TypeRewriteVisitor(private val type: Type) : CBSBaseVisitor<String>() {
         }
     }
 
+    override fun visitTupleExpression(ctx: TupleExpressionContext): String {
+        if (ctx.exprs() == null) {
+            return "Unit"
+        }
+        val clsName = when (val tupleLength = ctx.exprs().expr().size) {
+            2 -> "Tuple"
+            3 -> "Triple"
+            else -> "Unexpected tuple length: $tupleLength"
+        }
+        return clsName + "<" + ctx.exprs().expr().joinToString { visit(it) } + ">"
+    }
+
+    override fun visitBinaryComputesExpression(ctx: BinaryComputesExpressionContext): String =
+        "(" + visit(ctx.lhs) + ") -> " + visit(ctx.rhs)
 
     override fun visitVariable(ctx: VariableContext): String = ctx.varname.text
     override fun visitVariableStep(ctx: VariableStepContext): String = ctx.varname.text + "p".repeat(ctx.squote().size)

@@ -10,8 +10,9 @@ class FunconObjectWithRewrite(
     val returns: ReturnType,
     aliases: List<AliasDefinitionContext>,
     metavariables: MutableMap<ExprContext, ExprContext>,
+    builtin: Boolean,
 ) : FunconObject(
-    context, name, params, aliases, metavariables
+    context, name, params, aliases, metavariables, builtin
 ) {
     override fun makeContent(): String {
         val content = "return " + buildRewrite(context, rewritesTo, params)

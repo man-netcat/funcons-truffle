@@ -9,27 +9,56 @@ class DatatypeObject(
     private val definitions: List<ExprContext>,
     aliases: MutableList<AliasDefinitionContext>,
     metavariables: MutableMap<ExprContext, ExprContext>,
-) : Object(aliases, metavariables) {
+    val builtin: Boolean,
+) : Object(aliases, metavariables, builtin) {
     override fun generateCode(): String {
         println("datatype: ${datatype.text}")
+
+        if (builtin) return makeClass(name, content = "TODO(\"Implement me\")")
+
         val typeParams = makeTypeParams()
 
         val superClass = makeClass(
-            toClassName(name),
-            "mainclscontent: TODO",
-            superClass = "Computation"
+            toClassName(name), content = "mainclscontent: TODO", superClass = "Computation"
         )
 
         val clss = definitions.map { def ->
             println("def: ${def.text}")
             when (def) {
                 is FunconExpressionContext -> {
-                    makeClass(
-                        toClassName(def.name.text),
-                        "typecontent: TODO",
-                        typeParams = typeParams,
-                        superClass = toClassName(name)
-                    )
+                    val args = def.args()
+                    println("args: ${args.text}, ${args::class.simpleName}")
+                    when (args) {
+                        is MultipleArgsContext -> {
+                            assert(args.exprs().expr().size == 1)
+                            val arg = args.exprs().expr(0)
+                            val typeStr = when (arg) {
+                                is TypeExpressionContext -> {
+                                    val setType = ReturnType(arg.type)
+                                    buildTypeRewrite(setType)
+                                }
+
+                                else -> throw DetailedException("Unexpected arg expression: ${arg::class.simpleName}")
+                            }
+                            makeClass(
+                                toClassName(def.name.text),
+                                content = "typecontent: TODO",
+                                typeParams = typeParams,
+                                superClass = toClassName(name)
+                            )
+                        }
+
+                        is NoArgsContext -> {
+                            makeClass(
+                                toClassName(def.name.text),
+                                typeParams = typeParams,
+                                superClass = toClassName(name),
+                                body = false
+                            )
+                        }
+
+                        else -> throw DetailedException("Unexpected args expression: ${args::class.simpleName}")
+                    }
                 }
 
                 is SetExpressionContext -> {
@@ -49,9 +78,5 @@ class DatatypeObject(
         }.joinToString("\n")
 
         return "$superClass\n$clss"
-    }
-
-    override fun generateBuiltinTemplate(): String {
-        return makeClass(name, "TODO(\"Implement me\")")
     }
 }
