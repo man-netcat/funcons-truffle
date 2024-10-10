@@ -6,13 +6,14 @@ import kotlin.collections.mapNotNull
 
 class FunconObjectWithRules(
     name: String,
+    ctx: FunconDefinitionContext,
     params: List<Param>,
     private val rules: List<RuleDefinitionContext>,
     returns: ReturnType,
     aliases: List<AliasDefinitionContext>,
     metavariables: MutableMap<ExprContext, ExprContext>,
     builtin: Boolean
-) : FunconObject(name, params, returns, aliases, metavariables, builtin) {
+) : FunconObject(name, ctx, params, returns, aliases, metavariables, builtin) {
     private fun processConclusion(conclusion: PremiseContext): Triple<ExprContext, String, String> {
         fun processConclusionStep(step: StepContext, rewrite: String, ruleDef: ExprContext): String {
             return when (step) {

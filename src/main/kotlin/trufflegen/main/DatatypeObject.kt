@@ -4,12 +4,13 @@ import trufflegen.antlr.CBSParser.*
 
 class DatatypeObject(
     name: String,
+    ctx: DatatypeDefinitionContext,
     private val params: List<Param>,
     private val definitions: List<ExprContext>,
     aliases: MutableList<AliasDefinitionContext>,
     metavariables: MutableMap<ExprContext, ExprContext>,
     val builtin: Boolean,
-) : Object(name, params, aliases, metavariables) {
+) : Object(name, ctx, params, aliases, metavariables) {
 
     fun argsToParams(args: List<ExprContext>): List<String> {
         return args.withIndex().map { (i, arg) ->

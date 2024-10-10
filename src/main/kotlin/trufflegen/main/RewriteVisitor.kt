@@ -9,7 +9,6 @@ class RewriteVisitor(
     private val rootExpr: ParseTree,
     private val params: List<Param>,
     private val ruleArgs: List<ExprContext?>,
-    private val metavariables: Map<ExprContext, ExprContext>,
 ) : CBSBaseVisitor<String>() {
     private val callStack = ArrayDeque<String>()
 

@@ -4,12 +4,13 @@ import trufflegen.antlr.CBSParser.*
 
 abstract class FunconObject(
     name: String,
+    ctx: FunconDefinitionContext,
     val params: List<Param>,
     val returns: ReturnType,
     aliases: List<AliasDefinitionContext>,
     metavariables: Map<ExprContext, ExprContext>,
     val builtin: Boolean,
-) : Object(name, params, aliases, metavariables) {
+) : Object(name, ctx, params, aliases, metavariables) {
 
     private val paramsAfterVarargs: Int
         get() {

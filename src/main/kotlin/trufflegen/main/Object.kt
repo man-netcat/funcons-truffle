@@ -5,9 +5,10 @@ import trufflegen.antlr.CBSParser.*
 
 abstract class Object(
     val name: String,
+    val ctx: ParseTree,
     private val params: List<Param>,
     private val aliases: List<AliasDefinitionContext>,
-    private val metavariables: Map<ExprContext, ExprContext>,
+    private val fileMetavariables: Map<ExprContext, ExprContext>,
 ) {
     abstract fun generateCode(): String
 
@@ -40,7 +41,7 @@ abstract class Object(
 
     fun buildRewrite(definition: ParseTree, toRewrite: ParseTree): String {
         val args = extractArgs(definition)
-        val rewriteVisitor = RewriteVisitor(toRewrite, params, args, metavariables)
+        val rewriteVisitor = RewriteVisitor(toRewrite, params, args)
         val rewritten = rewriteVisitor.visit(toRewrite)
         return rewritten
     }
@@ -52,8 +53,11 @@ abstract class Object(
     }
 
     fun makeTypeParams(): Set<String> {
-        val mvarVisitor = MetavariableVisitor()
-        val typeParams = metavariables.keys.map { key -> mvarVisitor.visit(key) }.filterNotNull().toSet()
-        return typeParams
+        // TODO fix question marks
+        return fileMetavariables.keys
+            .filter { ArgVisitor(it.text).visit(ctx) }
+            .map { buildTypeRewrite(ReturnType(it)) }
+            .toSet()
     }
 }
+

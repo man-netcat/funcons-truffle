@@ -44,7 +44,7 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
             FunconObjectWithRewrite(name, funcon, params, rewritesTo, returns, aliases, metavariables, builtin)
         } else {
             val rules: List<RuleDefinitionContext> = funcon.ruleDefinition()
-            FunconObjectWithRules(name, params, rules, returns, aliases, metavariables, builtin)
+            FunconObjectWithRules(name, funcon, params, rules, returns, aliases, metavariables, builtin)
         }
 
         objects.add(dataContainer)
@@ -69,7 +69,7 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
 
         val builtin = datatype.modifier != null
 
-        val dataContainer = DatatypeObject(name, params, definitions, aliases, metavariables, builtin)
+        val dataContainer = DatatypeObject(name, datatype, params, definitions, aliases, metavariables, builtin)
 
         objects.add(dataContainer)
     }
@@ -84,7 +84,7 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
 
         val builtin = type.modifier != null
 
-        val dataContainer = TypeObject(name, definition, aliases, metavariables, builtin)
+        val dataContainer = TypeObject(name, type, definition, aliases, metavariables, builtin)
 
         objects.add(dataContainer)
     }
