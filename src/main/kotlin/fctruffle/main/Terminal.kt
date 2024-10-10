@@ -1,12 +1,6 @@
 package fctruffle.main
 
-import com.oracle.truffle.api.frame.VirtualFrame
-
-abstract class Terminal : FCTNode() {
-    abstract val value: String
-
-    abstract override fun execute(frame: VirtualFrame): String
-
+abstract class Terminal(open val value: String) : FCTNode() {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         return value == other

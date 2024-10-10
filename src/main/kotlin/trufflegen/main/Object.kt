@@ -4,17 +4,16 @@ import org.antlr.v4.runtime.tree.ParseTree
 import trufflegen.antlr.CBSParser.*
 
 abstract class Object(
+    val name: String,
+    private val params: List<Param>,
     private val aliases: List<AliasDefinitionContext>,
     private val metavariables: Map<ExprContext, ExprContext>,
-    builtin: Boolean = false
 ) {
-    abstract val name: String
     abstract fun generateCode(): String
 
     fun aliasStr(): String {
         return aliases.joinToString("\n") { alias -> makeTypeAlias(toClassName(alias.name.text), nodeName) }
     }
-
 
     internal val nodeName: String
         get() {
@@ -39,10 +38,10 @@ abstract class Object(
         }
     }
 
-    fun buildRewrite(ruleDef: ParseTree, rewritesTo: ParseTree, params: List<Param>): String {
-        val args = extractArgs(ruleDef)
-        val rewriteVisitor = RewriteVisitor(rewritesTo, params, args, metavariables)
-        val rewritten = rewriteVisitor.visit(rewritesTo)
+    fun buildRewrite(definition: ParseTree, toRewrite: ParseTree): String {
+        val args = extractArgs(definition)
+        val rewriteVisitor = RewriteVisitor(toRewrite, params, args, metavariables)
+        val rewritten = rewriteVisitor.visit(toRewrite)
         return rewritten
     }
 

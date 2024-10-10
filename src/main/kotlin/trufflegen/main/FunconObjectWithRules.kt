@@ -5,24 +5,21 @@ import trufflegen.main.RewriteVisitor.Companion.getParamIndex
 import kotlin.collections.mapNotNull
 
 class FunconObjectWithRules(
-    override val context: FunconDefinitionContext,
-    override val name: String,
-    override val params: List<Param>,
+    name: String,
+    params: List<Param>,
     private val rules: List<RuleDefinitionContext>,
-    private val returns: ReturnType,
+    returns: ReturnType,
     aliases: List<AliasDefinitionContext>,
     metavariables: MutableMap<ExprContext, ExprContext>,
-    builtin: Boolean,
-) : FunconObject(
-    context, name, params, aliases, metavariables, builtin
-) {
+    builtin: Boolean
+) : FunconObject(name, params, returns, aliases, metavariables, builtin) {
     private fun processConclusion(conclusion: PremiseContext): Triple<ExprContext, String, String> {
         fun processConclusionStep(step: StepContext, rewrite: String, ruleDef: ExprContext): String {
             return when (step) {
                 is StepWithoutLabelsContext -> rewrite
                 is StepWithLabelsContext -> {
                     val labelAssigns = step.labels().label().joinToString("\n") { label ->
-                        val labelValue = if (label.value != null) buildRewrite(ruleDef, label.value, params) else "null"
+                        val labelValue = if (label.value != null) buildRewrite(ruleDef, label.value) else "null"
                         "labelMap[\"${label.name.text}\"] = $labelValue"
                     }
                     "$labelAssigns\n$rewrite"
@@ -54,9 +51,9 @@ class FunconObjectWithRules(
                         is VariableContext -> null
                         is VariableStepContext -> null
                         is SuffixExpressionContext -> null
-                        is TupleExpressionContext -> "$paramStr == ${buildRewrite(def, arg, params)}"
+                        is TupleExpressionContext -> "$paramStr == ${buildRewrite(def, arg)}"
                         is ListExpressionContext -> {
-                            val rewrite = buildRewrite(def, arg, params)
+                            val rewrite = buildRewrite(def, arg)
                             if (rewrite == "emptyList()") "$paramStr.isEmpty()"
                             else "$paramStr == $rewrite"
                         }
@@ -75,7 +72,7 @@ class FunconObjectWithRules(
 
         return when (conclusion) {
             is RewritePremiseContext -> {
-                val rewrite = buildRewrite(conclusion.lhs, conclusion.rhs, params)
+                val rewrite = buildRewrite(conclusion.lhs, conclusion.rhs)
                 val conditions = if (conclusion.lhs is FunconExpressionContext) {
                     argsConditions(conclusion.lhs as FunconExpressionContext)
                 } else ""
@@ -84,36 +81,20 @@ class FunconObjectWithRules(
 
             is StepPremiseContext -> {
                 val stepExpr = conclusion.stepExpr()
-                when (stepExpr) {
-                    is StepExprWithMultipleStepsContext -> {
-                        val rewrite = buildRewrite(stepExpr.lhs, stepExpr.rhs, params)
-                        val steps = stepExpr.steps().step()
-                        val stepStr = steps.joinToString("\n") { step ->
-                            processConclusionStep(step, rewrite, stepExpr.lhs)
-                        }
-                        val conditions = if (stepExpr.lhs is FunconExpressionContext) {
-                            argsConditions(stepExpr.lhs as FunconExpressionContext)
-                        } else ""
-                        Triple(stepExpr.lhs, conditions, stepStr)
-                    }
-
-                    is StepExprWithSingleStepContext -> {
-                        val rewrite = buildRewrite(stepExpr.lhs, stepExpr.rhs, params)
-                        val step = stepExpr.step()
-                        val stepStr = processConclusionStep(step, rewrite, stepExpr.lhs)
-                        val conditions = if (stepExpr.lhs is FunconExpressionContext) {
-                            argsConditions(stepExpr.lhs as FunconExpressionContext)
-                        } else ""
-                        Triple(stepExpr.lhs, conditions, stepStr)
-                    }
-
-                    else -> throw Exception("Unexpected stepExpr type: ${stepExpr::class.simpleName}")
+                val rewrite = buildRewrite(stepExpr.lhs, stepExpr.rhs)
+                val steps = stepExpr.steps().step()
+                val stepStr = steps.joinToString("\n") { step ->
+                    processConclusionStep(step, rewrite, stepExpr.lhs)
                 }
+                val conditions = if (stepExpr.lhs is FunconExpressionContext) {
+                    argsConditions(stepExpr.lhs as FunconExpressionContext)
+                } else ""
+                Triple(stepExpr.lhs, conditions, stepStr)
             }
 
             is MutableEntityPremiseContext -> {
                 val mutableExpr = conclusion.mutableExpr()
-                val rewrite = buildRewrite(mutableExpr.lhs, mutableExpr.rhs, params)
+                val rewrite = buildRewrite(mutableExpr.lhs, mutableExpr.rhs)
                 val conditions = if (mutableExpr.lhs is FunconExpressionContext) {
                     argsConditions(mutableExpr.lhs as FunconExpressionContext)
                 } else ""
@@ -125,13 +106,10 @@ class FunconObjectWithRules(
         }
     }
 
-    private fun processPremises(
-        premises: List<PremiseContext>,
-        ruleDef: ExprContext,
-    ): Pair<String, String> {
+    private fun processPremises(premises: List<PremiseContext>, ruleDef: ExprContext): Pair<String, String> {
         fun processPremiseStep(step: StepWithLabelsContext, ruleDef: ExprContext): String {
             return step.labels().label().joinToString("\n") { label ->
-                val labelValue = if (label.value != null) buildRewrite(ruleDef, label.value, params) else "null"
+                val labelValue = if (label.value != null) buildRewrite(ruleDef, label.value) else "null"
                 "labelMap[\"${label.name.text}\"] == $labelValue"
             }
         }
@@ -140,50 +118,30 @@ class FunconObjectWithRules(
             when (premise) {
                 is StepPremiseContext -> {
                     val stepExpr = premise.stepExpr()
-                    when (stepExpr) {
-                        is StepExprWithMultipleStepsContext -> {
-                            val rewriteLhs = buildRewrite(ruleDef, stepExpr.lhs, params)
-                            val rewriteRhs = buildRewrite(ruleDef, stepExpr.rhs, params)
-                            val condition = "$rewriteLhs is Computation"
-                            val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
-                            val steps = stepExpr.steps().step().filterIsInstance<StepWithLabelsContext>()
-                            if (steps.isNotEmpty()) {
-                                val labelConditions = steps.joinToString(" && ") { step ->
-                                    processPremiseStep(step, stepExpr.lhs)
-                                }
-                                Pair("$condition && $labelConditions", rewrite)
-                            } else {
-                                Pair(condition, rewrite)
-                            }
+                    val rewriteLhs = buildRewrite(ruleDef, stepExpr.lhs)
+                    val rewriteRhs = buildRewrite(ruleDef, stepExpr.rhs)
+                    val condition = "$rewriteLhs is Computation"
+                    val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
+                    val labelSteps = stepExpr.steps().step().filterIsInstance<StepWithLabelsContext>()
+                    if (labelSteps.isNotEmpty()) {
+                        val labelConditions = labelSteps.joinToString(" && ") { step ->
+                            processPremiseStep(step, stepExpr.lhs)
                         }
-
-                        is StepExprWithSingleStepContext -> {
-                            val rewriteLhs = buildRewrite(ruleDef, stepExpr.lhs, params)
-                            val rewriteRhs = buildRewrite(ruleDef, stepExpr.rhs, params)
-                            val condition = "$rewriteLhs is Computation"
-                            val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
-                            val step = stepExpr.step()
-                            if (step is StepWithLabelsContext) {
-                                val labelCondition = processPremiseStep(step, stepExpr.lhs)
-                                Pair("$condition && $labelCondition", rewrite)
-                            } else {
-                                Pair(condition, rewrite)
-                            }
-                        }
-
-                        else -> throw Exception("Unexpected stepExpr type: ${stepExpr::class.simpleName}")
+                        Pair("$condition && $labelConditions", rewrite)
+                    } else {
+                        Pair(condition, rewrite)
                     }
                 }
 
                 is RewritePremiseContext -> {
-                    val rewriteLhs = buildRewrite(ruleDef, premise.lhs, params)
-                    val rewriteRhs = buildRewrite(ruleDef, premise.rhs, params)
+                    val rewriteLhs = buildRewrite(ruleDef, premise.lhs)
+                    val rewriteRhs = buildRewrite(ruleDef, premise.rhs)
                     val rewrite = "val $rewriteRhs = $rewriteLhs"
                     Pair(null, rewrite)
                 }
 
                 is BooleanPremiseContext -> {
-                    val value = buildRewrite(ruleDef, premise.lhs, params)
+                    val value = buildRewrite(ruleDef, premise.lhs)
                     val op = when (premise.op.text) {
                         "==" -> "=="
                         "=/=" -> "!="
@@ -194,7 +152,7 @@ class FunconObjectWithRules(
                 }
 
                 is TypePremiseContext -> {
-                    val value = buildRewrite(ruleDef, premise.value, params)
+                    val value = buildRewrite(ruleDef, premise.value)
                     val condition = when (val premiseType = premise.type) {
                         is ComplementExpressionContext -> "$value !is ${premiseType.operand.text}"
                         else -> "$value is ${premiseType.text}"

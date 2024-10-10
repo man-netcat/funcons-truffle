@@ -78,13 +78,20 @@ class TypeRewriteVisitor(private val type: Type) : CBSBaseVisitor<String>() {
         val clsName = when (val tupleLength = ctx.exprs().expr().size) {
             2 -> "Tuple"
             3 -> "Triple"
-            else -> "Unexpected tuple length: $tupleLength"
+            else -> throw DetailedException("Unexpected tuple length: $tupleLength")
         }
         return clsName + "<" + ctx.exprs().expr().joinToString { visit(it) } + ">"
     }
 
     override fun visitBinaryComputesExpression(ctx: BinaryComputesExpressionContext): String =
         "(" + visit(ctx.lhs) + ") -> " + visit(ctx.rhs)
+
+    override fun visitOrExpression(ctx: OrExpressionContext): String {
+        return when (ctx.rhs.text) {
+            ctx.rhs.text -> visit(ctx.lhs) + "?"
+            else -> throw DetailedException("Unexpected return type: ${ctx.text}")
+        }
+    }
 
     override fun visitVariable(ctx: VariableContext): String = ctx.varname.text
     override fun visitVariableStep(ctx: VariableStepContext): String = ctx.varname.text + "p".repeat(ctx.squote().size)

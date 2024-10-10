@@ -23,11 +23,11 @@ fun makeParam(annotation: String, name: String, type: String): String {
 fun makeFunction(
     name: String,
     returnType: String,
-    parameters: List<Triple<String, String, String>>,
+    parameters: List<String>,
     body: String,
     modifiers: List<String> = emptyList(),
 ): String {
-    val params = parameters.joinToString(", ") { makeParam(it.first, it.second, it.third) }
+    val params = parameters.joinToString(", ")
 
     val modifierStr = if (modifiers.isNotEmpty()) {
         modifiers.joinToString(" ") + " "
@@ -53,7 +53,7 @@ fun makeIfStatement(vararg conditions: Pair<String, String>, elseBranch: String?
 }
 
 fun makeExecuteFunction(content: String, returns: String): String {
-    return makeFunction("execute", returns, listOf(Triple("", "frame", "VirtualFrame")), content, listOf("override"))
+    return makeFunction("execute", returns, listOf(makeParam("", "frame", "VirtualFrame")), content, listOf("override"))
 }
 
 fun makeForLoop(variable: String, range: String, body: String): String {
@@ -72,7 +72,7 @@ fun makeClass(
     body: Boolean = true,
     keywords: List<String> = emptyList(),
     annotations: List<String> = emptyList(),
-    constructorArgs: List<Triple<String, String, String>> = emptyList(),
+    constructorArgs: List<String> = emptyList(),
     properties: List<Pair<String, String>> = emptyList(),
     typeParams: Set<String> = emptySet(),
     superClass: String? = null,
@@ -85,11 +85,7 @@ fun makeClass(
         ""
     }
 
-    val constructorStr = if (constructorArgs.isNotEmpty()) {
-        constructorArgs.joinToString(", ") { makeParam(it.first, it.second, it.third) }
-    } else {
-        ""
-    }
+    val constructorStr = constructorArgs.joinToString(", ")
 
     val propertiesStr = properties.joinToString("\n") { "val ${it.first}: ${it.second}" }
 
@@ -154,16 +150,4 @@ fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<String>
         ""
     }
     return "typealias $aliasName$typeParamStr = $targetType"
-}
-
-infix fun <T, R> Iterable<T>.zip(other: Iterable<R>): List<Pair<T, R>> {
-    val iterator1 = this.iterator()
-    val iterator2 = other.iterator()
-    val result = mutableListOf<Pair<T, R>>()
-
-    while (iterator1.hasNext() && iterator2.hasNext()) {
-        result.add(Pair(iterator1.next(), iterator2.next()))
-    }
-
-    return result
 }

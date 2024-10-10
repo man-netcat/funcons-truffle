@@ -4,9 +4,11 @@ import trufflegen.antlr.CBSParser.AliasDefinitionContext
 import trufflegen.antlr.CBSParser.ExprContext
 
 class EntityObject(
-    override val name: String, aliases: List<AliasDefinitionContext>,
+    name: String,
+    params: List<Param>,
+    aliases: List<AliasDefinitionContext>,
     metavariables: MutableMap<ExprContext, ExprContext>,
-) : Object(aliases, metavariables) {
+) : Object(name, params, aliases, metavariables) {
     override fun generateCode(): String {
         TODO("Not yet implemented")
     }

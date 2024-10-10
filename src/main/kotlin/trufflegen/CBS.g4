@@ -110,8 +110,7 @@ mutableExpr
    ;
 
 stepExpr
-   : (context = expr '|-')? lhs = expr step rhs = expr # StepExprWithSingleStep
-   | (context = expr '|-')? lhs = expr steps rhs = expr # StepExprWithMultipleSteps
+   : (context = expr '|-')? lhs = expr steps rhs = expr
    ;
 
 premise

@@ -3,13 +3,13 @@ package trufflegen.main
 import trufflegen.antlr.CBSParser.*
 
 abstract class FunconObject(
-    internal open val context: FunconDefinitionContext,
-    override val name: String,
-    open val params: List<Param>,
+    name: String,
+    val params: List<Param>,
+    val returns: ReturnType,
     aliases: List<AliasDefinitionContext>,
     metavariables: Map<ExprContext, ExprContext>,
     val builtin: Boolean,
-) : Object(aliases, metavariables, builtin) {
+) : Object(name, params, aliases, metavariables) {
 
     private val paramsAfterVarargs: Int
         get() {
@@ -28,29 +28,22 @@ abstract class FunconObject(
         val paramsStr = params.map { param ->
             val annotation = if (param.type.isVararg) "@Children private vararg val" else "@Child private val"
             val paramTypeStr = buildTypeRewrite(param.type)
-            Triple(annotation, param.name, paramTypeStr)
+            makeParam(annotation, param.name, paramTypeStr)
         }
 
-        return if (builtin) {
-            makeClass(
-                nodeName,
-                content = "TODO(\"Implement me\")",
-                constructorArgs = paramsStr,
-                superClass = "Computation"
-            )
+        val (typeParams, content) = if (builtin) {
+            emptySet<String>() to "TODO(\"Implement me\")"
         } else {
-            val typeParams = makeTypeParams()
-
-            val content = makeContent()
-
-            makeClass(
-                nodeName,
-                content = content,
-                constructorArgs = paramsStr,
-                typeParams = typeParams,
-                superClass = "Computation"
-            )
+            makeTypeParams() to makeContent()
         }
+
+        return makeClass(
+            nodeName,
+            content = content,
+            constructorArgs = paramsStr,
+            typeParams = typeParams,
+            superClass = "Computation"
+        )
     }
 }
 
