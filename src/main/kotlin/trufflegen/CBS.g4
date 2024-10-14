@@ -97,8 +97,8 @@ labels
    ;
 
 step
-   : '--->' sequenceNumber = NUMBER? # StepWithoutLabels
-   | '--' labels '->' sequenceNumber = NUMBER? # StepWithLabels
+   : '--->' sequenceNumber = NUMBER?
+   | '--' labels '->' sequenceNumber = NUMBER?
    ;
 
 steps

@@ -14,22 +14,40 @@ class FunconObjectWithRules(
     metavariables: MutableMap<ExprContext, ExprContext>,
     builtin: Boolean
 ) : FunconObject(name, ctx, params, returns, aliases, metavariables, builtin) {
-    private fun processConclusion(conclusion: PremiseContext): Triple<ExprContext, String, String> {
-        fun processConclusionStep(step: StepContext, rewrite: String, ruleDef: ExprContext): String {
-            return when (step) {
-                is StepWithoutLabelsContext -> rewrite
-                is StepWithLabelsContext -> {
-                    val labelAssigns = step.labels().label().joinToString("\n") { label ->
-                        val labelValue = if (label.value != null) buildRewrite(ruleDef, label.value) else "null"
-                        "labelMap[\"${label.name.text}\"] = $labelValue"
-                    }
-                    "$labelAssigns\n$rewrite"
+    fun encapsulateSteps(
+        stepExpr: StepExprContext,
+        separator: String,
+        processLabel: (LabelContext) -> String
+    ): String {
+        return stepExpr.steps()
+            ?.step()
+            ?.sortedBy { step -> step.sequenceNumber?.text?.toInt() }
+            ?.mapNotNull { step ->
+                step.labels()?.label()?.joinToString(separator) { label ->
+                    processLabel(label)
                 }
-
-                else -> throw Exception("Unexpected step type: ${step::class.simpleName}")
             }
-        }
+            ?.filter { stepStr -> stepStr.isNotBlank() }
+            ?.joinToString(separator) ?: ""
+    }
 
+    fun gatherLabels(
+        stepExpr: StepExprContext,
+        processLabel: (LabelContext) -> Pair<String, String>
+    ): Map<String, String> {
+        return stepExpr.steps()
+            ?.step()
+            ?.sortedBy { step -> step.sequenceNumber?.text?.toInt() }
+            ?.flatMap { step ->
+                step.labels()?.label()?.map { label ->
+                    processLabel(label)
+                } ?: emptyList()
+            }
+            ?.toMap() ?: emptyMap()
+    }
+
+    private fun processConclusion(conclusion: PremiseContext): Triple<ExprContext, String, String> {
+        println("conclusion: ${conclusion.text}")
         fun argsConditions(def: FunconExpressionContext): String {
             fun rewriteArg(args: List<ExprContext>): String {
                 // First extract the actual value from the argument, or the type if no value available.
@@ -83,10 +101,13 @@ class FunconObjectWithRules(
             is StepPremiseContext -> {
                 val stepExpr = conclusion.stepExpr()
                 val rewrite = buildRewrite(stepExpr.lhs, stepExpr.rhs)
-                val steps = stepExpr.steps().step()
-                val stepStr = steps.joinToString("\n") { step ->
-                    processConclusionStep(step, rewrite, stepExpr.lhs)
+                val labelAssigns = encapsulateSteps(stepExpr, "\n") { label ->
+                    val labelValue = if (label.value != null) {
+                        buildRewrite(stepExpr.lhs, label.value)
+                    } else "null"
+                    "labelMap[\"${label.name.text}\"] = $labelValue"
                 }
+                val stepStr = if (labelAssigns.isNotEmpty()) "$labelAssigns\n$rewrite" else rewrite
                 val conditions = if (stepExpr.lhs is FunconExpressionContext) {
                     argsConditions(stepExpr.lhs as FunconExpressionContext)
                 } else ""
@@ -108,26 +129,23 @@ class FunconObjectWithRules(
     }
 
     private fun processPremises(premises: List<PremiseContext>, ruleDef: ExprContext): Pair<String, String> {
-        fun processPremiseStep(step: StepWithLabelsContext, ruleDef: ExprContext): String {
-            return step.labels().label().joinToString("\n") { label ->
-                val labelValue = if (label.value != null) buildRewrite(ruleDef, label.value) else "null"
-                "labelMap[\"${label.name.text}\"] == $labelValue"
-            }
-        }
-
         val result = premises.map { premise ->
+            println("premise: ${premise.text}")
             when (premise) {
                 is StepPremiseContext -> {
                     val stepExpr = premise.stepExpr()
+                    val labelConditions = encapsulateSteps(stepExpr, " && ") { label ->
+                        val labelValue = if (label.value != null) {
+                            buildRewrite(stepExpr.lhs, label.value)
+                        } else "null"
+                        "labelMap[\"${label.name.text}\"] == $labelValue"
+                    }
                     val rewriteLhs = buildRewrite(ruleDef, stepExpr.lhs)
                     val rewriteRhs = buildRewrite(ruleDef, stepExpr.rhs)
                     val condition = "$rewriteLhs is Computation"
                     val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
-                    val labelSteps = stepExpr.steps().step().filterIsInstance<StepWithLabelsContext>()
-                    if (labelSteps.isNotEmpty()) {
-                        val labelConditions = labelSteps.joinToString(" && ") { step ->
-                            processPremiseStep(step, stepExpr.lhs)
-                        }
+
+                    if (labelConditions.isNotBlank()) {
                         Pair("$condition && $labelConditions", rewrite)
                     } else {
                         Pair(condition, rewrite)

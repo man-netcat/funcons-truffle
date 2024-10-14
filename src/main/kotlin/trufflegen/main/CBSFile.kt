@@ -28,9 +28,7 @@ class CBSFile(val name: String, val root: RootContext, private val index: Set<St
 
     override fun visitFunconDefinition(funcon: FunconDefinitionContext) {
         val name = funcon.name.text
-        if (name !in index) {
-            return
-        }
+        if (name !in index) return
 
         val params = extractParams(funcon)
 
