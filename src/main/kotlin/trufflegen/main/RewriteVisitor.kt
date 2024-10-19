@@ -8,7 +8,8 @@ import trufflegen.antlr.CBSParser.*
 class RewriteVisitor(
     private val rootExpr: ParseTree,
     private val params: List<Param>,
-    private val ruleArgs: List<ExprContext?>,
+    private val ruleArgs: List<ExprContext>,
+    private val entities: Map<String, String>,
 ) : CBSBaseVisitor<String>() {
     private val callStack = ArrayDeque<String>()
 
@@ -74,6 +75,11 @@ class RewriteVisitor(
             else -> throw DetailedException("Unexpected expression type: ${expr::class.simpleName}")
         }
 
+        if (text in entities.keys) {
+            val labelName = entities[text]
+            return entityMap(labelName!!)
+        }
+
         val exprIsArg = when (rootExpr) {
             is FunconExpressionContext, is ListIndexExpressionContext, is ListExpressionContext -> true
             else -> false
@@ -81,8 +87,9 @@ class RewriteVisitor(
 
         val argIndex = ruleArgs.indexOfFirst { ArgVisitor(text).visit(it) }
         if (argIndex == -1) {
-            val stringArgs = ruleArgs.map { it?.text }
-            throw DetailedException("String '$text' not found in $stringArgs")
+
+            val stringArgs = ruleArgs.map { arg -> arg.text }
+            throw StringNotFoundException(text, stringArgs)
         }
         val varargParamIndex = params.indexOfFirst { it.type.isVararg }
         val starPrefix = if (exprIsArg && argIsArray) "*" else ""

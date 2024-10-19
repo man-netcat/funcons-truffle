@@ -5,10 +5,9 @@ import trufflegen.antlr.CBSParser.*
 
 abstract class Type(val expr: ExprContext) : CBSBaseVisitor<Unit>() {
     private var computes: Int = 0
-    private var qmarks: Int = 0
+    var qmarks: Int = 0
     var pluses: Int = 0
     var stars: Int = 0
-    private var powns: Int = 0
     val text: String = expr.text
 
     init {
@@ -19,7 +18,6 @@ abstract class Type(val expr: ExprContext) : CBSBaseVisitor<Unit>() {
         get() = when {
             pluses > 0 -> TypeCategory.PLUS
             stars > 0 -> TypeCategory.STAR
-            powns > 0 -> TypeCategory.POWN
             qmarks > 0 -> TypeCategory.QMARK
             else -> TypeCategory.SINGLE
         }
@@ -35,7 +33,6 @@ abstract class Type(val expr: ExprContext) : CBSBaseVisitor<Unit>() {
             STAR -> stars++
             PLUS -> pluses++
             QMARK -> qmarks++
-            POWN -> powns++
         }
 
         super.visitSuffixExpression(suffixExpr)

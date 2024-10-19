@@ -1,6 +1,6 @@
 package trufflegen.main
 
-class DetailedException(
+open class DetailedException(
     message: String, cause: Throwable? = null
 ) : Exception(message, cause) {
     private val red = "\u001B[31m"

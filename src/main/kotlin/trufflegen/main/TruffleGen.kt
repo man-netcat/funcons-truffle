@@ -12,44 +12,14 @@ import kotlin.io.path.pathString
 
 private val globalObjects: MutableMap<String, Object> = mutableMapOf()
 
-class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
+class TruffleGen(private val cbsDir: File) {
     private val files: MutableMap<String, CBSFile> = mutableMapOf()
-    private var index: MutableSet<String> = mutableSetOf<String>()
-    private var dependencies: MutableSet<String> = mutableSetOf<String>()
-    private var builtins: MutableSet<String> = mutableSetOf<String>()
     private var parseTrees: MutableMap<String, RootContext> = mutableMapOf<String, RootContext>()
 
     fun process() {
-        buildIndex()
-
         generateParseTrees()
-        findDependencies()
-
-        index.removeAll(builtins)
-        index.forEach { println("Index: $it") }
-        dependencies.forEach { println("Dependency: $it") }
-        builtins.forEach { println("Builtin: $it") }
-
-        if (languageIndex != null) {
-            println("Index: ${index.size}, Dependencies: ${dependencies.size}, Total: ${index.size + dependencies.size} (Builtins: ${builtins.size})")
-        }
-        index.addAll(dependencies)
-
         generateObjects()
         generateCode()
-    }
-
-
-    fun buildIndex() {
-        if (languageIndex == null) return
-        val input = CharStreams.fromPath(languageIndex.toPath())
-        val lexer = CBSLexer(input)
-        val tokens = CommonTokenStream(lexer)
-        val parser = CBSParser(tokens)
-        val root = parser.root()
-        val indexVisitor = IndexVisitor()
-        indexVisitor.visit(root)
-        index = indexVisitor.index
     }
 
     private fun generateParseTrees() {
@@ -63,31 +33,10 @@ class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
         }
     }
 
-    private fun findDependencies() {
-        if (languageIndex == null) return
-
-        var newDependenciesFound: Boolean
-
-        do {
-            val previousDependencies = dependencies.toSet()
-
-            newDependenciesFound = false
-            parseTrees.forEach { name, root ->
-                val depVisitor = DependencyVisitor(index, dependencies, builtins)
-                depVisitor.visit(root)
-            }
-
-            if (dependencies != previousDependencies) {
-                newDependenciesFound = true
-            }
-        } while (newDependenciesFound)
-    }
-
-
     private fun generateObjects() {
         parseTrees.forEach { name, root ->
             println("Generating objects for file $name...")
-            val cbsFile = CBSFile(name, root, index)
+            val cbsFile = CBSFile(name, root)
             cbsFile.visit(root)
             val fileObjects = cbsFile.objects
             if (fileObjects.isNotEmpty()) {
@@ -105,7 +54,7 @@ class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
 
         files.forEach { (name, file) ->
             println("Generating code for file $name...")
-            val code = file.generateCode(builtins)
+            val code = file.generateCode()
             println(code)
             val fileNameWithoutExtension = name.removeSuffix(".cbs")
             val filePath = outputDir.resolve("$fileNameWithoutExtension.kt").pathString
@@ -118,7 +67,7 @@ class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
         @JvmStatic
         fun main(args: Array<String>) {
             if (args.isEmpty()) {
-                println("Usage: <program> <cbsDir> [<languageIndex>]")
+                println("Usage: <program> <cbsDir>")
                 return
             }
 
@@ -129,20 +78,7 @@ class TruffleGen(private val cbsDir: File, private val languageIndex: File?) {
             }
             val cbsDir = cbsDirPath.toFile()
 
-            val languageIndex = if (args.size > 1) {
-                val languageIndexPath = Path.of(args[1])
-                if (!Files.exists(languageIndexPath) || !Files.isRegularFile(languageIndexPath)) {
-                    println("Invalid file: ${languageIndexPath.pathString}")
-                    return
-                }
-                languageIndexPath.toFile()
-            } else {
-                println("No language index provided. Generating code for all Funcons in CBS dir.")
-                null
-            }
-            if (languageIndex != null) println("Generating code for Funcons in ${languageIndex.name}")
-
-            val truffleGen = TruffleGen(cbsDir, languageIndex)
+            val truffleGen = TruffleGen(cbsDir)
             truffleGen.process()
         }
     }

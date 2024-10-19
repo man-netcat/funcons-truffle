@@ -29,19 +29,23 @@ abstract class Object(
                     is SingleArgsContext -> listOf(args.expr())
                     is MultipleArgsContext -> args.exprs().expr()
                     is ListIndexExpressionContext -> args.indices.expr()
-                    else -> throw DetailedException("Unexpected args type: ${args::class.simpleName}")
+                    else -> throw DetailedException("Unexpected args type: ${args::class.simpleName}, ${args.text}")
                 }
             }
 
             is FunconDefinitionContext -> funcon.params()?.param()?.map { it.value ?: it.type } ?: emptyList()
 
-            else -> throw DetailedException("Unexpected funcon type: ${funcon::class.simpleName}")
+            else -> throw DetailedException("Unexpected funcon type: ${funcon::class.simpleName}, ${funcon.text}")
         }
     }
 
-    fun buildRewrite(definition: ParseTree, toRewrite: ParseTree): String {
+    fun buildRewrite(
+        definition: ParseTree,
+        toRewrite: ParseTree,
+        entities: Map<String, String> = emptyMap()
+    ): String {
         val args = extractArgs(definition)
-        val rewriteVisitor = RewriteVisitor(toRewrite, params, args)
+        val rewriteVisitor = RewriteVisitor(toRewrite, params, args, entities)
         val rewritten = rewriteVisitor.visit(toRewrite)
         return rewritten
     }

@@ -151,3 +151,7 @@ fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<String>
     }
     return "typealias $aliasName$typeParamStr = $targetType"
 }
+
+fun entityMap(name: String) = "entityMap[\"${name}\"]"
+
+fun todoExecute() = makeExecuteFunction("TODO(\"Implement me\")", "Any?")

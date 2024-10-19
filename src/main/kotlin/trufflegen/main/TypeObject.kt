@@ -11,15 +11,12 @@ open class TypeObject(
     val builtin: Boolean,
 ) : Object(name, ctx, emptyList(), aliases, metavariables) {
     override fun generateCode(): String {
-        if (definition == null) return ""
-
-        val content = if (builtin) {
-            "TODO(\"Implement me\")"
-        } else {
+        println("type: $name")
+        val content = if (definition != null) {
             val type = ReturnType(definition)
             val rewriteVisitor = TypeRewriteVisitor(type)
             rewriteVisitor.visit(definition)
-        }
+        } else todoExecute()
 
         return makeTypeAlias(nodeName, content)
     }

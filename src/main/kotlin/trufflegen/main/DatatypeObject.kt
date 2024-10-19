@@ -17,7 +17,7 @@ class DatatypeObject(
             when (arg) {
                 is TypeExpressionContext -> {
                     val setType = ReturnType(arg.type)
-                    val annotation = "@Child private val"
+                    val annotation = if (setType.isVararg) "@Children private vararg val" else "@Child private val"
                     val paramTypeStr = buildTypeRewrite(setType)
                     makeParam(annotation, "p$i", paramTypeStr)
                 }
@@ -28,16 +28,21 @@ class DatatypeObject(
     }
 
     override fun generateCode(): String {
-        if (builtin) return makeClass(name, content = "TODO(\"Implement me\")")
+        val paramsStr = params.map { param ->
+            val annotation = if (param.type.isVararg) "@Children private vararg val" else "@Child private val"
+            val paramTypeStr = buildTypeRewrite(param.type)
+            makeParam(annotation, param.name, paramTypeStr)
+        }
 
-        val typeParams = params.map { buildTypeRewrite(it.type) }.toSet()
+        val typeParams = if (builtin) emptySet<String>() else makeTypeParams()
 
         val superClass = makeClass(
-            toClassName(name),
+            nodeName,
+            body = false,
+            constructorArgs = paramsStr,
+            keywords = listOf("open"),
             typeParams = typeParams,
             superClass = "Computation",
-            body = false,
-            keywords = listOf("open"),
         )
 
         val clss = definitions.map { def ->

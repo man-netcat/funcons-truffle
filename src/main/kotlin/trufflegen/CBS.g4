@@ -49,7 +49,8 @@ squote
 
 expr
    : name = IDENTIFIER args # FunconExpression
-   | operand = expr op = (STAR | PLUS | QMARK | POWN) # SuffixExpression
+   | operand = expr POW power = expr # PowerExpression
+   | operand = expr op = (STAR | PLUS | QMARK) # SuffixExpression
    | op = COMPLEMENT operand = expr # ComplementExpression
    | op = COMPUTES operand = expr # UnaryComputesExpression
    | lhs = expr op = COMPUTES rhs = expr # BinaryComputesExpression
@@ -57,7 +58,6 @@ expr
    | lhs = expr op = AND rhs = expr # AndExpression
    | lhs = expr op = OR rhs = expr # OrExpression
    | value = expr op = COLON type = expr # TypeExpression
-   //   | value = expr op = SUBTYPE type = expr # SubTypeExpression
    | '(' expr ')' # NestedExpression
    | '[' exprs? ']' # ListExpression
    | '{' expr? '}' # SetExpression
@@ -110,7 +110,7 @@ mutableExpr
    ;
 
 stepExpr
-   : (context = expr '|-')? lhs = expr steps rhs = expr
+   : (context_ = label '|-')? lhs = expr steps rhs = expr
    ;
 
 premise
@@ -149,8 +149,8 @@ QMARK
    : '?'
    ;
 
-POWN
-   : '^N'
+POW
+   : '^'
    ;
 
 COMPUTES

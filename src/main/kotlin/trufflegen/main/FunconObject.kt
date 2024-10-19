@@ -33,7 +33,7 @@ abstract class FunconObject(
         }
 
         val (typeParams, content) = if (builtin) {
-            emptySet<String>() to "TODO(\"Implement me\")"
+            emptySet<String>() to todoExecute()
         } else {
             makeTypeParams() to makeContent()
         }

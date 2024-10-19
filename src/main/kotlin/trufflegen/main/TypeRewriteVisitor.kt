@@ -1,5 +1,6 @@
 package trufflegen.main
 
+import org.antlr.v4.runtime.tree.RuleNode
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
@@ -93,8 +94,26 @@ class TypeRewriteVisitor(private val type: Type) : CBSBaseVisitor<String>() {
         }
     }
 
+    override fun visitPowerExpression(ctx: PowerExpressionContext): String {
+        return when (type) {
+            is ReturnType -> "List<${visit(ctx.operand)}>"
+            is ParamType -> if (nestedValue == 0) {
+                nestedValue++
+                visit(ctx.operand)
+            } else "List<${visit(ctx.operand)}>"
+
+            else -> throw DetailedException("Unexpected type: ${ctx::class.simpleName}")
+        }
+    }
+
     override fun visitVariable(ctx: VariableContext): String = ctx.varname.text
     override fun visitVariableStep(ctx: VariableStepContext): String = ctx.varname.text + "p".repeat(ctx.squote().size)
     override fun visitNestedExpression(ctx: NestedExpressionContext): String = visit(ctx.expr())
     override fun visitUnaryComputesExpression(ctx: UnaryComputesExpressionContext): String = visit(ctx.expr())
+    override fun visitNumber(ctx: NumberContext): String = ctx.text
+
+    override fun visitChildren(node: RuleNode): String {
+        println("${node::class.simpleName}")
+        return super.visitChildren(node)
+    }
 }

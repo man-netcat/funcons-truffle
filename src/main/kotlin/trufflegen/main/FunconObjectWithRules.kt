@@ -3,6 +3,7 @@ package trufflegen.main
 import trufflegen.antlr.CBSParser.*
 import trufflegen.main.RewriteVisitor.Companion.getParamIndex
 import kotlin.collections.mapNotNull
+import kotlin.collections.orEmpty
 
 class FunconObjectWithRules(
     name: String,
@@ -14,39 +15,25 @@ class FunconObjectWithRules(
     metavariables: MutableMap<ExprContext, ExprContext>,
     builtin: Boolean
 ) : FunconObject(name, ctx, params, returns, aliases, metavariables, builtin) {
-    fun encapsulateSteps(
-        stepExpr: StepExprContext,
-        separator: String,
-        processLabel: (LabelContext) -> String
-    ): String {
-        return stepExpr.steps()
-            ?.step()
-            ?.sortedBy { step -> step.sequenceNumber?.text?.toInt() }
-            ?.mapNotNull { step ->
-                step.labels()?.label()?.joinToString(separator) { label ->
-                    processLabel(label)
-                }
-            }
-            ?.filter { stepStr -> stepStr.isNotBlank() }
-            ?.joinToString(separator) ?: ""
+    private fun isInputOutputEntity(stepExpr: StepExprContext): Boolean {
+        val steps = stepExpr.steps().step()
+        val labels = steps.firstOrNull()?.labels()?.label()
+        return steps.size == 1 && labels?.size == 1 && labels.firstOrNull()?.polarity != null
     }
 
-    fun gatherLabels(
-        stepExpr: StepExprContext,
-        processLabel: (LabelContext) -> Pair<String, String>
-    ): Map<String, String> {
-        return stepExpr.steps()
-            ?.step()
-            ?.sortedBy { step -> step.sequenceNumber?.text?.toInt() }
-            ?.flatMap { step ->
-                step.labels()?.label()?.map { label ->
-                    processLabel(label)
-                } ?: emptyList()
-            }
-            ?.toMap() ?: emptyMap()
+    private fun gatherLabels(stepExpr: StepExprContext): List<LabelContext> {
+        return if (stepExpr.context_?.name != null) {
+            listOf(stepExpr.context_)
+        } else {
+            stepExpr.steps()?.step()?.sortedBy { step -> step.sequenceNumber?.text?.toInt() }?.flatMap { step ->
+                    step.labels()?.label()?.filter { label -> label.value != null }.orEmpty()
+                }.orEmpty()
+        }
     }
 
-    private fun processConclusion(conclusion: PremiseContext): Triple<ExprContext, String, String> {
+    private fun processConclusion(
+        conclusion: PremiseContext, entityMap: Map<String, String>
+    ): Triple<ExprContext, String, String> {
         println("conclusion: ${conclusion.text}")
         fun argsConditions(def: FunconExpressionContext): String {
             fun rewriteArg(args: List<ExprContext>): String {
@@ -100,18 +87,18 @@ class FunconObjectWithRules(
 
             is StepPremiseContext -> {
                 val stepExpr = conclusion.stepExpr()
-                val rewrite = buildRewrite(stepExpr.lhs, stepExpr.rhs)
-                val labelAssigns = encapsulateSteps(stepExpr, "\n") { label ->
-                    val labelValue = if (label.value != null) {
-                        buildRewrite(stepExpr.lhs, label.value)
-                    } else "null"
-                    "labelMap[\"${label.name.text}\"] = $labelValue"
+                if (isInputOutputEntity(stepExpr)) return Triple(
+                    stepExpr.lhs, "TODO(\"Condition\")", "TODO(\"Content\")"
+                )
+                val entityStr = gatherLabels(stepExpr).joinToString("\n") { label ->
+                    entityMap(label.name.text) + " = " + buildRewrite(stepExpr.lhs, label.value)
                 }
-                val stepStr = if (labelAssigns.isNotEmpty()) "$labelAssigns\n$rewrite" else rewrite
+                var rewriteStr = buildRewrite(stepExpr.lhs, stepExpr.rhs, entityMap)
+                rewriteStr = if (entityStr.isNotEmpty()) "$entityStr\n$rewriteStr" else rewriteStr
                 val conditions = if (stepExpr.lhs is FunconExpressionContext) {
                     argsConditions(stepExpr.lhs as FunconExpressionContext)
                 } else ""
-                Triple(stepExpr.lhs, conditions, stepStr)
+                Triple(stepExpr.lhs, conditions, rewriteStr)
             }
 
             is MutableEntityPremiseContext -> {
@@ -128,20 +115,21 @@ class FunconObjectWithRules(
         }
     }
 
-    private fun processPremises(premises: List<PremiseContext>, ruleDef: ExprContext): Pair<String, String> {
+    private fun processPremises(
+        premises: List<PremiseContext>, ruleDef: ExprContext, entityMap: Map<String, String>
+    ): Pair<String, String> {
         val result = premises.map { premise ->
             println("premise: ${premise.text}")
             when (premise) {
                 is StepPremiseContext -> {
                     val stepExpr = premise.stepExpr()
-                    val labelConditions = encapsulateSteps(stepExpr, " && ") { label ->
-                        val labelValue = if (label.value != null) {
-                            buildRewrite(stepExpr.lhs, label.value)
-                        } else "null"
-                        "labelMap[\"${label.name.text}\"] == $labelValue"
+                    val labelConditions = gatherLabels(stepExpr).joinToString(" && ") { label ->
+                        entityMap(label.name.text) + " == " + (if (label.value != null) {
+                            buildRewrite(ruleDef, label.value)
+                        } else "null")
                     }
-                    val rewriteLhs = buildRewrite(ruleDef, stepExpr.lhs)
-                    val rewriteRhs = buildRewrite(ruleDef, stepExpr.rhs)
+                    val rewriteLhs = buildRewrite(ruleDef, stepExpr.lhs, entityMap)
+                    val rewriteRhs = buildRewrite(ruleDef, stepExpr.rhs, entityMap)
                     val condition = "$rewriteLhs is Computation"
                     val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
 
@@ -189,12 +177,36 @@ class FunconObjectWithRules(
         return Pair(conditions, rewrites)
     }
 
+    private fun buildEntityMap(premises: List<PremiseContext>, conclusion: PremiseContext): Map<String, String> {
+        return (premises + conclusion).flatMap { premise ->
+            if (premise is StepPremiseContext) {
+                val stepExpr = premise.stepExpr()
+                if (stepExpr.context_?.name != null) {
+                    if (stepExpr.context_.value != null) {
+                        listOf(stepExpr.context_.value.text to stepExpr.context_.name.text)
+                    } else emptyList()
+                } else {
+                    stepExpr.steps()?.step()?.sortedBy { step -> step.sequenceNumber?.text?.toInt() }?.flatMap { step ->
+                            step.labels()?.label()?.filter { label -> label.value != null }
+                                ?.map { label -> label.value.text to label.name.text }.orEmpty()
+                        }.orEmpty()
+                }
+            } else if (premise is MutableEntityPremiseContext) {
+                emptyList()
+            } else emptyList()
+        }.toMap()
+    }
+
     override fun makeContent(): String {
         val pairs = rules.map { rule ->
-            val (ruleDef, conclusionConditions, conclusionRewrite) = processConclusion(rule.conclusion)
             val premises = rule.premises()?.premise()?.toList() ?: emptyList()
+            val conclusion = rule.conclusion
 
-            val (premiseConditions, premiseRewrite) = processPremises(premises, ruleDef)
+            val entityMap = buildEntityMap(premises, conclusion)
+
+            val (ruleDef, conclusionConditions, conclusionRewrite) = processConclusion(conclusion, entityMap)
+
+            val (premiseConditions, premiseRewrite) = processPremises(premises, ruleDef, entityMap)
 
             val finalConditions =
                 listOf(premiseConditions, conclusionConditions).filter { it.isNotEmpty() }.joinToString(" && ")
@@ -203,6 +215,8 @@ class FunconObjectWithRules(
 
             Pair(finalConditions, finalRewrite)
         }
+
+        if (pairs.any { it.first.isEmpty() }) throw EmptyConditionException(name)
 
         val content =
             "return " + makeIfStatement(*pairs.toTypedArray(), elseBranch = "throw Exception(\"Illegal Argument\")")
