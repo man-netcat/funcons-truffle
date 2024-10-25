@@ -111,9 +111,13 @@ class TypeRewriteVisitor(private val type: Type) : CBSBaseVisitor<String>() {
     override fun visitNestedExpression(ctx: NestedExpressionContext): String = visit(ctx.expr())
     override fun visitUnaryComputesExpression(ctx: UnaryComputesExpressionContext): String = visit(ctx.expr())
     override fun visitNumber(ctx: NumberContext): String = ctx.text
+    override fun visitTypeExpression(ctx: TypeExpressionContext): String {
+        println("typeexpr: ${ctx.text}")
+        return visit(ctx.type)
+    }
 
     override fun visitChildren(node: RuleNode): String {
-        println("${node::class.simpleName}")
+        println("visiting... ${node::class.simpleName}: ${node.text}")
         return super.visitChildren(node)
     }
 }

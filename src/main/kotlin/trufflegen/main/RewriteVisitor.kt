@@ -64,6 +64,8 @@ class RewriteVisitor(
     override fun visitString(string: StringContext): String = string.text
 
     private fun rewriteExpr(expr: ParseTree): String {
+        if (expr.text == "_") return "null"
+
         val (text, argIsArray, executeStr) = when (expr) {
             is SuffixExpressionContext -> Triple(expr.text, true, "")
             is VariableContext -> Triple(expr.varname.text, false, "")

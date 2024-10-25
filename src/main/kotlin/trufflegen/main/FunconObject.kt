@@ -11,18 +11,6 @@ abstract class FunconObject(
     metavariables: Map<ExprContext, ExprContext>,
     val builtin: Boolean,
 ) : Object(name, ctx, params, aliases, metavariables) {
-
-    private val paramsAfterVarargs: Int
-        get() {
-            val varargParamIndex = params.indexOfFirst { it.type.isVararg }
-            return params.size - varargParamIndex
-        }
-
-    private val numVarargs: Int
-        get() {
-            return params.count { param -> param.type.isVararg }
-        }
-
     abstract fun makeContent(): String
 
     override fun generateCode(): String {
@@ -43,7 +31,7 @@ abstract class FunconObject(
             content = content,
             constructorArgs = paramsStr,
             typeParams = typeParams,
-            superClass = "Computation"
+            superClasses = listOf(COMPUTATION to emptyList()),
         )
     }
 }

@@ -58,7 +58,7 @@ class TruffleGen(private val cbsDir: File) {
             println(code)
             val fileNameWithoutExtension = name.removeSuffix(".cbs")
             val filePath = outputDir.resolve("$fileNameWithoutExtension.kt").pathString
-//            File(filePath).writeText(code)
+            File(filePath).writeText(code)
         }
     }
 

@@ -52,14 +52,7 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
 
         val params = extractParams(datatype)
 
-        tailrec fun extractAndExprs(
-            expr: ExprContext, definitions: List<ExprContext> = emptyList(),
-        ): List<ExprContext> = when (expr) {
-            is OrExpressionContext -> extractAndExprs(expr.lhs, definitions + expr.rhs)
-            else -> definitions + expr
-        }
-
-        val definitions = extractAndExprs(datatype.definition)
+        val definitions = extractAndOrExprs(datatype.definition)
 
         val aliases = datatype.aliasDefinition()
 
@@ -73,13 +66,15 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
     override fun visitTypeDefinition(type: TypeDefinitionContext) {
         val name = type.name.text
 
-        val definition = type.definition
+        val params = extractParams(type)
+
+        val definitions = if (type.definitions != null) extractAndOrExprs(type.definitions) else emptyList()
 
         val aliases = type.aliasDefinition()
 
         val builtin = type.modifier != null
 
-        val dataContainer = TypeObject(name, type, definition, aliases, metavariables, builtin)
+        val dataContainer = TypeObject(name, params, type, definitions, aliases, metavariables, builtin)
 
         objects.add(dataContainer)
     }

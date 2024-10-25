@@ -1,5 +1,9 @@
 package trufflegen.main
 
+import trufflegen.antlr.CBSParser.AndExpressionContext
+import trufflegen.antlr.CBSParser.ExprContext
+import trufflegen.antlr.CBSParser.OrExpressionContext
+
 fun toClassName(input: String): String {
     return (input.split("-").joinToString("") { word ->
         word.replaceFirstChar { it.uppercase() }
@@ -75,9 +79,8 @@ fun makeClass(
     constructorArgs: List<String> = emptyList(),
     properties: List<Pair<String, String>> = emptyList(),
     typeParams: Set<String> = emptySet(),
-    superClass: String? = null,
+    superClasses: List<Pair<String, List<String>>> = emptyList(),
     interfaces: List<String> = emptyList(),
-    superClassArgs: List<String> = emptyList(),
 ): String {
     val annotationsStr = if (annotations.isNotEmpty()) {
         annotations.joinToString("\n") { str -> "@$str" } + "\n"
@@ -95,13 +98,14 @@ fun makeClass(
         ""
     }
 
-    val inheritanceStr = when {
-        superClass != null && interfaces.isNotEmpty() -> ": $superClass(${superClassArgs.joinToString(", ")}), " + interfaces.joinToString(
-            ", "
-        )
+    val superClassStr = superClasses.joinToString(", ") { (superClass, args) ->
+        "$superClass(${args.joinToString(", ")})"
+    }
 
-        superClass != null -> ": $superClass(${superClassArgs.joinToString(", ")})"
-        interfaces.isNotEmpty() -> ": " + interfaces.joinToString(", ")
+    val inheritanceStr = when {
+        superClassStr.isNotEmpty() && interfaces.isNotEmpty() -> ": $superClassStr, ${interfaces.joinToString(", ")}"
+        superClassStr.isNotEmpty() -> ": $superClassStr"
+        interfaces.isNotEmpty() -> ": ${interfaces.joinToString(", ")}"
         else -> ""
     }
 
@@ -155,3 +159,11 @@ fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<String>
 fun entityMap(name: String) = "entityMap[\"${name}\"]"
 
 fun todoExecute() = makeExecuteFunction("TODO(\"Implement me\")", "Any?")
+
+tailrec fun extractAndOrExprs(
+    expr: ExprContext, definitions: List<ExprContext> = emptyList(),
+): List<ExprContext> = when (expr) {
+    is OrExpressionContext -> extractAndOrExprs(expr.lhs, definitions + expr.rhs)
+    is AndExpressionContext -> extractAndOrExprs(expr.lhs, definitions + expr.rhs)
+    else -> definitions + expr
+}

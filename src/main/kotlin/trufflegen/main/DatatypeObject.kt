@@ -28,21 +28,22 @@ class DatatypeObject(
     }
 
     override fun generateCode(): String {
+        println("datatype: ${ctx.text}")
         val paramsStr = params.map { param ->
             val annotation = if (param.type.isVararg) "@Children private vararg val" else "@Child private val"
             val paramTypeStr = buildTypeRewrite(param.type)
             makeParam(annotation, param.name, paramTypeStr)
         }
 
-        val typeParams = if (builtin) emptySet<String>() else makeTypeParams()
+        val typeParams = if (!builtin) makeTypeParams() else emptySet()
 
         val superClass = makeClass(
             nodeName,
             body = false,
             constructorArgs = paramsStr,
-            keywords = listOf("open"),
+            keywords = listOf("sealed"),
             typeParams = typeParams,
-            superClass = "Computation",
+            superClasses = listOf(COMPUTATION to emptyList()),
         )
 
         val clss = definitions.map { def ->
@@ -60,7 +61,7 @@ class DatatypeObject(
                         className,
                         typeParams = typeParams,
                         constructorArgs = classParams,
-                        superClass = toClassName(name),
+                        superClasses = listOf(toClassName(name) to emptyList()),
                         body = false
                     )
                 }

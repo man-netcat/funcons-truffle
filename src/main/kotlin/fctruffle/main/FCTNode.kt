@@ -7,10 +7,10 @@ abstract class FCTNode : Node() {
     abstract fun execute(frame: VirtualFrame): Any
 
     fun isTerminal(): Boolean {
-        return this is Terminal
+        return this is FCTTerminalNode
     }
 
     fun isComputation(): Boolean {
-        return this is Computation
+        return this is FCTComputationNode
     }
 }

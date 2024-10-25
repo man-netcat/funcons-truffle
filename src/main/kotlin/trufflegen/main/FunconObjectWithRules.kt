@@ -26,8 +26,8 @@ class FunconObjectWithRules(
             listOf(stepExpr.context_)
         } else {
             stepExpr.steps()?.step()?.sortedBy { step -> step.sequenceNumber?.text?.toInt() }?.flatMap { step ->
-                    step.labels()?.label()?.filter { label -> label.value != null }.orEmpty()
-                }.orEmpty()
+                step.labels()?.label()?.filter { label -> label.value != null }.orEmpty()
+            }.orEmpty()
         }
     }
 
@@ -90,8 +90,9 @@ class FunconObjectWithRules(
                 if (isInputOutputEntity(stepExpr)) return Triple(
                     stepExpr.lhs, "TODO(\"Condition\")", "TODO(\"Content\")"
                 )
+                println(entityMap)
                 val entityStr = gatherLabels(stepExpr).joinToString("\n") { label ->
-                    entityMap(label.name.text) + " = " + buildRewrite(stepExpr.lhs, label.value)
+                    entityMap(label.name.text) + " = " + buildRewrite(stepExpr.lhs, label.value, entityMap)
                 }
                 var rewriteStr = buildRewrite(stepExpr.lhs, stepExpr.rhs, entityMap)
                 rewriteStr = if (entityStr.isNotEmpty()) "$entityStr\n$rewriteStr" else rewriteStr
@@ -123,6 +124,7 @@ class FunconObjectWithRules(
             when (premise) {
                 is StepPremiseContext -> {
                     val stepExpr = premise.stepExpr()
+                    println(entityMap)
                     val labelConditions = gatherLabels(stepExpr).joinToString(" && ") { label ->
                         entityMap(label.name.text) + " == " + (if (label.value != null) {
                             buildRewrite(ruleDef, label.value)
@@ -130,7 +132,7 @@ class FunconObjectWithRules(
                     }
                     val rewriteLhs = buildRewrite(ruleDef, stepExpr.lhs, entityMap)
                     val rewriteRhs = buildRewrite(ruleDef, stepExpr.rhs, entityMap)
-                    val condition = "$rewriteLhs is Computation"
+                    val condition = "$rewriteLhs is $COMPUTATION"
                     val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
 
                     if (labelConditions.isNotBlank()) {
@@ -187,9 +189,9 @@ class FunconObjectWithRules(
                     } else emptyList()
                 } else {
                     stepExpr.steps()?.step()?.sortedBy { step -> step.sequenceNumber?.text?.toInt() }?.flatMap { step ->
-                            step.labels()?.label()?.filter { label -> label.value != null }
-                                ?.map { label -> label.value.text to label.name.text }.orEmpty()
-                        }.orEmpty()
+                        step.labels()?.label()?.filter { label -> label.value != null }
+                            ?.map { label -> label.value.text to label.name.text }.orEmpty()
+                    }.orEmpty()
                 }
             } else if (premise is MutableEntityPremiseContext) {
                 emptyList()

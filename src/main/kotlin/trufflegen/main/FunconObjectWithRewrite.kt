@@ -13,7 +13,7 @@ class FunconObjectWithRewrite(
     builtin: Boolean,
 ) : FunconObject(name, ctx, params, returns, aliases, metavariables, builtin) {
     override fun makeContent(): String {
-        val content = "return " + buildRewrite(this@FunconObjectWithRewrite.ctx, rewritesTo)
+        val content = "return " + buildRewrite(ctx, rewritesTo)
         val returnStr = buildTypeRewrite(returns)
         return makeExecuteFunction(content, returnStr)
     }
