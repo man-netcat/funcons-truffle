@@ -56,6 +56,13 @@ abstract class Object(
         return rewritten
     }
 
+    fun buildTypeRewriteWithComplement(type: Type): Pair<String, Boolean> {
+        val rewriteVisitor = TypeRewriteVisitor(type)
+        val rewritten = rewriteVisitor.visit(type.expr)
+        val complement = rewriteVisitor.complement
+        return rewritten to complement
+    }
+
     fun makeTypeParams(): Set<String> {
         // TODO fix question marks
         return fileMetavariables.keys

@@ -15,6 +15,7 @@ class FunconObjectWithRules(
     metavariables: MutableMap<ExprContext, ExprContext>,
     builtin: Boolean
 ) : FunconObject(name, ctx, params, returns, aliases, metavariables, builtin) {
+    private fun complementStr(bool: Boolean): String = if (!bool) "!" else ""
     private fun isInputOutputEntity(stepExpr: StepExprContext): Boolean {
         val steps = stepExpr.steps().step()
         val labels = steps.firstOrNull()?.labels()?.label()
@@ -61,22 +62,13 @@ class FunconObjectWithRules(
                 }
 
                 val typeCondition = if (argType != null) {
-                    val type = ReturnType(argType)
-                    val rewriteVisitor = TypeRewriteVisitor(type)
-                    val rewritten = rewriteVisitor.visit(type.expr)
-                    val complement = if (rewriteVisitor.complement) "!" else ""
-                    "$paramStr ${complement}is $rewritten"
+                    val (rewritten, complement) = buildTypeRewriteWithComplement(ReturnType(argType))
+                    "$paramStr ${complementStr(complement)}is $rewritten"
                 } else null
 
                 if (typeCondition != null && valueCondition != null) {
                     "$valueCondition && $typeCondition"
-                } else if (typeCondition != null) {
-                    typeCondition
-                } else if (valueCondition != null) {
-                    valueCondition
-                } else {
-                    null
-                }
+                } else if (typeCondition != null) typeCondition else valueCondition
             }.joinToString(" && ")
         }
 
@@ -155,13 +147,20 @@ class FunconObjectWithRules(
                 }
 
                 is BooleanPremiseContext -> {
-                    // TODO handle when rhs is a funcon, must check for type instead
                     val rewriteLhs = buildRewrite(ruleDef, premise.lhs)
-                    val rewriteRhs = buildRewrite(ruleDef, premise.rhs)
-                    val op = when (premise.op.text) {
-                        "==" -> "=="
-                        "=/=" -> "!="
-                        else -> throw Exception("Unexpected operator type: ${premise.op.text}")
+                    val (op, rewriteRhs) = when (premise.rhs) {
+                        is FunconExpressionContext -> {
+                            val (rewriteRhs, complement) = buildTypeRewriteWithComplement(ReturnType(premise.rhs))
+                            "${complementStr(complement)}is" to rewriteRhs
+                        }
+
+                        else -> {
+                            when (premise.op.text) {
+                                "==" -> "=="
+                                "=/=" -> "!="
+                                else -> throw Exception("Unexpected operator type: ${premise.op.text}")
+                            } to buildRewrite(ruleDef, premise.rhs)
+                        }
                     }
                     val condition = "$rewriteLhs $op $rewriteRhs"
                     Pair(condition, null)
@@ -169,10 +168,8 @@ class FunconObjectWithRules(
 
                 is TypePremiseContext -> {
                     val value = buildRewrite(ruleDef, premise.value)
-                    val condition = when (val premiseType = premise.type) {
-                        is ComplementExpressionContext -> "$value !is ${premiseType.operand.text}"
-                        else -> "$value is ${premiseType.text}"
-                    }
+                    val (type, complement) = buildTypeRewriteWithComplement(ReturnType(premise.type))
+                    val condition = "$value ${complementStr(complement)}is $type"
                     Pair(condition, null)
                 }
 
