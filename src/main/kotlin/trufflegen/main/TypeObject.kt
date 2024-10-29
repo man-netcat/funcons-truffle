@@ -25,15 +25,15 @@ class TypeObject(
             val paramTypeStr = buildTypeRewrite(param.type)
             makeParam(annotation, param.name, paramTypeStr)
         }
-        return if (definitions.isNotEmpty()) {
-            val superClasses = definitions.map { definition ->
+        val superClasses = if (definitions.isNotEmpty()) {
+            definitions.map { definition ->
                 when (definition) {
                     is FunconExpressionContext -> toClassName(definition.name.text) to makeParams(definition)
                     else -> throw DetailedException("Unexpected Expr type: ${definition.text}")
                 }
             }
-            makeClass(nodeName, constructorArgs = paramsStr, superClasses = superClasses, body = false)
-        } else makeClass(nodeName, constructorArgs = paramsStr, body = false)
+        } else emptyList()
+        return makeClass(nodeName, constructorArgs = paramsStr, superClasses = superClasses, body = false)
     }
 }
 

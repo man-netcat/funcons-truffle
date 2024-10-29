@@ -63,6 +63,8 @@ class RewriteVisitor(
 
     override fun visitString(string: StringContext): String = string.text
 
+    override fun visitTypeExpression(typeExpr: TypeExpressionContext): String = visit(typeExpr.value)
+
     private fun rewriteExpr(expr: ParseTree): String {
         if (expr.text == "_") return "null"
 
@@ -129,6 +131,7 @@ class RewriteVisitor(
     }
 
     override fun visitChildren(node: RuleNode): String {
+        println("rewritevisitor is visiting ${node::class.simpleName}...")
         return super.visitChildren(node)
     }
 

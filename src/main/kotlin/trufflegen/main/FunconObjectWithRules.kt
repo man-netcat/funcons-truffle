@@ -36,45 +36,50 @@ class FunconObjectWithRules(
     ): Triple<ExprContext, String, String> {
         println("conclusion: ${conclusion.text}")
         fun argsConditions(def: FunconExpressionContext): String {
-            fun rewriteArg(args: List<ExprContext>): String {
-                // First extract the actual value from the argument, or the type if no value available.
-                val processedArgs = args.map { arg ->
-                    when (arg) {
-                        is TypeExpressionContext -> arg.value ?: arg.type
-                        else -> arg
+            val args = when (val argContext = def.args()) {
+                is MultipleArgsContext -> argContext.exprs().expr()
+                is SingleArgsContext -> listOf(argContext.expr())
+                else -> emptyList()
+            }
+
+            return args.mapIndexedNotNull { index, arg ->
+                val (argValue, argType) = if (arg is TypeExpressionContext) arg.value to arg.type else arg to null
+                val (paramIndex, varargIndex) = getParamIndex(index, params, args)
+                val paramStr = if (varargIndex != null) "p$paramIndex[$varargIndex]" else "p$paramIndex"
+
+                val valueCondition = when (argValue) {
+                    is FunconExpressionContext -> "$paramStr is ${buildTypeRewrite(ReturnType(argValue))}"
+                    is NumberContext -> "$paramStr == ${argValue.text}"
+                    is TupleExpressionContext -> "$paramStr == ${buildRewrite(def, argValue)}"
+                    is ListExpressionContext -> {
+                        val rewrite = buildRewrite(def, argValue)
+                        if (rewrite == "emptyList()") "$paramStr.isEmpty()" else "$paramStr == $rewrite"
                     }
+
+                    is VariableContext, is VariableStepContext, is SuffixExpressionContext -> null
+                    else -> throw IllegalArgumentException("Unexpected arg type: ${argValue::class.simpleName}")
                 }
-                return processedArgs.mapIndexed { index, arg ->
-                    val (index, varargIndex) = getParamIndex(index, params, processedArgs)
-                    val paramStr = if (varargIndex != null) "p$index[$varargIndex]" else "p$index"
-                    when (arg) {
-                        is FunconExpressionContext -> {
-                            val rewrite = buildTypeRewrite(ReturnType(arg))
-                            "$paramStr is $rewrite"
-                        }
 
-                        is NumberContext -> "$paramStr == ${arg.text}"
-                        is VariableContext -> null
-                        is VariableStepContext -> null
-                        is SuffixExpressionContext -> null
-                        is TupleExpressionContext -> "$paramStr == ${buildRewrite(def, arg)}"
-                        is ListExpressionContext -> {
-                            val rewrite = buildRewrite(def, arg)
-                            if (rewrite == "emptyList()") "$paramStr.isEmpty()"
-                            else "$paramStr == $rewrite"
-                        }
+                val typeCondition = if (argType != null) {
+                    val type = ReturnType(argType)
+                    val rewriteVisitor = TypeRewriteVisitor(type)
+                    val rewritten = rewriteVisitor.visit(type.expr)
+                    val complement = if (rewriteVisitor.complement) "!" else ""
+                    "$paramStr ${complement}is $rewritten"
+                } else null
 
-                        else -> throw Exception("Unexpected arg type: ${arg::class.simpleName}")
-                    }
-                }.filterNotNull().joinToString(" && ")
-            }
-
-            return when (val args = def.args()) {
-                is MultipleArgsContext -> rewriteArg(args.exprs().expr())
-                is SingleArgsContext -> rewriteArg(listOf(args.expr()))
-                else -> ""
-            }
+                if (typeCondition != null && valueCondition != null) {
+                    "$valueCondition && $typeCondition"
+                } else if (typeCondition != null) {
+                    typeCondition
+                } else if (valueCondition != null) {
+                    valueCondition
+                } else {
+                    null
+                }
+            }.joinToString(" && ")
         }
+
 
         return when (conclusion) {
             is RewritePremiseContext -> {
@@ -150,13 +155,15 @@ class FunconObjectWithRules(
                 }
 
                 is BooleanPremiseContext -> {
-                    val value = buildRewrite(ruleDef, premise.lhs)
+                    // TODO handle when rhs is a funcon, must check for type instead
+                    val rewriteLhs = buildRewrite(ruleDef, premise.lhs)
+                    val rewriteRhs = buildRewrite(ruleDef, premise.rhs)
                     val op = when (premise.op.text) {
                         "==" -> "=="
                         "=/=" -> "!="
                         else -> throw Exception("Unexpected operator type: ${premise.op.text}")
                     }
-                    val condition = "$value $op ${premise.rhs.text}"
+                    val condition = "$rewriteLhs $op $rewriteRhs"
                     Pair(condition, null)
                 }
 

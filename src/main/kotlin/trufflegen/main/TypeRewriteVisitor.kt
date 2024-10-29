@@ -6,6 +6,7 @@ import trufflegen.antlr.CBSParser.*
 
 class TypeRewriteVisitor(private val type: Type) : CBSBaseVisitor<String>() {
     var nestedValue = 0
+    var complement = false
 
     override fun visitFunconExpression(ctx: FunconExpressionContext): String {
         val funconName = toClassName(ctx.name.text)
@@ -114,6 +115,11 @@ class TypeRewriteVisitor(private val type: Type) : CBSBaseVisitor<String>() {
     override fun visitTypeExpression(ctx: TypeExpressionContext): String {
         println("typeexpr: ${ctx.text}")
         return visit(ctx.type)
+    }
+
+    override fun visitComplementExpression(ctx: ComplementExpressionContext): String {
+        complement = true
+        return visit(ctx.expr())
     }
 
     override fun visitChildren(node: RuleNode): String {
