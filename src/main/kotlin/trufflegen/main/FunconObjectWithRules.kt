@@ -89,7 +89,9 @@ class FunconObjectWithRules(
                 )
                 println(entityMap)
                 val entityStr = gatherLabels(stepExpr).joinToString("\n") { label ->
-                    entityMap(label.name.text) + " = " + buildRewrite(stepExpr.lhs, label.value, entityMap)
+                    entityMap(label.name.text) + " = " + if (label.value != null) {
+                        buildRewrite(stepExpr.lhs, label.value, entityMap)
+                    } else "null"
                 }
                 var rewriteStr = buildRewrite(stepExpr.lhs, stepExpr.rhs, entityMap)
                 rewriteStr = if (entityStr.isNotEmpty()) "$entityStr\n$rewriteStr" else rewriteStr
@@ -101,7 +103,7 @@ class FunconObjectWithRules(
 
             is MutableEntityPremiseContext -> {
                 val mutableExpr = conclusion.mutableExpr()
-                val rewrite = buildRewrite(mutableExpr.lhs, mutableExpr.rhs)
+                val rewrite = buildRewrite(mutableExpr.lhs, mutableExpr.rhs, entityMap)
                 val conditions = if (mutableExpr.lhs is FunconExpressionContext) {
                     argsConditions(mutableExpr.lhs as FunconExpressionContext)
                 } else ""
@@ -109,7 +111,7 @@ class FunconObjectWithRules(
                 // TODO: also modify the entity
             }
 
-            else -> throw Exception("Unexpected conclusion type: ${conclusion::class.simpleName}")
+            else -> throw DetailedException("Unexpected conclusion type: ${conclusion::class.simpleName}")
         }
     }
 
@@ -158,7 +160,7 @@ class FunconObjectWithRules(
                             when (premise.op.text) {
                                 "==" -> "=="
                                 "=/=" -> "!="
-                                else -> throw Exception("Unexpected operator type: ${premise.op.text}")
+                                else -> throw DetailedException("Unexpected operator type: ${premise.op.text}")
                             } to buildRewrite(ruleDef, premise.rhs)
                         }
                     }
@@ -173,7 +175,7 @@ class FunconObjectWithRules(
                     Pair(condition, null)
                 }
 
-                else -> throw Exception("Unexpected premise type: ${premise::class.simpleName}")
+                else -> throw DetailedException("Unexpected premise type: ${premise::class.simpleName}")
             }
         }
 
@@ -184,21 +186,40 @@ class FunconObjectWithRules(
     }
 
     private fun buildEntityMap(premises: List<PremiseContext>, conclusion: PremiseContext): Map<String, String> {
+        fun extractValue(labelValue: ExprContext): String {
+            println("labelvalue: ${labelValue.text}")
+            val rewritten = when (labelValue) {
+                is TypeExpressionContext -> labelValue.value.text
+                is VariableContext -> labelValue.text
+                is VariableStepContext -> labelValue.varname.text + "p".repeat(labelValue.squote().size)
+                is FunconExpressionContext -> buildRewrite(labelValue, labelValue)
+                is SuffixExpressionContext -> "TODO"
+                else -> throw DetailedException("Unexpected labelValue type: ${labelValue::class.simpleName}, ${labelValue.text}")
+            }
+            println("rewritten: $rewritten")
+            return rewritten
+        }
+
         return (premises + conclusion).flatMap { premise ->
+            fun labelData(label: LabelContext) = extractValue(label.value) to label.name.text
             if (premise is StepPremiseContext) {
                 val stepExpr = premise.stepExpr()
                 if (stepExpr.context_?.name != null) {
                     if (stepExpr.context_.value != null) {
-                        listOf(stepExpr.context_.value.text to stepExpr.context_.name.text)
+                        listOf(labelData(stepExpr.context_))
                     } else emptyList()
                 } else {
                     stepExpr.steps()?.step()?.sortedBy { step -> step.sequenceNumber?.text?.toInt() }?.flatMap { step ->
-                        step.labels()?.label()?.filter { label -> label.value != null }
-                            ?.map { label -> label.value.text to label.name.text }.orEmpty()
+                        step.labels()?.label()?.filter { label -> label.value != null }?.map { label ->
+                            labelData(label)
+                        }.orEmpty()
                     }.orEmpty()
                 }
             } else if (premise is MutableEntityPremiseContext) {
-                emptyList()
+                val mutableExpr = premise.mutableExpr()
+                val lhsLabel = mutableExpr.entityLhs
+                val rhsLabel = mutableExpr.entityRhs
+                listOf(labelData(lhsLabel), labelData(rhsLabel))
             } else emptyList()
         }.toMap()
     }
