@@ -7,14 +7,12 @@ import kotlin.collections.orEmpty
 
 class FunconObjectWithRules(
     name: String,
-    ctx: FunconDefinitionContext,
     params: List<Param>,
     private val rules: List<RuleDefinitionContext>,
     returns: ReturnType,
     aliases: List<AliasDefinitionContext>,
-    metavariables: MutableMap<ExprContext, ExprContext>,
     builtin: Boolean
-) : FunconObject(name, ctx, params, returns, aliases, metavariables, builtin) {
+) : FunconObject(name, params, returns, aliases, builtin) {
     private fun complementStr(bool: Boolean): String = if (!bool) "!" else ""
     private fun isInputOutputEntity(stepExpr: StepExprContext): Boolean {
         val steps = stepExpr.steps().step()
@@ -35,7 +33,6 @@ class FunconObjectWithRules(
     private fun processConclusion(
         conclusion: PremiseContext, entityMap: Map<String, String>
     ): Triple<ExprContext, String, String> {
-        println("conclusion: ${conclusion.text}")
         fun argsConditions(def: FunconExpressionContext): String {
             val args = when (val argContext = def.args()) {
                 is MultipleArgsContext -> argContext.exprs().expr()
@@ -87,7 +84,6 @@ class FunconObjectWithRules(
                 if (isInputOutputEntity(stepExpr)) return Triple(
                     stepExpr.lhs, "TODO(\"Condition\")", "TODO(\"Content\")"
                 )
-                println(entityMap)
                 val entityStr = gatherLabels(stepExpr).joinToString("\n") { label ->
                     entityMap(label.name.text) + " = " + if (label.value != null) {
                         buildRewrite(stepExpr.lhs, label.value, entityMap)
@@ -119,11 +115,9 @@ class FunconObjectWithRules(
         premises: List<PremiseContext>, ruleDef: ExprContext, entityMap: Map<String, String>
     ): Pair<String, String> {
         val result = premises.map { premise ->
-            println("premise: ${premise.text}")
             when (premise) {
                 is StepPremiseContext -> {
                     val stepExpr = premise.stepExpr()
-                    println(entityMap)
                     val labelConditions = gatherLabels(stepExpr).joinToString(" && ") { label ->
                         entityMap(label.name.text) + " == " + (if (label.value != null) {
                             buildRewrite(ruleDef, label.value)
@@ -187,16 +181,14 @@ class FunconObjectWithRules(
 
     private fun buildEntityMap(premises: List<PremiseContext>, conclusion: PremiseContext): Map<String, String> {
         fun extractValue(labelValue: ExprContext): String {
-            println("labelvalue: ${labelValue.text}")
             val rewritten = when (labelValue) {
                 is TypeExpressionContext -> labelValue.value.text
                 is VariableContext -> labelValue.text
-                is VariableStepContext -> labelValue.varname.text + "p".repeat(labelValue.squote().size)
+                is VariableStepContext -> makeVariableStepName(labelValue)
                 is FunconExpressionContext -> buildRewrite(labelValue, labelValue)
                 is SuffixExpressionContext -> "TODO"
                 else -> throw DetailedException("Unexpected labelValue type: ${labelValue::class.simpleName}, ${labelValue.text}")
             }
-            println("rewritten: $rewritten")
             return rewritten
         }
 

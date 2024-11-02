@@ -5,10 +5,8 @@ import trufflegen.antlr.CBSParser.*
 
 abstract class Object(
     val name: String,
-    val ctx: ParseTree,
     private val params: List<Param>,
     private val aliases: List<AliasDefinitionContext>,
-    private val fileMetavariables: Map<ExprContext, ExprContext>,
 ) {
     abstract fun generateCode(): String
 
@@ -17,9 +15,7 @@ abstract class Object(
     }
 
     internal val nodeName: String
-        get() {
-            return toClassName(name)
-        }
+        get() = toClassName(name)
 
     fun extractArgs(funcon: ParseTree): List<ExprContext> {
         return when (funcon) {
@@ -50,25 +46,17 @@ abstract class Object(
         return rewritten
     }
 
-    fun buildTypeRewrite(type: Type): String {
-        val rewriteVisitor = TypeRewriteVisitor(type)
+    fun buildTypeRewrite(type: Type, nullable: Boolean = true): String {
+        val rewriteVisitor = TypeRewriteVisitor(type, nullable)
         val rewritten = rewriteVisitor.visit(type.expr)
         return rewritten
     }
 
-    fun buildTypeRewriteWithComplement(type: Type): Pair<String, Boolean> {
-        val rewriteVisitor = TypeRewriteVisitor(type)
+    fun buildTypeRewriteWithComplement(type: Type, nullable: Boolean = true): Pair<String, Boolean> {
+        val rewriteVisitor = TypeRewriteVisitor(type, nullable)
         val rewritten = rewriteVisitor.visit(type.expr)
         val complement = rewriteVisitor.complement
         return rewritten to complement
-    }
-
-    fun makeTypeParams(): Set<String> {
-        // TODO fix question marks
-        return fileMetavariables.keys
-            .filter { ArgVisitor(it.text).visit(ctx) }
-            .map { buildTypeRewrite(ReturnType(it)) }
-            .toSet()
     }
 }
 

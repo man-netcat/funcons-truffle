@@ -5,23 +5,18 @@ import trufflegen.antlr.CBSParser.*
 class TypeObject(
     name: String,
     private val params: List<Param>,
-    ctx: TypeDefinitionContext,
+    private val operator: String,
     private val definitions: List<ExprContext>,
     aliases: MutableList<AliasDefinitionContext>,
-    metavariables: MutableMap<ExprContext, ExprContext>,
     val builtin: Boolean,
-) : Object(name, ctx, emptyList(), aliases, metavariables) {
+) : Object(name, emptyList(), aliases) {
     fun makeParams(definition: FunconExpressionContext): List<String> {
-        return extractArgs(definition).map { param ->
-            println("param: ${param.text}")
-            buildRewrite(definition, param)
-        }
+        return extractArgs(definition).map { param -> buildRewrite(definition, param) }
     }
 
-    override fun generateCode(): String {
-        println("type: ${ctx.text}")
+    private fun makeRewrite(): String {
         val paramsStr = params.map { param ->
-            val annotation = if (param.type.isVararg) "@Children private vararg val" else "@Child private val"
+            val annotation = param.type.annotation
             val paramTypeStr = buildTypeRewrite(param.type)
             makeParam(annotation, param.name, paramTypeStr)
         }
@@ -33,7 +28,33 @@ class TypeObject(
                 }
             }
         } else emptyList()
-        return makeClass(nodeName, constructorArgs = paramsStr, superClasses = superClasses, body = false)
+        return makeClass(
+            nodeName,
+            keywords = listOf("sealed"),
+            constructorArgs = paramsStr,
+            superClasses = superClasses,
+            body = false
+        )
+    }
+
+    private fun makeSubtype(): String {
+        return "TODO(\"some type\")"
+    }
+
+    override fun generateCode(): String {
+        return if (definitions.isNotEmpty()) {
+            when (operator) {
+                "<:" -> makeSubtype()
+                "~>" -> makeRewrite()
+                else -> throw DetailedException("Unexpected operator: $operator")
+            }
+        } else {
+            makeClass(
+                nodeName,
+                keywords = listOf("sealed"),
+                body = false
+            )
+        }
     }
 }
 

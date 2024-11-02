@@ -3,6 +3,7 @@ package trufflegen.main
 import trufflegen.antlr.CBSParser.AndExpressionContext
 import trufflegen.antlr.CBSParser.ExprContext
 import trufflegen.antlr.CBSParser.OrExpressionContext
+import trufflegen.antlr.CBSParser.VariableStepContext
 
 fun toClassName(input: String): String {
     return (input.split("-").joinToString("") { word ->
@@ -167,3 +168,6 @@ tailrec fun extractAndOrExprs(
     is AndExpressionContext -> extractAndOrExprs(expr.lhs, definitions + expr.rhs)
     else -> definitions + expr
 }
+
+fun makeVariableStepName(varStep: VariableStepContext): String =
+    varStep.varname.text + "p".repeat(varStep.squote().size)

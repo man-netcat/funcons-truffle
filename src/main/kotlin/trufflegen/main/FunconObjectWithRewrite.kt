@@ -4,14 +4,13 @@ import trufflegen.antlr.CBSParser.*
 
 class FunconObjectWithRewrite(
     name: String,
-    ctx: FunconDefinitionContext,
+    val ctx: FunconDefinitionContext,
     params: List<Param>,
     val rewritesTo: ExprContext,
     returns: ReturnType,
     aliases: List<AliasDefinitionContext>,
-    metavariables: MutableMap<ExprContext, ExprContext>,
     builtin: Boolean,
-) : FunconObject(name, ctx, params, returns, aliases, metavariables, builtin) {
+) : FunconObject(name, params, returns, aliases, builtin) {
     override fun makeContent(): String {
         val content = "return " + buildRewrite(ctx, rewritesTo)
         val returnStr = buildTypeRewrite(returns)

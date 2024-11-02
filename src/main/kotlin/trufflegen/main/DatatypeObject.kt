@@ -4,20 +4,18 @@ import trufflegen.antlr.CBSParser.*
 
 class DatatypeObject(
     name: String,
-    ctx: DatatypeDefinitionContext,
     private val params: List<Param>,
     private val definitions: List<ExprContext>,
     aliases: MutableList<AliasDefinitionContext>,
-    metavariables: MutableMap<ExprContext, ExprContext>,
     val builtin: Boolean,
-) : Object(name, ctx, params, aliases, metavariables) {
+) : Object(name, params, aliases) {
 
     fun argsToParams(args: List<ExprContext>): List<String> {
         return args.withIndex().map { (i, arg) ->
             when (arg) {
                 is TypeExpressionContext -> {
                     val setType = ReturnType(arg.type)
-                    val annotation = if (setType.isVararg) "@Children private vararg val" else "@Child private val"
+                    val annotation = setType.annotation
                     val paramTypeStr = buildTypeRewrite(setType)
                     makeParam(annotation, "p$i", paramTypeStr)
                 }
@@ -28,21 +26,17 @@ class DatatypeObject(
     }
 
     override fun generateCode(): String {
-        println("datatype: ${ctx.text}")
         val paramsStr = params.map { param ->
-            val annotation = if (param.type.isVararg) "@Children private vararg val" else "@Child private val"
+            val annotation = param.type.annotation
             val paramTypeStr = buildTypeRewrite(param.type)
             makeParam(annotation, param.name, paramTypeStr)
         }
-
-        val typeParams = if (!builtin) makeTypeParams() else emptySet()
 
         val superClass = makeClass(
             nodeName,
             body = false,
             constructorArgs = paramsStr,
             keywords = listOf("sealed"),
-            typeParams = typeParams,
             superClasses = listOf(COMPUTATION to emptyList()),
         )
 
@@ -59,7 +53,6 @@ class DatatypeObject(
                     }
                     makeClass(
                         className,
-                        typeParams = typeParams,
                         constructorArgs = classParams,
                         superClasses = listOf(toClassName(name) to emptyList()),
                         body = false

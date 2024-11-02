@@ -1,10 +1,9 @@
 package trufflegen.main
 
-import org.antlr.v4.runtime.tree.RuleNode
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
-class TypeRewriteVisitor(private val type: Type) : CBSBaseVisitor<String>() {
+class TypeRewriteVisitor(private val type: Type, private val nullable: Boolean) : CBSBaseVisitor<String>() {
     var nestedValue = 0
     var complement = false
 
@@ -58,7 +57,7 @@ class TypeRewriteVisitor(private val type: Type) : CBSBaseVisitor<String>() {
 
     override fun visitSuffixExpression(ctx: SuffixExpressionContext): String {
         return when (val op = ctx.op.text) {
-            "?" -> visit(ctx.expr()) + "?"
+            "?" -> visit(ctx.expr()) + if (nullable) "?" else ""
             "*", "+" -> when (type) {
                 is ReturnType -> "List<${visit(ctx.expr())}>"
                 is ParamType -> if (nestedValue == 0) {
@@ -113,17 +112,11 @@ class TypeRewriteVisitor(private val type: Type) : CBSBaseVisitor<String>() {
     override fun visitUnaryComputesExpression(ctx: UnaryComputesExpressionContext): String = visit(ctx.expr())
     override fun visitNumber(ctx: NumberContext): String = ctx.text
     override fun visitTypeExpression(ctx: TypeExpressionContext): String {
-        println("typeexpr: ${ctx.text}")
         return visit(ctx.type)
     }
 
     override fun visitComplementExpression(ctx: ComplementExpressionContext): String {
         complement = true
         return visit(ctx.expr())
-    }
-
-    override fun visitChildren(node: RuleNode): String {
-        println("visiting... ${node::class.simpleName}: ${node.text}")
-        return super.visitChildren(node)
     }
 }

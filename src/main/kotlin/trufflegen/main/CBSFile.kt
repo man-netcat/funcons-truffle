@@ -5,13 +5,7 @@ import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
 class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() {
-    private val metavariables = mutableMapOf<ExprContext, ExprContext>()
-
     internal val objects = mutableListOf<Object>()
-
-    override fun visitMetavarDef(def: MetavarDefContext) {
-        metavariables.putAll(def.variables.expr().mapNotNull { variable -> variable to def.definition }.toMap())
-    }
 
     private fun extractParams(obj: ParseTree): List<Param> {
         val params = when (obj) {
@@ -26,22 +20,34 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         } ?: emptyList()
     }
 
+    override fun visitMetavariablesDefinition(metavarDefs: MetavariablesDefinitionContext) {
+        val dataContainers = metavarDefs.metavarDef().flatMap { def ->
+            def.variables.expr().map { metaVar ->
+                val name = when (metaVar) {
+                    is VariableContext -> metaVar.text
+                    is VariableStepContext -> makeVariableStepName(metaVar)
+                    is SuffixExpressionContext -> metaVar.operand.text
+                    else -> throw DetailedException("Unexpected metaVar type: ${metaVar::class.simpleName}, ${metaVar.text}")
+                }
+                Metavariable(name, def.definition)
+            }
+        }.distinctBy { obj -> obj.name }
+
+        objects.addAll(dataContainers)
+    }
+
     override fun visitFunconDefinition(funcon: FunconDefinitionContext) {
         val name = funcon.name.text
-
         val params = extractParams(funcon)
-
         val returns = ReturnType(funcon.returnType)
         val aliases = funcon.aliasDefinition()
-
         val builtin = funcon.modifier != null
-
         val dataContainer = if (funcon.rewritesTo != null) {
             val rewritesTo = funcon.rewritesTo
-            FunconObjectWithRewrite(name, funcon, params, rewritesTo, returns, aliases, metavariables, builtin)
+            FunconObjectWithRewrite(name, funcon, params, rewritesTo, returns, aliases, builtin)
         } else {
             val rules: List<RuleDefinitionContext> = funcon.ruleDefinition()
-            FunconObjectWithRules(name, funcon, params, rules, returns, aliases, metavariables, builtin)
+            FunconObjectWithRules(name, params, rules, returns, aliases, builtin)
         }
 
         objects.add(dataContainer)
@@ -49,32 +55,23 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
 
     override fun visitDatatypeDefinition(datatype: DatatypeDefinitionContext) {
         val name = datatype.name.text
-
         val params = extractParams(datatype)
-
         val definitions = extractAndOrExprs(datatype.definition)
-
         val aliases = datatype.aliasDefinition()
-
         val builtin = datatype.modifier != null
-
-        val dataContainer = DatatypeObject(name, datatype, params, definitions, aliases, metavariables, builtin)
+        val dataContainer = DatatypeObject(name, params, definitions, aliases, builtin)
 
         objects.add(dataContainer)
     }
 
     override fun visitTypeDefinition(type: TypeDefinitionContext) {
         val name = type.name.text
-
         val params = extractParams(type)
-
+        val operator = type.op?.text ?: ""
         val definitions = if (type.definitions != null) extractAndOrExprs(type.definitions) else emptyList()
-
         val aliases = type.aliasDefinition()
-
         val builtin = type.modifier != null
-
-        val dataContainer = TypeObject(name, params, type, definitions, aliases, metavariables, builtin)
+        val dataContainer = TypeObject(name, params, operator, definitions, aliases, builtin)
 
         objects.add(dataContainer)
     }

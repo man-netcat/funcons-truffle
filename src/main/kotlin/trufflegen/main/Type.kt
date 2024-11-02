@@ -14,6 +14,9 @@ abstract class Type(val expr: ExprContext) : CBSBaseVisitor<Unit>() {
         this.visit(expr)
     }
 
+    val annotation: String
+        get() = if (isVararg) "@Children private vararg val" else "@Child private val"
+
     val typeCategory: TypeCategory
         get() = when {
             pluses > 0 -> TypeCategory.PLUS
