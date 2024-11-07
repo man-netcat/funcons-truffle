@@ -1,7 +1,6 @@
 package trufflegen.main
 
 import trufflegen.antlr.CBSParser.*
-import trufflegen.main.RewriteVisitor.Companion.getParamIndex
 import kotlin.collections.mapNotNull
 import kotlin.collections.orEmpty
 
@@ -13,7 +12,7 @@ class FunconObjectWithRules(
     aliases: List<AliasDefinitionContext>,
     builtin: Boolean
 ) : FunconObject(name, params, returns, aliases, builtin) {
-    private fun complementStr(bool: Boolean): String = if (!bool) "!" else ""
+    private fun complementStr(bool: Boolean): String = if (bool) "!" else ""
     private fun isInputOutputEntity(stepExpr: StepExprContext): Boolean {
         val steps = stepExpr.steps().step()
         val labels = steps.firstOrNull()?.labels()?.label()
@@ -36,22 +35,26 @@ class FunconObjectWithRules(
         fun argsConditions(def: FunconExpressionContext): String {
             val args = when (val argContext = def.args()) {
                 is MultipleArgsContext -> argContext.exprs().expr()
+                is ListIndexExpressionContext -> argContext.indices.expr()
                 is SingleArgsContext -> listOf(argContext.expr())
                 else -> emptyList()
             }
 
-            return args.mapIndexedNotNull { index, arg ->
-                val (argValue, argType) = if (arg is TypeExpressionContext) arg.value to arg.type else arg to null
-                val (paramIndex, varargIndex) = getParamIndex(index, params, args)
-                val paramStr = if (varargIndex != null) "p$paramIndex[$varargIndex]" else "p$paramIndex"
 
+            return args.mapIndexedNotNull { argIndex, arg ->
+                val (argValue, argType) = if (arg is TypeExpressionContext) arg.value to arg.type else arg to null
+
+                val paramStr = buildRewrite(def, argValue, makeParamStr = true)
                 val valueCondition = when (argValue) {
                     is FunconExpressionContext -> "$paramStr is ${buildTypeRewrite(ReturnType(argValue))}"
                     is NumberContext -> "$paramStr == ${argValue.text}"
-                    is TupleExpressionContext -> "$paramStr == ${buildRewrite(def, argValue)}"
-                    is ListExpressionContext -> {
-                        val rewrite = buildRewrite(def, argValue)
-                        if (rewrite == "emptyList()") "$paramStr.isEmpty()" else "$paramStr == $rewrite"
+                    is ListExpressionContext, is TupleExpressionContext -> {
+                        if (argValue.text in listOf("()", "[]")) {
+                            "${paramStr}.isEmpty()"
+                        } else {
+                            println("args: ${args.map { it.text }}")
+                            println("paramStr: $paramStr, argValue: ${argValue.text}")
+                        }
                     }
 
                     is VariableContext, is VariableStepContext, is SuffixExpressionContext -> null
@@ -128,11 +131,8 @@ class FunconObjectWithRules(
                     val condition = "$rewriteLhs is $COMPUTATION"
                     val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
 
-                    if (labelConditions.isNotBlank()) {
-                        Pair("$condition && $labelConditions", rewrite)
-                    } else {
-                        Pair(condition, rewrite)
-                    }
+                    if (labelConditions.isNotBlank()) Pair("$condition && $labelConditions", rewrite)
+                    else Pair(condition, rewrite)
                 }
 
                 is RewritePremiseContext -> {
@@ -235,11 +235,10 @@ class FunconObjectWithRules(
             Pair(finalConditions, finalRewrite)
         }
 
-        if (pairs.any { it.first.isEmpty() }) throw EmptyConditionException(name)
+//        if (pairs.any { it.first.isEmpty() }) throw EmptyConditionException(name)
 
-        val content =
-            "return " + makeIfStatement(*pairs.toTypedArray(), elseBranch = "throw Exception(\"Illegal Argument\")")
-        val returnStr = buildTypeRewrite(returns)
+        val content = "return " + makeIfStatement(*pairs.toTypedArray(), elseBranch = "fail()")
+
         return makeExecuteFunction(content, returnStr)
     }
 

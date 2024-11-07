@@ -12,6 +12,7 @@ class TypeRewriteVisitor(private val type: Type, private val nullable: Boolean) 
         val argStr = when (val args = ctx.args()) {
             is NoArgsContext -> null
             is SingleArgsContext -> visit(args.expr())
+            is ListIndexExpressionContext -> args.exprs().expr().joinToString { visit(it) }
             is MultipleArgsContext -> args.exprs().expr().joinToString { visit(it) }
             else -> throw DetailedException("Unexpected arg type: ${args::class.simpleName}")
         }
@@ -59,11 +60,11 @@ class TypeRewriteVisitor(private val type: Type, private val nullable: Boolean) 
         return when (val op = ctx.op.text) {
             "?" -> visit(ctx.expr()) + if (nullable) "?" else ""
             "*", "+" -> when (type) {
-                is ReturnType -> "List<${visit(ctx.expr())}>"
+                is ReturnType -> "Array<${visit(ctx.expr())}>"
                 is ParamType -> if (nestedValue == 0) {
                     nestedValue++
                     visit(ctx.expr())
-                } else "List<${visit(ctx.expr())}>"
+                } else "Array<${visit(ctx.expr())}>"
 
                 else -> throw DetailedException("Unexpected type: ${ctx::class.simpleName}")
             }

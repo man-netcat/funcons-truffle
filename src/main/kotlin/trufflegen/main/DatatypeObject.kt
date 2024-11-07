@@ -4,7 +4,8 @@ import trufflegen.antlr.CBSParser.*
 
 class DatatypeObject(
     name: String,
-    private val params: List<Param>,
+    params: List<Param>,
+    private val operator: String,
     private val definitions: List<ExprContext>,
     aliases: MutableList<AliasDefinitionContext>,
     val builtin: Boolean,
@@ -26,18 +27,15 @@ class DatatypeObject(
     }
 
     override fun generateCode(): String {
-        val paramsStr = params.map { param ->
-            val annotation = param.type.annotation
-            val paramTypeStr = buildTypeRewrite(param.type)
-            makeParam(annotation, param.name, paramTypeStr)
-        }
+        val (paramsStr, typeParams) = buildParamStrs()
 
         val superClass = makeClass(
             nodeName,
             body = false,
             constructorArgs = paramsStr,
             keywords = listOf("sealed"),
-            superClasses = listOf(COMPUTATION to emptyList()),
+            typeParams = typeParams.toSet(),
+            superClasses = listOf(TERMINAL to emptyList()),
         )
 
         val clss = definitions.map { def ->
@@ -46,6 +44,7 @@ class DatatypeObject(
                     val className = toClassName(def.name.text)
                     val classParams = when (val args = def.args()) {
                         is MultipleArgsContext -> argsToParams(args.exprs().expr())
+                        is ListIndexExpressionContext -> argsToParams(args.exprs().expr())
                         is SingleArgsContext -> argsToParams(listOf(args.expr()))
                         is NoArgsContext -> emptyList()
 

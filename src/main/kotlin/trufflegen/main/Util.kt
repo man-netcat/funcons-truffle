@@ -159,7 +159,7 @@ fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<String>
 
 fun entityMap(name: String) = "entityMap[\"${name}\"]"
 
-fun todoExecute() = makeExecuteFunction("TODO(\"Implement me\")", "Any?")
+fun todoExecute(returnStr: String) = makeExecuteFunction("TODO(\"Implement me\")", returnStr)
 
 tailrec fun extractAndOrExprs(
     expr: ExprContext, definitions: List<ExprContext> = emptyList(),

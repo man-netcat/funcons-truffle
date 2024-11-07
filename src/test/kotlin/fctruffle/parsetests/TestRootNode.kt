@@ -8,7 +8,7 @@ import fctruffle.main.FCTNode
 
 class TestRootNode(private val rootNode: FCTNode) : RootNode(null) {
 
-    override fun execute(frame: VirtualFrame): Any {
+    override fun execute(frame: VirtualFrame): Any? {
         return rootNode.execute(frame)
     }
 

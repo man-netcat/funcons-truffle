@@ -11,6 +11,8 @@ abstract class FunconObject(
 ) : Object(name, params, aliases) {
     abstract fun makeContent(): String
 
+    val returnStr = buildTypeRewrite(returns)
+
     override fun generateCode(): String {
         val paramsStr = params.map { param ->
             val annotation = param.type.annotation
@@ -18,7 +20,7 @@ abstract class FunconObject(
             makeParam(annotation, param.name, paramTypeStr)
         }
 
-        val content = if (!builtin) makeContent() else todoExecute()
+        val content = if (!builtin) makeContent() else todoExecute(returnStr)
 
         return makeClass(
             nodeName,

@@ -1,8 +1,8 @@
 package fctruffle.main
 
-fun <FCTNode> slice(
-    array: Array<FCTNode>, startIndex: Int, endIndexOffset: Int = 0
-): Array<FCTNode> {
+fun <T> slice(
+    array: Array<T>, startIndex: Int, endIndexOffset: Int = 0
+): Array<T> {
     require(startIndex in 0..array.size) { "Start index is out of bounds." }
 
     val endIndex = array.size - endIndexOffset

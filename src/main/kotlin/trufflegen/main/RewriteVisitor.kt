@@ -1,23 +1,36 @@
 package trufflegen.main
 
 import org.antlr.v4.runtime.tree.ParseTree
-import org.antlr.v4.runtime.tree.RuleNode
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
 class RewriteVisitor(
     private val rootExpr: ParseTree,
-    private val params: List<Param>,
+    params: List<Param>,
     private val ruleArgs: List<ExprContext>,
     private val entities: Map<String, String>,
 ) : CBSBaseVisitor<String>() {
     private val callStack = ArrayDeque<String>()
+
+    private val varargParamIndex: Int = params.indexOfFirst { it.type.isVararg }
+    private val argsSize: Int = ruleArgs.size
+    private val paramsSize: Int = params.size
+    private val nVarargArgs: Int = argsSize - (paramsSize - 1)
+    private val paramsAfterVararg: Int = paramsSize - (varargParamIndex + 1)
+    private val argsAfterVararg: Int = argsSize - (varargParamIndex + nVarargArgs)
+
+    init {
+        if (paramsAfterVararg != argsAfterVararg) {
+            throw DetailedException("Unequal args for params after vararg")
+        }
+    }
 
     override fun visitFunconExpression(funcon: FunconExpressionContext): String {
         val name = funcon.name.text
         callStack.addLast(name)
         val argStr = when (val rewriteArgs = funcon.args()) {
             is MultipleArgsContext -> visit(rewriteArgs.exprs())
+            is ListIndexExpressionContext -> visit(rewriteArgs.exprs())
             is SingleArgsContext -> visit(rewriteArgs.expr())
             is NoArgsContext -> ""
             else -> throw DetailedException("Unexpected arg type: ${rewriteArgs::class.simpleName}")
@@ -53,11 +66,16 @@ class RewriteVisitor(
 
     override fun visitPair(pair: PairContext): String = "${visit(pair.key)} to ${visit(pair.value)}"
 
-    override fun visitSuffixExpression(suffixExpr: SuffixExpressionContext): String = rewriteExpr(suffixExpr)
+    override fun visitSuffixExpression(suffixExpr: SuffixExpressionContext): String =
+        makeParamStr(suffixExpr.text, argIsArray = true)
 
-    override fun visitVariable(varExpr: VariableContext): String = rewriteExpr(varExpr)
+    override fun visitVariable(varExpr: VariableContext): String =
+        if (varExpr.text != "_") makeParamStr(varExpr.text) else "null"
 
-    override fun visitVariableStep(varStep: VariableStepContext): String = rewriteExpr(varStep)
+    override fun visitVariableStep(varStep: VariableStepContext): String {
+        val stepSuffix = "p".repeat(varStep.squote().size)
+        return makeParamStr(varStep.varname.text, stepSuffix = stepSuffix)
+    }
 
     override fun visitNumber(num: NumberContext): String = num.text
 
@@ -65,104 +83,53 @@ class RewriteVisitor(
 
     override fun visitTypeExpression(typeExpr: TypeExpressionContext): String = visit(typeExpr.value)
 
-    private fun rewriteExpr(expr: ParseTree): String {
-        if (expr.text == "_") return "null"
-
-        val (text, argIsArray, executeStr) = when (expr) {
-            is SuffixExpressionContext -> Triple(expr.text, true, "")
-            is VariableContext -> Triple(expr.varname.text, false, "")
-            is VariableStepContext -> {
-                var numSteps = expr.squote().size
-                Triple(expr.varname.text, false, "p".repeat(numSteps))
-            }
-
-            else -> throw DetailedException("Unexpected expression type: ${expr::class.simpleName}")
-        }
-
+    fun makeParamStr(text: String, stepSuffix: String = "", argIsArray: Boolean = false): String {
         if (text in entities.keys) {
             val labelName = entities[text]
             return entityMap(labelName!!)
         }
 
-        val exprIsArg = when (rootExpr) {
-            is FunconExpressionContext, is ListIndexExpressionContext, is ListExpressionContext -> true
-            else -> false
-        }
 
+        val exprIsArg =
+            rootExpr is FunconExpressionContext || rootExpr is ListIndexExpressionContext || rootExpr is ListExpressionContext
         val argIndex = ruleArgs.indexOfFirst { ArgVisitor(text).visit(it) }
         if (argIndex == -1) {
-
-            val stringArgs = ruleArgs.map { arg -> arg.text }
-            throw StringNotFoundException(text, stringArgs)
+            throw StringNotFoundException(text, ruleArgs.map { it.text })
         }
-        val varargParamIndex = params.indexOfFirst { it.type.isVararg }
+
+        val (paramIndex, varargParamIndexed) = getParamIndex(argIndex)
+        if (text == "()") return "p$paramIndex"
         val starPrefix = if (exprIsArg && argIsArray) "*" else ""
-        if (varargParamIndex == -1) return "${starPrefix}p$argIndex$executeStr"
-
-        val argsSize = ruleArgs.size
-        val paramsSize = params.size
-        val nVarargArgs = argsSize - (paramsSize - 1)
-        val paramsAfterVararg = paramsSize - (varargParamIndex + 1)
-        val argsAfterVararg = argsSize - (varargParamIndex + nVarargArgs)
-        if (paramsAfterVararg != argsAfterVararg) throw DetailedException("Unequal args for params after vararg")
-
-        val (paramIndex, varargParamIndexed) = getParamIndex(argIndex, params, ruleArgs)
-
-        return starPrefix + if (argIndex < varargParamIndex) {
-            // Arg is pre-vararg param index
-            "p$paramIndex$executeStr"
-        } else if (argIndex in varargParamIndex until varargParamIndex + nVarargArgs) {
-            // Arg is vararg param index
-            if (!argIsArray) {
-                "p${paramIndex}$executeStr[$varargParamIndexed]"
-            } else if (argsAfterVararg > 0) {
-                "slice(p$paramIndex$executeStr, $argIndex, $argsAfterVararg)"
-            } else if (argIndex != 0) {
-                "slice(p$paramIndex$executeStr, $argIndex)"
-            } else {
-                "p$paramIndex$executeStr"
+        val param = when {
+            argIndex < varargParamIndex -> "p$paramIndex"
+            argIndex in varargParamIndex until varargParamIndex + nVarargArgs -> {
+                if (!argIsArray) "p$paramIndex[$varargParamIndexed]"
+                else if (argsAfterVararg > 0) "slice(p$paramIndex, $argIndex, $argsAfterVararg)"
+                else if (argIndex != 0) "slice(p$paramIndex, $argIndex)"
+                else "p$paramIndex"
             }
-        } else if (argIndex < argsSize) {
-            // Arg is post-vararg param index
-            "p$paramIndex$executeStr"
-        } else {
-            throw IndexOutOfBoundsException()
+
+            argIndex < argsSize -> "p$paramIndex"
+            else -> throw IndexOutOfBoundsException()
         }
+
+        return "$starPrefix$param$stepSuffix"
     }
 
-    override fun visitChildren(node: RuleNode): String {
-        println("rewritevisitor is visiting ${node::class.simpleName}...")
-        return super.visitChildren(node)
-    }
-
-    companion object {
-        fun getParamIndex(argIndex: Int, params: List<Param>, ruleArgs: List<ExprContext?>): Pair<Int, Int?> {
-            val varargParamIndex = params.indexOfFirst { it.type.isVararg }
-            val argsSize = ruleArgs.size
-            val paramsSize = params.size
-            val nVarargArgs = argsSize - (paramsSize - 1)
-            val paramsAfterVararg = paramsSize - (varargParamIndex + 1)
-            val argsAfterVararg = argsSize - (varargParamIndex + nVarargArgs)
-            if (paramsAfterVararg != argsAfterVararg) {
-                throw DetailedException("Unequal args for params after vararg")
+    fun getParamIndex(argIndex: Int): Pair<Int, Int?> {
+        return when {
+            argIndex < varargParamIndex -> Pair(argIndex, null)
+            argIndex in varargParamIndex until varargParamIndex + nVarargArgs -> {
+                val varargParamIndexed = argIndex - varargParamIndex
+                Pair(varargParamIndex, varargParamIndexed)
             }
 
-            return if (argIndex < varargParamIndex) {
-                // Arg is pre-vararg param index
-                val paramIndex = argIndex
-                Pair(paramIndex, null)
-            } else if (argIndex in varargParamIndex until varargParamIndex + nVarargArgs) {
-                // Arg is vararg param index
-                val paramIndex = varargParamIndex
-                val varargParamIndexed = argIndex - varargParamIndex
-                Pair(paramIndex, varargParamIndexed)
-            } else if (argIndex < argsSize) {
-                // Arg is post-vararg param index
+            argIndex < argsSize -> {
                 val paramIndex = argIndex - (nVarargArgs - 1)
                 Pair(paramIndex, null)
-            } else {
-                throw IndexOutOfBoundsException()
             }
+
+            else -> throw IndexOutOfBoundsException()
         }
     }
 }

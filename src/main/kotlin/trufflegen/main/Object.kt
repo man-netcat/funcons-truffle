@@ -38,11 +38,18 @@ abstract class Object(
     fun buildRewrite(
         definition: ParseTree,
         toRewrite: ParseTree,
-        entities: Map<String, String> = emptyMap()
+        entities: Map<String, String> = emptyMap(),
+        makeParamStr: Boolean = false
     ): String {
         val args = extractArgs(definition)
         val rewriteVisitor = RewriteVisitor(toRewrite, params, args, entities)
-        val rewritten = rewriteVisitor.visit(toRewrite)
+        val rewritten = if (makeParamStr) {
+            rewriteVisitor.makeParamStr(
+                toRewrite.text,
+                argIsArray = toRewrite is SuffixExpressionContext,
+                stepSuffix = if (toRewrite is VariableStepContext) "p".repeat(toRewrite.squote().size) else ""
+            )
+        } else rewriteVisitor.visit(toRewrite)
         return rewritten
     }
 
@@ -57,6 +64,23 @@ abstract class Object(
         val rewritten = rewriteVisitor.visit(type.expr)
         val complement = rewriteVisitor.complement
         return rewritten to complement
+    }
+
+    fun buildParamStrs(): Pair<List<String>, List<String>> {
+        val valueParamStrings = mutableListOf<String>()
+        val typeParamStrings = mutableListOf<String>()
+
+        for (param in params) {
+            if (param.value != null) {
+                val annotation = param.type.annotation
+                val paramTypeStr = buildTypeRewrite(param.type)
+                valueParamStrings.add(makeParam(annotation, param.name, paramTypeStr))
+            } else {
+                typeParamStrings.add(buildTypeRewrite(ReturnType(param.type.expr)))
+            }
+        }
+
+        return Pair(valueParamStrings, typeParamStrings)
     }
 }
 
