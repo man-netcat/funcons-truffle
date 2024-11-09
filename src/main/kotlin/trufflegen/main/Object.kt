@@ -39,7 +39,8 @@ abstract class Object(
         definition: ParseTree,
         toRewrite: ParseTree,
         entities: Map<String, String> = emptyMap(),
-        makeParamStr: Boolean = false
+        makeParamStr: Boolean = false,
+        forcedArgIndex: Int = -1
     ): String {
         val args = extractArgs(definition)
         val rewriteVisitor = RewriteVisitor(toRewrite, params, args, entities)
@@ -47,7 +48,8 @@ abstract class Object(
             rewriteVisitor.makeParamStr(
                 toRewrite.text,
                 argIsArray = toRewrite is SuffixExpressionContext,
-                stepSuffix = if (toRewrite is VariableStepContext) "p".repeat(toRewrite.squote().size) else ""
+                stepSuffix = if (toRewrite is VariableStepContext) "p".repeat(toRewrite.squote().size) else "",
+                forcedArgIndex = forcedArgIndex
             )
         } else rewriteVisitor.visit(toRewrite)
         return rewritten

@@ -44,7 +44,7 @@ class FunconObjectWithRules(
             return args.mapIndexedNotNull { argIndex, arg ->
                 val (argValue, argType) = if (arg is TypeExpressionContext) arg.value to arg.type else arg to null
 
-                val paramStr = buildRewrite(def, argValue, makeParamStr = true)
+                val paramStr = buildRewrite(def, argValue, makeParamStr = true, forcedArgIndex = argIndex)
                 val valueCondition = when (argValue) {
                     is FunconExpressionContext -> "$paramStr is ${buildTypeRewrite(ReturnType(argValue))}"
                     is NumberContext -> "$paramStr == ${argValue.text}"

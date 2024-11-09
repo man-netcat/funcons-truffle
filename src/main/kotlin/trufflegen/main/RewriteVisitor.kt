@@ -83,23 +83,34 @@ class RewriteVisitor(
 
     override fun visitTypeExpression(typeExpr: TypeExpressionContext): String = visit(typeExpr.value)
 
-    fun makeParamStr(text: String, stepSuffix: String = "", argIsArray: Boolean = false): String {
+    fun makeParamStr(
+        text: String, stepSuffix: String = "", argIsArray: Boolean = false, forcedArgIndex: Int = -1
+    ): String {
+        // TODO: Fix parameter comparisons
+
         if (text in entities.keys) {
             val labelName = entities[text]
             return entityMap(labelName!!)
         }
 
+        val exprIsArg = listOf(
+            FunconExpressionContext::class, ListIndexExpressionContext::class, ListExpressionContext::class
+        ).any { it.isInstance(rootExpr) }
 
-        val exprIsArg =
-            rootExpr is FunconExpressionContext || rootExpr is ListIndexExpressionContext || rootExpr is ListExpressionContext
-        val argIndex = ruleArgs.indexOfFirst { ArgVisitor(text).visit(it) }
-        if (argIndex == -1) {
-            throw StringNotFoundException(text, ruleArgs.map { it.text })
-        }
+        val argIndex = if (forcedArgIndex == -1) {
+            ruleArgs.indexOfFirst { ArgVisitor(text).visit(it) }
+        } else forcedArgIndex
+
+        if (argIndex == -1) throw StringNotFoundException(text, ruleArgs.map { it.text })
 
         val (paramIndex, varargParamIndexed) = getParamIndex(argIndex)
+
         if (text == "()") return "p$paramIndex"
+
         val starPrefix = if (exprIsArg && argIsArray) "*" else ""
+
+        if (varargParamIndex == -1) return "${starPrefix}p$argIndex"
+
         val param = when {
             argIndex < varargParamIndex -> "p$paramIndex"
             argIndex in varargParamIndex until varargParamIndex + nVarargArgs -> {
