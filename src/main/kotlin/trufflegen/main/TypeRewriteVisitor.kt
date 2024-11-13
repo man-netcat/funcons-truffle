@@ -9,14 +9,15 @@ class TypeRewriteVisitor(private val type: Type, private val nullable: Boolean) 
 
     override fun visitFunconExpression(ctx: FunconExpressionContext): String {
         val funconName = toClassName(ctx.name.text)
-        val argStr = when (val args = ctx.args()) {
-            is NoArgsContext -> null
-            is SingleArgsContext -> visit(args.expr())
-            is ListIndexExpressionContext -> args.exprs().expr().joinToString { visit(it) }
-            is MultipleArgsContext -> args.exprs().expr().joinToString { visit(it) }
+        val args = when (val args = ctx.args()) {
+            is NoArgsContext -> emptyList()
+            is SingleArgsContext -> listOf(visit(args.expr()))
+            is ListIndexExpressionContext -> args.exprs().expr().map { visit(it) }
+            is MultipleArgsContext -> args.exprs().expr().map { visit(it) }
             else -> throw DetailedException("Unexpected arg type: ${args::class.simpleName}")
         }
-        return funconName + if (argStr != null) "<$argStr>" else ""
+        val argStr = args.filter { arg -> arg != "_" }.joinToString()
+        return funconName + if (!argStr.isEmpty()) "<$argStr>" else ""
 //        TODO: Could be useful for hardcoding types
 //        return when (funconName) {
 //            "map" -> {

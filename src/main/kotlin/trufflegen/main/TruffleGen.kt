@@ -10,15 +10,16 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.pathString
 
-private val globalObjects: MutableMap<String, Object> = mutableMapOf()
+val globalObjects: MutableMap<String, Object?> = mutableMapOf()
 
 class TruffleGen(private val cbsDir: File) {
     private val files: MutableMap<String, CBSFile> = mutableMapOf()
-    private var parseTrees: MutableMap<String, RootContext> = mutableMapOf<String, RootContext>()
+    private var parseTrees: MutableMap<String, RootContext> = mutableMapOf()
 
     fun process() {
         generateParseTrees()
         generateObjects()
+        gatherTerminals()
         generateCode()
     }
 
@@ -34,15 +35,24 @@ class TruffleGen(private val cbsDir: File) {
     }
 
     private fun generateObjects() {
-        parseTrees.forEach { name, root ->
+        parseTrees.forEach { (name, root) ->
             println("Generating objects for file $name...")
             val cbsFile = CBSFile(name, root)
             cbsFile.visit(root)
             val fileObjects = cbsFile.objects
             if (fileObjects.isNotEmpty()) {
                 files[name] = cbsFile
-                fileObjects.forEach { obj -> globalObjects[obj.name] = obj }
+                globalObjects.putAll(fileObjects)
             }
+        }
+    }
+
+    private fun gatherTerminals() {
+        parseTrees.forEach { (name, root) ->
+            println("Gathering terminal funcons for file $name...")
+            val visitor = IndexVisitor()
+            visitor.visit(root)
+            visitor.names.forEach { if (it !in globalObjects.keys) globalObjects[it] = null }
         }
     }
 
@@ -61,7 +71,6 @@ class TruffleGen(private val cbsDir: File) {
             File(filePath).writeText(code)
         }
     }
-
 
     companion object {
         @JvmStatic

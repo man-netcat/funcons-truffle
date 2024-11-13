@@ -4,25 +4,30 @@ import trufflegen.antlr.CBSParser.*
 
 class TypeObject(
     name: String,
+    ctx: TypeDefinitionContext,
     params: List<Param>,
     private val operator: String,
     private val definitions: List<ExprContext>,
     aliases: MutableList<AliasDefinitionContext>,
     val builtin: Boolean,
-) : Object(name, params, aliases) {
-    fun makeParams(definition: FunconExpressionContext): List<String> {
-        return extractArgs(definition).map { param -> buildRewrite(definition, param) }
-    }
-
+    metavariables: Set<String>,
+) : Object(name, ctx, params, aliases, metavariables) {
     override fun generateCode(): String {
         val (paramsStr, typeParams) = buildParamStrs()
 
         return makeClass(nodeName,
-            keywords = listOf("sealed"),
+            keywords = listOf("open"),
             constructorArgs = paramsStr,
             superClasses = if (definitions.isNotEmpty()) definitions.map { definition ->
+                val args = extractArgs(definition)
+                val (argsStrs, superClassTypeParams) = buildArgStrs(args)
                 when (definition) {
-                    is FunconExpressionContext -> toClassName(definition.name.text) to makeParams(definition)
+                    is FunconExpressionContext -> Triple(
+                        toClassName(definition.name.text),
+                        superClassTypeParams,
+                        argsStrs
+                    )
+
                     else -> throw DetailedException("Unexpected Expr type: ${definition.text}")
                 }
             } else emptyList(),

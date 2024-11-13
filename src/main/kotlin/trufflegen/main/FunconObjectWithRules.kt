@@ -6,12 +6,14 @@ import kotlin.collections.orEmpty
 
 class FunconObjectWithRules(
     name: String,
+    def: FunconDefinitionContext,
     params: List<Param>,
     private val rules: List<RuleDefinitionContext>,
     returns: ReturnType,
     aliases: List<AliasDefinitionContext>,
-    builtin: Boolean
-) : FunconObject(name, params, returns, aliases, builtin) {
+    builtin: Boolean,
+    metavariables: Set<String>
+) : FunconObject(name, def, params, returns, aliases, builtin, metavariables) {
     private fun complementStr(bool: Boolean): String = if (bool) "!" else ""
     private fun isInputOutputEntity(stepExpr: StepExprContext): Boolean {
         val steps = stepExpr.steps().step()
@@ -40,7 +42,6 @@ class FunconObjectWithRules(
                 else -> emptyList()
             }
 
-
             return args.mapIndexedNotNull { argIndex, arg ->
                 val (argValue, argType) = if (arg is TypeExpressionContext) arg.value to arg.type else arg to null
 
@@ -52,8 +53,8 @@ class FunconObjectWithRules(
                         if (argValue.text in listOf("()", "[]")) {
                             "${paramStr}.isEmpty()"
                         } else {
-                            println("args: ${args.map { it.text }}")
-                            println("paramStr: $paramStr, argValue: ${argValue.text}")
+                            // TODO: FIX
+                            println("name: $name, paramStr: $paramStr, argValue: ${argValue.text}")
                         }
                     }
 

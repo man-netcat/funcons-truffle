@@ -4,7 +4,8 @@ import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
 class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() {
-    internal val objects = mutableListOf<Object>()
+    internal val objects = mutableMapOf<String, Object?>()
+    internal var metavariables: Set<String> = emptySet()
 
     private fun extractParams(params: ParamsContext?): List<Param> {
         return params?.param()?.mapIndexed { paramIndex, param ->
@@ -12,21 +13,22 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         } ?: emptyList()
     }
 
-//    override fun visitMetavariablesDefinition(metavarDefs: MetavariablesDefinitionContext) {
-//        val dataContainers = metavarDefs.metavarDef().flatMap { def ->
-//            def.variables.expr().map { metaVar ->
-//                val name = when (metaVar) {
-//                    is VariableContext -> metaVar.text
-//                    is VariableStepContext -> makeVariableStepName(metaVar)
-//                    is SuffixExpressionContext -> metaVar.operand.text
-//                    else -> throw DetailedException("Unexpected metaVar type: ${metaVar::class.simpleName}, ${metaVar.text}")
-//                }
-//                Metavariable(name, def.definition)
-//            }
-//        }.distinctBy { obj -> obj.name }
-//
-//        objects.addAll(dataContainers)
-//    }
+    override fun visitMetavariablesDefinition(metavarDefs: MetavariablesDefinitionContext) {
+        metavariables = metavarDefs.metavarDef().flatMap { def ->
+            def.variables.expr().mapNotNull { metaVar ->
+                when (metaVar) {
+                    is VariableContext -> metaVar.text
+                    is VariableStepContext -> makeVariableStepName(metaVar)
+                    is SuffixExpressionContext -> metaVar.operand.text
+                    else -> {
+                        throw DetailedException(
+                            "Unexpected metaVar type encountered: ${metaVar::class.simpleName}, with text: '${metaVar.text}'"
+                        )
+                    }
+                }
+            }
+        }.toSet()
+    }
 
     override fun visitFunconDefinition(funcon: FunconDefinitionContext) {
         val name = funcon.name.text
@@ -36,15 +38,15 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val builtin = funcon.modifier != null
         val dataContainer = if (funcon.rewritesTo != null) {
             val rewritesTo = funcon.rewritesTo
-            FunconObjectWithRewrite(name, funcon, params, rewritesTo, returns, aliases, builtin)
+            FunconObjectWithRewrite(name, funcon, params, rewritesTo, returns, aliases, builtin, metavariables)
         } else if (!funcon.ruleDefinition().isEmpty()) {
             val rules: List<RuleDefinitionContext> = funcon.ruleDefinition()
-            FunconObjectWithRules(name, params, rules, returns, aliases, builtin)
+            FunconObjectWithRules(name, funcon, params, rules, returns, aliases, builtin, metavariables)
         } else {
-            FunconObjectWithoutRules(name, params, returns, aliases, builtin)
+            FunconObjectWithoutRules(name, funcon, params, returns, aliases, builtin, metavariables)
         }
 
-        objects.add(dataContainer)
+        objects[name] = dataContainer
     }
 
     override fun visitDatatypeDefinition(datatype: DatatypeDefinitionContext) {
@@ -54,9 +56,9 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val definitions = extractAndOrExprs(datatype.definition)
         val aliases = datatype.aliasDefinition()
         val builtin = datatype.modifier != null
-        val dataContainer = DatatypeObject(name, params, operator, definitions, aliases, builtin)
+        val dataContainer = DatatypeObject(name, datatype, params, operator, definitions, aliases, builtin, metavariables)
 
-        objects.add(dataContainer)
+        objects[name] = dataContainer
     }
 
     override fun visitTypeDefinition(type: TypeDefinitionContext) {
@@ -66,9 +68,9 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val definitions = if (type.definitions != null) extractAndOrExprs(type.definitions) else emptyList()
         val aliases = type.aliasDefinition()
         val builtin = type.modifier != null
-        val dataContainer = TypeObject(name, params, operator, definitions, aliases, builtin)
+        val dataContainer = TypeObject(name, type, params, operator, definitions, aliases, builtin, metavariables)
 
-        objects.add(dataContainer)
+        objects[name] = dataContainer
     }
 
     fun generateCode(): String {
@@ -79,7 +81,7 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
             "com.oracle.truffle.api.nodes.Node.Children"
         ).joinToString("\n") { "import $it" }
 
-        val code = objects.joinToString("\n\n") { obj ->
+        val code = objects.values.filterNotNull().joinToString("\n\n") { obj ->
             println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $name)")
             try {
                 val code = obj.generateCode()

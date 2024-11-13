@@ -5,8 +5,10 @@ import trufflegen.antlr.CBSParser.*
 
 abstract class Object(
     val name: String,
+    val ctx: ParseTree,
     private val params: List<Param>,
     private val aliases: List<AliasDefinitionContext>,
+    private val metavariables: Set<String>,
 ) {
     abstract fun generateCode(): String
 
@@ -17,10 +19,13 @@ abstract class Object(
     internal val nodeName: String
         get() = toClassName(name)
 
-    fun extractArgs(funcon: ParseTree): List<ExprContext> {
-        return when (funcon) {
+    fun extractArgs(obj: ParseTree): List<ExprContext> {
+        fun extractParams(params: ParamsContext?): List<ExprContext> {
+            return params?.param()?.map { it.value ?: it.type } ?: emptyList()
+        }
+        return when (obj) {
             is FunconExpressionContext -> {
-                when (val args = funcon.args()) {
+                when (val args = obj.args()) {
                     is NoArgsContext -> emptyList()
                     is SingleArgsContext -> listOf(args.expr())
                     is MultipleArgsContext -> args.exprs().expr()
@@ -29,9 +34,11 @@ abstract class Object(
                 }
             }
 
-            is FunconDefinitionContext -> funcon.params()?.param()?.map { it.value ?: it.type } ?: emptyList()
+            is FunconDefinitionContext -> extractParams(obj.params())
+            is TypeDefinitionContext -> extractParams(obj.params())
+            is DatatypeDefinitionContext -> extractParams(obj.params())
 
-            else -> throw DetailedException("Unexpected funcon type: ${funcon::class.simpleName}, ${funcon.text}")
+            else -> throw DetailedException("Unexpected funcon type: ${obj::class.simpleName}, ${obj.text}")
         }
     }
 
@@ -68,21 +75,40 @@ abstract class Object(
         return rewritten to complement
     }
 
-    fun buildParamStrs(): Pair<List<String>, List<String>> {
+    fun buildParamStrs() = params.partition { it.value != null }.let { (valueParams, typeParams) ->
+        Pair(valueParams.map { makeParam(it.type.annotation, it.name, buildTypeRewrite(it.type)) },
+            typeParams.map { buildTypeRewrite(it.type) })
+    }
+
+    fun buildArgStrs(args: List<ExprContext>): Pair<List<String>, List<String>> {
         val valueParamStrings = mutableListOf<String>()
         val typeParamStrings = mutableListOf<String>()
 
-        for (param in params) {
-            if (param.value != null) {
-                val annotation = param.type.annotation
-                val paramTypeStr = buildTypeRewrite(param.type)
-                valueParamStrings.add(makeParam(annotation, param.name, paramTypeStr))
-            } else {
-                typeParamStrings.add(buildTypeRewrite(ReturnType(param.type.expr)))
+        args.forEach { arg ->
+            when (arg) {
+                is TypeExpressionContext -> valueParamStrings.add(arg.value.text)
+                is FunconExpressionContext -> {
+                    if (arg.name.text in globalObjects.keys) {
+                        typeParamStrings.add(buildTypeRewrite(ReturnType(arg), nullable = false))
+                    } else throw DetailedException("Unexpected funcon: ${arg.name.text}")
+                }
+
+                is VariableContext -> {
+                    if (arg.text in metavariables) {
+                        typeParamStrings.add(buildTypeRewrite(ReturnType(arg), nullable = false))
+                    } else {
+                        valueParamStrings.add(buildRewrite(ctx, arg))
+                    }
+                }
+
+                is SuffixExpressionContext -> "null".also { println(it) }
+
+                is NumberContext -> valueParamStrings.add(buildRewrite(ctx, arg))
+
+                else -> throw DetailedException("Unexpected expression: ${arg::class.simpleName}, ${arg.text}")
             }
         }
 
-        return Pair(valueParamStrings, typeParamStrings)
+        return valueParamStrings to typeParamStrings
     }
 }
-

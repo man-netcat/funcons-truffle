@@ -4,9 +4,9 @@ import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
 class IndexVisitor : CBSBaseVisitor<Unit>() {
-    internal val index = mutableSetOf<String>()
+    val names: MutableSet<String> = mutableSetOf()
 
-    override fun visitIndexLine(line: IndexLineContext) {
-        index.add(line.name.text)
+    override fun visitIndex(index: IndexContext) {
+        names.addAll(index.indexLine().map { it.name.text })
     }
 }

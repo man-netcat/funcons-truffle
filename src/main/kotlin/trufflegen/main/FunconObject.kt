@@ -4,11 +4,13 @@ import trufflegen.antlr.CBSParser.*
 
 abstract class FunconObject(
     name: String,
+    ctx: FunconDefinitionContext,
     val params: List<Param>,
     val returns: ReturnType,
     aliases: List<AliasDefinitionContext>,
     val builtin: Boolean,
-) : Object(name, params, aliases) {
+    metavariables: Set<String>,
+) : Object(name, ctx, params, aliases, metavariables) {
     abstract fun makeContent(): String
 
     val returnStr = buildTypeRewrite(returns)
@@ -26,7 +28,7 @@ abstract class FunconObject(
             nodeName,
             content = content,
             constructorArgs = paramsStr,
-            superClasses = listOf(COMPUTATION to emptyList()),
+            superClasses = emptySuperClass(COMPUTATION),
         )
     }
 }

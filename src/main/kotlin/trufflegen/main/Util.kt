@@ -80,7 +80,7 @@ fun makeClass(
     constructorArgs: List<String> = emptyList(),
     properties: List<Pair<String, String>> = emptyList(),
     typeParams: Set<String> = emptySet(),
-    superClasses: List<Pair<String, List<String>>> = emptyList(),
+    superClasses: List<Triple<String, List<String>, List<String>>> = emptyList(),
     interfaces: List<String> = emptyList(),
 ): String {
     val annotationsStr = if (annotations.isNotEmpty()) {
@@ -93,14 +93,12 @@ fun makeClass(
 
     val propertiesStr = properties.joinToString("\n") { "val ${it.first}: ${it.second}" }
 
-    val typeParamStr = if (typeParams.isNotEmpty()) {
-        "<" + typeParams.joinToString() + "> "
-    } else {
-        ""
-    }
+    val typeParamStr = if (typeParams.isNotEmpty()) "<" + typeParams.joinToString() + "> " else ""
 
-    val superClassStr = superClasses.joinToString(", ") { (superClass, args) ->
-        "$superClass(${args.joinToString(", ")})"
+    val superClassStr = superClasses.joinToString(", ") { (superClass, superClassTypeParams, superClassArgs) ->
+        val superclassTypeParamStr =
+            if (superClassTypeParams.isNotEmpty()) "<${superClassTypeParams.joinToString(", ")}>" else ""
+        "$superClass$superclassTypeParamStr(${superClassArgs.joinToString(", ")})"
     }
 
     val inheritanceStr = when {
@@ -157,6 +155,10 @@ fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<String>
     return "typealias $aliasName$typeParamStr = $targetType"
 }
 
+fun makeFunExpression(name: String, typeParams: List<String>) {
+
+}
+
 fun entityMap(name: String) = "entityMap[\"${name}\"]"
 
 fun todoExecute(returnStr: String) = makeExecuteFunction("TODO(\"Implement me\")", returnStr)
@@ -171,3 +173,6 @@ tailrec fun extractAndOrExprs(
 
 fun makeVariableStepName(varStep: VariableStepContext): String =
     varStep.varname.text + "p".repeat(varStep.squote().size)
+
+fun emptySuperClass(name: String): List<Triple<String, List<String>, List<String>>> =
+    listOf(Triple(name, emptyList(), emptyList()))

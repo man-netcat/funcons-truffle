@@ -4,12 +4,14 @@ import trufflegen.antlr.CBSParser.*
 
 class DatatypeObject(
     name: String,
+    ctx: DatatypeDefinitionContext,
     params: List<Param>,
     private val operator: String,
     private val definitions: List<ExprContext>,
     aliases: MutableList<AliasDefinitionContext>,
     val builtin: Boolean,
-) : Object(name, params, aliases) {
+    metavariables: Set<String>,
+) : Object(name, ctx, params, aliases, metavariables) {
 
     fun argsToParams(args: List<ExprContext>): List<String> {
         return args.withIndex().map { (i, arg) ->
@@ -33,9 +35,9 @@ class DatatypeObject(
             nodeName,
             body = false,
             constructorArgs = paramsStr,
-            keywords = listOf("sealed"),
+            keywords = listOf("open"),
             typeParams = typeParams.toSet(),
-            superClasses = listOf(TERMINAL to emptyList()),
+            superClasses = emptySuperClass(TERMINAL),
         )
 
         val clss = definitions.map { def ->
@@ -53,7 +55,7 @@ class DatatypeObject(
                     makeClass(
                         className,
                         constructorArgs = classParams,
-                        superClasses = listOf(toClassName(name) to emptyList()),
+                        superClasses = emptySuperClass(TERMINAL),
                         body = false
                     )
                 }
