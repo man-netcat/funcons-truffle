@@ -7,13 +7,13 @@ import trufflegen.antlr.CBSParser.*
 class RewriteVisitor(
     private val rootExpr: ParseTree,
     params: List<Param>,
-    private val ruleArgs: List<ExprContext>,
+    private val args: List<ExprContext>,
     private val entities: Map<String, String>,
 ) : CBSBaseVisitor<String>() {
     private val callStack = ArrayDeque<String>()
 
     private val varargParamIndex: Int = params.indexOfFirst { it.type.isVararg }
-    private val argsSize: Int = ruleArgs.size
+    private val argsSize: Int = args.size
     private val paramsSize: Int = params.size
     private val nVarargArgs: Int = argsSize - (paramsSize - 1)
     private val paramsAfterVararg: Int = paramsSize - (varargParamIndex + 1)
@@ -67,7 +67,10 @@ class RewriteVisitor(
     override fun visitPair(pair: PairContext): String = "${visit(pair.key)} to ${visit(pair.value)}"
 
     override fun visitSuffixExpression(suffixExpr: SuffixExpressionContext): String =
-        makeParamStr(suffixExpr.text, argIsArray = true)
+        if (suffixExpr.text != "_?") when (suffixExpr.op.text) {
+            "*", "+" -> makeParamStr(suffixExpr.text, argIsArray = true)
+            else -> throw DetailedException("Unexpected operator type: ${suffixExpr.op.text}")
+        } else "null"
 
     override fun visitVariable(varExpr: VariableContext): String =
         if (varExpr.text != "_") makeParamStr(varExpr.text) else "null"
@@ -98,10 +101,10 @@ class RewriteVisitor(
         ).any { it.isInstance(rootExpr) }
 
         val argIndex = if (forcedArgIndex == -1) {
-            ruleArgs.indexOfFirst { ArgVisitor(text).visit(it) }
+            args.indexOfFirst { ArgVisitor(text).visit(it) }
         } else forcedArgIndex
 
-        if (argIndex == -1) throw StringNotFoundException(text, ruleArgs.map { it.text })
+        if (argIndex == -1) throw StringNotFoundException(text, args.map { it.text })
 
         val (paramIndex, varargParamIndexed) = getParamIndex(argIndex)
 
@@ -109,18 +112,21 @@ class RewriteVisitor(
 
         val starPrefix = if (exprIsArg && argIsArray) "*" else ""
 
-        if (varargParamIndex == -1) return "${starPrefix}p$argIndex"
-
         val param = when {
-            argIndex < varargParamIndex -> "p$paramIndex"
-            argIndex in varargParamIndex until varargParamIndex + nVarargArgs -> {
+            // If no vararg parameter, ignore this branch entirely
+            varargParamIndex >= 0 && argIndex < varargParamIndex -> "p$paramIndex"
+
+            // Handle vararg parameter if it exists
+            varargParamIndex >= 0 && argIndex in varargParamIndex until varargParamIndex + nVarargArgs -> {
                 if (!argIsArray) "p$paramIndex[$varargParamIndexed]"
                 else if (argsAfterVararg > 0) "slice(p$paramIndex, $argIndex, $argsAfterVararg)"
                 else if (argIndex != 0) "slice(p$paramIndex, $argIndex)"
                 else "p$paramIndex"
             }
 
+            // For arguments after vararg or if no vararg exists
             argIndex < argsSize -> "p$paramIndex"
+
             else -> throw IndexOutOfBoundsException()
         }
 
@@ -129,18 +135,24 @@ class RewriteVisitor(
 
     fun getParamIndex(argIndex: Int): Pair<Int, Int?> {
         return when {
-            argIndex < varargParamIndex -> Pair(argIndex, null)
+            // Case when there is no vararg parameter (varargParamIndex == -1)
+            varargParamIndex == -1 || argIndex < varargParamIndex -> Pair(argIndex, null)
+
+            // Case for an actual vararg parameter range
             argIndex in varargParamIndex until varargParamIndex + nVarargArgs -> {
                 val varargParamIndexed = argIndex - varargParamIndex
                 Pair(varargParamIndex, varargParamIndexed)
             }
 
+            // Case for parameters after the vararg parameter
             argIndex < argsSize -> {
+                // Adjust argIndex based on the number of vararg arguments
                 val paramIndex = argIndex - (nVarargArgs - 1)
+                require(paramIndex >= 0) { "Calculated paramIndex is negative. Check nVarargArgs." }
                 Pair(paramIndex, null)
             }
 
-            else -> throw IndexOutOfBoundsException()
+            else -> throw IndexOutOfBoundsException("argIndex $argIndex out of bounds.")
         }
     }
 }
