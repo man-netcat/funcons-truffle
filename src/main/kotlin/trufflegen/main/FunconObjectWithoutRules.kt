@@ -10,7 +10,7 @@ class FunconObjectWithoutRules(
     returns: ReturnType,
     aliases: List<AliasDefinitionContext>,
     builtin: Boolean,
-    metavariables: Set<String>
+    metavariables: Map<String, String>
 ) :
     FunconObject(name, ctx, params, returns, aliases, builtin, metavariables) {
     override fun makeContent(): String {

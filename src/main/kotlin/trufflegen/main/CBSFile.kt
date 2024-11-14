@@ -5,7 +5,7 @@ import trufflegen.antlr.CBSParser.*
 
 class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() {
     internal val objects = mutableMapOf<String, Object?>()
-    internal var metavariables: Set<String> = emptySet()
+    internal var metavariables: Map<String, String> = emptyMap()
 
     private fun extractParams(params: ParamsContext?): List<Param> {
         return params?.param()?.mapIndexed { paramIndex, param ->
@@ -16,18 +16,17 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
     override fun visitMetavariablesDefinition(metavarDefs: MetavariablesDefinitionContext) {
         metavariables = metavarDefs.metavarDef().flatMap { def ->
             def.variables.expr().mapNotNull { metaVar ->
-                when (metaVar) {
+                val key = when (metaVar) {
                     is VariableContext -> metaVar.text
                     is VariableStepContext -> makeVariableStepName(metaVar)
                     is SuffixExpressionContext -> metaVar.operand.text
-                    else -> {
-                        throw DetailedException(
-                            "Unexpected metaVar type encountered: ${metaVar::class.simpleName}, with text: '${metaVar.text}'"
-                        )
-                    }
+                    else -> throw DetailedException(
+                        "Unexpected metaVar type encountered: ${metaVar::class.simpleName}, with text: '${metaVar.text}'"
+                    )
                 }
+                key to buildTypeRewrite(ReturnType(def.definition))
             }
-        }.toSet()
+        }.toMap()
     }
 
     override fun visitFunconDefinition(funcon: FunconDefinitionContext) {
@@ -56,7 +55,8 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val definitions = extractAndOrExprs(datatype.definition)
         val aliases = datatype.aliasDefinition()
         val builtin = datatype.modifier != null
-        val dataContainer = DatatypeObject(name, datatype, params, operator, definitions, aliases, builtin, metavariables)
+        val dataContainer =
+            DatatypeObject(name, datatype, params, operator, definitions, aliases, builtin, metavariables)
 
         objects[name] = dataContainer
     }

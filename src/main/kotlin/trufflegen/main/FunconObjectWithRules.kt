@@ -12,7 +12,7 @@ class FunconObjectWithRules(
     returns: ReturnType,
     aliases: List<AliasDefinitionContext>,
     builtin: Boolean,
-    metavariables: Set<String>
+    metavariables: Map<String, String>
 ) : FunconObject(name, def, params, returns, aliases, builtin, metavariables) {
     private fun complementStr(bool: Boolean): String = if (bool) "!" else ""
     private fun isInputOutputEntity(stepExpr: StepExprContext): Boolean {

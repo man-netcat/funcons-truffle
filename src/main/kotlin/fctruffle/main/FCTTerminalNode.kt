@@ -1,16 +1,9 @@
 package fctruffle.main
 
-abstract class FCTTerminalNode(open val value: String) : FCTNode() {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        return value == other
-    }
+import com.oracle.truffle.api.frame.VirtualFrame
 
-    override fun hashCode(): Int {
-        return value.hashCode()
-    }
-
-    override fun toString(): String {
-        return "${this::class.simpleName}($value)"
+abstract class FCTTerminalNode() : FCTNode() {
+    override fun execute(frame: VirtualFrame): Any? {
+        return TODO("Provide the return value")
     }
 }

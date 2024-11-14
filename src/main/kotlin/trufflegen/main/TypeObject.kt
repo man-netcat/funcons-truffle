@@ -10,29 +10,39 @@ class TypeObject(
     private val definitions: List<ExprContext>,
     aliases: MutableList<AliasDefinitionContext>,
     val builtin: Boolean,
-    metavariables: Set<String>,
+    metavariables: Map<String, String>,
 ) : Object(name, ctx, params, aliases, metavariables) {
     override fun generateCode(): String {
         val (paramsStr, typeParams) = buildParamStrs()
 
-        return makeClass(nodeName,
+        val superClass: Triple<String, MutableList<String>, MutableList<String>>? =
+            when (definitions.size) {
+                1 -> {
+                    val definition = definitions[0]
+                    val args = extractArgs(definition)
+                    val (argsStrs, superClassTypeParams) = buildArgStrs(args)
+
+                    when (definition) {
+                        is FunconExpressionContext -> Triple(
+                            toClassName(definition.name.text), superClassTypeParams, argsStrs
+                        )
+
+                        else -> throw DetailedException("Unexpected Expr type: ${definition.text}")
+                    }
+                }
+
+                2 -> null
+
+                else -> null
+            }
+
+        return makeClass(
+            name = nodeName,
             keywords = listOf("open"),
             constructorArgs = paramsStr,
-            superClasses = if (definitions.isNotEmpty()) definitions.map { definition ->
-                val args = extractArgs(definition)
-                val (argsStrs, superClassTypeParams) = buildArgStrs(args)
-                when (definition) {
-                    is FunconExpressionContext -> Triple(
-                        toClassName(definition.name.text),
-                        superClassTypeParams,
-                        argsStrs
-                    )
-
-                    else -> throw DetailedException("Unexpected Expr type: ${definition.text}")
-                }
-            } else emptyList(),
-            typeParams = typeParams.toSet(),
-            body = false)
+            superClass = superClass,
+            typeParams = typeParams,
+            body = false
+        )
     }
 }
-

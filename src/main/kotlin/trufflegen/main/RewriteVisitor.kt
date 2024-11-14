@@ -42,20 +42,20 @@ class RewriteVisitor(
 
     override fun visitTupleExpression(tuple: TupleExpressionContext): String {
         val exprs = tuple.exprs()?.expr()
-        return if (exprs.isNullOrEmpty()) "emptyList()" else "listOf(${visit(tuple.exprs())})"
+        return if (exprs.isNullOrEmpty()) "ListNilNode1()" else "ListNode(${visit(tuple.exprs())})"
     }
 
     override fun visitListExpression(list: ListExpressionContext): String {
         val exprs = list.exprs()?.expr()
-        return if (exprs.isNullOrEmpty()) "emptyList()" else "listOf(${visit(list.exprs())})"
+        return if (exprs.isNullOrEmpty()) "ListNilNode()" else "ListNode(${visit(list.exprs())})"
     }
 
     override fun visitSetExpression(set: SetExpressionContext): String {
         val expr = set.expr()
-        return if (expr == null) "emptySet()" else "setOf(${visit(set.expr())})"
+        return if (expr == null) "SetsNode()" else "SetsNode(${visit(set.expr())})"
     }
 
-    override fun visitMapExpression(map: MapExpressionContext): String = "hashMapOf(${visitPairs(map.pairs())})"
+    override fun visitMapExpression(map: MapExpressionContext): String = "Maps(${visitPairs(map.pairs())})"
 
     private fun visitSequences(nodes: List<ParseTree>, sep: String = ", "): String =
         nodes.joinToString(sep) { visit(it) }
@@ -80,7 +80,7 @@ class RewriteVisitor(
         return makeParamStr(varStep.varname.text, stepSuffix = stepSuffix)
     }
 
-    override fun visitNumber(num: NumberContext): String = num.text
+    override fun visitNumber(num: NumberContext): String = "(${num.text}).toIntegersNode()"
 
     override fun visitString(string: StringContext): String = string.text
 

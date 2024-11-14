@@ -79,8 +79,8 @@ fun makeClass(
     annotations: List<String> = emptyList(),
     constructorArgs: List<String> = emptyList(),
     properties: List<Pair<String, String>> = emptyList(),
-    typeParams: Set<String> = emptySet(),
-    superClasses: List<Triple<String, List<String>, List<String>>> = emptyList(),
+    typeParams: List<Pair<String, String?>> = emptyList(),
+    superClass: Triple<String, List<String>, List<String>>? = null,
     interfaces: List<String> = emptyList(),
 ): String {
     val annotationsStr = if (annotations.isNotEmpty()) {
@@ -93,13 +93,17 @@ fun makeClass(
 
     val propertiesStr = properties.joinToString("\n") { "val ${it.first}: ${it.second}" }
 
-    val typeParamStr = if (typeParams.isNotEmpty()) "<" + typeParams.joinToString() + "> " else ""
+    val typeParamStr =
+        if (typeParams.isNotEmpty()) "<" + typeParams.joinToString { (metavar, superClass) ->
+            if (superClass != null) "$metavar : $superClass" else metavar
+        } + "> " else ""
 
-    val superClassStr = superClasses.joinToString(", ") { (superClass, superClassTypeParams, superClassArgs) ->
+    val superClassStr = superClass?.let {
+        val (superClassName, superClassTypeParams, superClassArgs) = it
         val superclassTypeParamStr =
             if (superClassTypeParams.isNotEmpty()) "<${superClassTypeParams.joinToString(", ")}>" else ""
-        "$superClass$superclassTypeParamStr(${superClassArgs.joinToString(", ")})"
-    }
+        "$superClassName$superclassTypeParamStr(${superClassArgs.joinToString(", ")})"
+    } ?: ""
 
     val inheritanceStr = when {
         superClassStr.isNotEmpty() && interfaces.isNotEmpty() -> ": $superClassStr, ${interfaces.joinToString(", ")}"
@@ -174,5 +178,10 @@ tailrec fun extractAndOrExprs(
 fun makeVariableStepName(varStep: VariableStepContext): String =
     varStep.varname.text + "p".repeat(varStep.squote().size)
 
-fun emptySuperClass(name: String): List<Triple<String, List<String>, List<String>>> =
-    listOf(Triple(name, emptyList(), emptyList()))
+fun emptySuperClass(name: String): Triple<String, List<String>, List<String>> = Triple(name, emptyList(), emptyList())
+
+fun buildTypeRewrite(type: Type, nullable: Boolean = true): String {
+    val rewriteVisitor = TypeRewriteVisitor(type, nullable)
+    val rewritten = rewriteVisitor.visit(type.expr)
+    return rewritten
+}

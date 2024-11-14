@@ -8,7 +8,7 @@ abstract class Object(
     val ctx: ParseTree,
     private val params: List<Param>,
     private val aliases: List<AliasDefinitionContext>,
-    private val metavariables: Set<String>,
+    private val metavariables: Map<String, String>,
 ) {
     abstract fun generateCode(): String
 
@@ -62,12 +62,6 @@ abstract class Object(
         return rewritten
     }
 
-    fun buildTypeRewrite(type: Type, nullable: Boolean = true): String {
-        val rewriteVisitor = TypeRewriteVisitor(type, nullable)
-        val rewritten = rewriteVisitor.visit(type.expr)
-        return rewritten
-    }
-
     fun buildTypeRewriteWithComplement(type: Type, nullable: Boolean = true): Pair<String, Boolean> {
         val rewriteVisitor = TypeRewriteVisitor(type, nullable)
         val rewritten = rewriteVisitor.visit(type.expr)
@@ -77,10 +71,13 @@ abstract class Object(
 
     fun buildParamStrs() = params.partition { it.value != null }.let { (valueParams, typeParams) ->
         Pair(valueParams.map { makeParam(it.type.annotation, it.name, buildTypeRewrite(it.type)) },
-            typeParams.map { buildTypeRewrite(it.type) })
+            typeParams.map {
+                val metavar = buildTypeRewrite(it.type)
+                metavar to metavariables[metavar]
+            })
     }
 
-    fun buildArgStrs(args: List<ExprContext>): Pair<List<String>, List<String>> {
+    fun buildArgStrs(args: List<ExprContext>): Pair<MutableList<String>, MutableList<String>> {
         val valueParamStrings = mutableListOf<String>()
         val typeParamStrings = mutableListOf<String>()
 
@@ -95,7 +92,7 @@ abstract class Object(
 
                 is VariableContext -> {
                     if (arg.text in metavariables) {
-                        typeParamStrings.add(buildTypeRewrite(ReturnType(arg), nullable = false))
+                        typeParamStrings.add(arg.text)
                     } else {
                         valueParamStrings.add(buildRewrite(ctx, arg))
                     }

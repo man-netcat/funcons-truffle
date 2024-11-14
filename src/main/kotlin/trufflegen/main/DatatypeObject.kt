@@ -10,7 +10,7 @@ class DatatypeObject(
     private val definitions: List<ExprContext>,
     aliases: MutableList<AliasDefinitionContext>,
     val builtin: Boolean,
-    metavariables: Set<String>,
+    metavariables: Map<String, String>,
 ) : Object(name, ctx, params, aliases, metavariables) {
 
     fun argsToParams(args: List<ExprContext>): List<String> {
@@ -36,8 +36,8 @@ class DatatypeObject(
             body = false,
             constructorArgs = paramsStr,
             keywords = listOf("open"),
-            typeParams = typeParams.toSet(),
-            superClasses = emptySuperClass(TERMINAL),
+            typeParams = typeParams,
+            superClass = emptySuperClass(TERMINAL),
         )
 
         val clss = definitions.map { def ->
@@ -55,7 +55,7 @@ class DatatypeObject(
                     makeClass(
                         className,
                         constructorArgs = classParams,
-                        superClasses = emptySuperClass(TERMINAL),
+                        superClass = emptySuperClass(TERMINAL), // TODO: Fix
                         body = false
                     )
                 }
@@ -69,7 +69,7 @@ class DatatypeObject(
 
                         else -> throw DetailedException("Unexpected setContent definition: ${setContent::class.simpleName}")
                     }
-                    makeTypeAlias(toClassName(name), "Set<$typeStr>")
+                    makeTypeAlias(toClassName(name), "SetNode<$typeStr>")
                 }
 
                 else -> throw DetailedException("Unexpected datatype definition: ${def::class.simpleName}")

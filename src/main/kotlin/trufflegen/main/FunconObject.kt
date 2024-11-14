@@ -9,7 +9,7 @@ abstract class FunconObject(
     val returns: ReturnType,
     aliases: List<AliasDefinitionContext>,
     val builtin: Boolean,
-    metavariables: Set<String>,
+    metavariables: Map<String, String>,
 ) : Object(name, ctx, params, aliases, metavariables) {
     abstract fun makeContent(): String
 
@@ -28,7 +28,7 @@ abstract class FunconObject(
             nodeName,
             content = content,
             constructorArgs = paramsStr,
-            superClasses = emptySuperClass(COMPUTATION),
+            superClass = emptySuperClass(COMPUTATION),
         )
     }
 }
