@@ -17,9 +17,16 @@ class TruffleGen(private val cbsDir: File) {
     private var parseTrees: MutableMap<String, RootContext> = mutableMapOf()
 
     fun process() {
+        // First generate the parse trees for all .cbs files
         generateParseTrees()
+
+        // Generate classes that hold data for all funcons, datatypes, entities, etc...
         generateObjects()
-        gatherTerminals()
+
+        // Verify all objects are accounted for
+        verifyObjects()
+
+        // Generate code from the objects
         generateCode()
     }
 
@@ -47,12 +54,16 @@ class TruffleGen(private val cbsDir: File) {
         }
     }
 
-    private fun gatherTerminals() {
+    private fun verifyObjects() {
         parseTrees.forEach { (name, root) ->
-            println("Gathering terminal funcons for file $name...")
+            println("Verifying all objects accounted for for file $name...")
             val visitor = IndexVisitor()
             visitor.visit(root)
-            visitor.names.forEach { if (it !in globalObjects.keys) globalObjects[it] = null }
+            visitor.names.forEach {
+                if (it !in globalObjects.keys) {
+                    throw DetailedException("$it does not have an object")
+                }
+            }
         }
     }
 

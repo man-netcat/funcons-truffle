@@ -12,35 +12,26 @@ abstract class Object(
 ) {
     abstract fun generateCode(): String
 
+    val paramsStr = buildParamStrs()
+    val typeParams = buildTypeParamsStrs()
+
+    fun buildParamStrs() = params.filter { it.value != null }.map { param ->
+        val annotation = param.type.annotation
+        val paramTypeStr = buildTypeRewrite(param.type)
+        makeParam(annotation, param.name, paramTypeStr)
+    }
+
+    fun buildTypeParamsStrs() = params.filter { it.value == null }.map { param ->
+        val metavar = buildTypeRewrite(param.type)
+        metavar to metavariables[metavar]
+    }
+
     fun aliasStr(): String {
         return aliases.joinToString("\n") { alias -> makeTypeAlias(toClassName(alias.name.text), nodeName) }
     }
 
     internal val nodeName: String
         get() = toClassName(name)
-
-    fun extractArgs(obj: ParseTree): List<ExprContext> {
-        fun extractParams(params: ParamsContext?): List<ExprContext> {
-            return params?.param()?.map { it.value ?: it.type } ?: emptyList()
-        }
-        return when (obj) {
-            is FunconExpressionContext -> {
-                when (val args = obj.args()) {
-                    is NoArgsContext -> emptyList()
-                    is SingleArgsContext -> listOf(args.expr())
-                    is MultipleArgsContext -> args.exprs().expr()
-                    is ListIndexExpressionContext -> args.indices.expr()
-                    else -> throw DetailedException("Unexpected args type: ${args::class.simpleName}, ${args.text}")
-                }
-            }
-
-            is FunconDefinitionContext -> extractParams(obj.params())
-            is TypeDefinitionContext -> extractParams(obj.params())
-            is DatatypeDefinitionContext -> extractParams(obj.params())
-
-            else -> throw DetailedException("Unexpected funcon type: ${obj::class.simpleName}, ${obj.text}")
-        }
-    }
 
     fun buildRewrite(
         definition: ParseTree,
@@ -69,21 +60,21 @@ abstract class Object(
         return rewritten to complement
     }
 
-    fun buildParamStrs() = params.partition { it.value != null }.let { (valueParams, typeParams) ->
-        Pair(valueParams.map { makeParam(it.type.annotation, it.name, buildTypeRewrite(it.type)) },
-            typeParams.map {
-                val metavar = buildTypeRewrite(it.type)
-                metavar to metavariables[metavar]
-            })
-    }
-
     fun buildArgStrs(args: List<ExprContext>): Pair<MutableList<String>, MutableList<String>> {
         val valueParamStrings = mutableListOf<String>()
         val typeParamStrings = mutableListOf<String>()
 
         args.forEach { arg ->
+            println("arg: ${arg.text}")
             when (arg) {
-                is TypeExpressionContext -> valueParamStrings.add(arg.value.text)
+                is TypeExpressionContext -> {
+                    if (arg.value.text != "_") {
+                        valueParamStrings.add(arg.value.text)
+                    } else {
+                        typeParamStrings.add(buildTypeRewrite(ReturnType(arg), nullable = false))
+                    }
+                }
+
                 is FunconExpressionContext -> {
                     if (arg.name.text in globalObjects.keys) {
                         typeParamStrings.add(buildTypeRewrite(ReturnType(arg), nullable = false))

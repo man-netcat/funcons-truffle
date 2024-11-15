@@ -55,7 +55,7 @@ class RewriteVisitor(
         return if (expr == null) "SetsNode()" else "SetsNode(${visit(set.expr())})"
     }
 
-    override fun visitMapExpression(map: MapExpressionContext): String = "Maps(${visitPairs(map.pairs())})"
+    override fun visitMapExpression(map: MapExpressionContext): String = "MapsNode(${visitPairs(map.pairs())})"
 
     private fun visitSequences(nodes: List<ParseTree>, sep: String = ", "): String =
         nodes.joinToString(sep) { visit(it) }

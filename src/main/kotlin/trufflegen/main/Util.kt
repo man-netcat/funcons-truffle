@@ -1,9 +1,7 @@
 package trufflegen.main
 
-import trufflegen.antlr.CBSParser.AndExpressionContext
-import trufflegen.antlr.CBSParser.ExprContext
-import trufflegen.antlr.CBSParser.OrExpressionContext
-import trufflegen.antlr.CBSParser.VariableStepContext
+import org.antlr.v4.runtime.tree.ParseTree
+import trufflegen.antlr.CBSParser.*
 
 fun toClassName(input: String): String {
     return (input.split("-").joinToString("") { word ->
@@ -93,17 +91,14 @@ fun makeClass(
 
     val propertiesStr = properties.joinToString("\n") { "val ${it.first}: ${it.second}" }
 
-    val typeParamStr =
-        if (typeParams.isNotEmpty()) "<" + typeParams.joinToString { (metavar, superClass) ->
-            if (superClass != null) "$metavar : $superClass" else metavar
-        } + "> " else ""
+    val typeParamStr = if (typeParams.isNotEmpty()) "<" + typeParams.joinToString { (metavar, superClass) ->
+        if (superClass != null) "$metavar : $superClass" else metavar
+    } + "> " else ""
 
-    val superClassStr = superClass?.let {
-        val (superClassName, superClassTypeParams, superClassArgs) = it
-        val superclassTypeParamStr =
-            if (superClassTypeParams.isNotEmpty()) "<${superClassTypeParams.joinToString(", ")}>" else ""
-        "$superClassName$superclassTypeParamStr(${superClassArgs.joinToString(", ")})"
-    } ?: ""
+    val superClassStr = if (superClass != null) {
+        val (superClassName, superClassTypeParams, superClassArgs) = superClass
+        makeFun(superClassName, superClassTypeParams, superClassArgs)
+    } else ""
 
     val inheritanceStr = when {
         superClassStr.isNotEmpty() && interfaces.isNotEmpty() -> ": $superClassStr, ${interfaces.joinToString(", ")}"
@@ -159,8 +154,9 @@ fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<String>
     return "typealias $aliasName$typeParamStr = $targetType"
 }
 
-fun makeFunExpression(name: String, typeParams: List<String>) {
-
+fun makeFun(name: String, typeParams: List<String>, params: List<String>): String {
+    val superclassTypeParamStr = if (typeParams.isNotEmpty()) "<${typeParams.joinToString(", ")}>" else ""
+    return "$name$superclassTypeParamStr(${params.joinToString(", ")})"
 }
 
 fun entityMap(name: String) = "entityMap[\"${name}\"]"
@@ -184,4 +180,81 @@ fun buildTypeRewrite(type: Type, nullable: Boolean = true): String {
     val rewriteVisitor = TypeRewriteVisitor(type, nullable)
     val rewritten = rewriteVisitor.visit(type.expr)
     return rewritten
+}
+
+fun extractParams(obj: ParseTree): List<Param> {
+    fun paramHelper(params: ParamsContext?): List<Param> =
+        params?.param()?.mapIndexed { i, param -> Param(i, param.value, param.type) } ?: emptyList()
+
+    return when (obj) {
+        is FunconDefinitionContext -> paramHelper(obj.params())
+        is TypeDefinitionContext -> paramHelper(obj.params())
+        is DatatypeDefinitionContext -> paramHelper(obj.params())
+        is ControlEntityDefinitionContext -> paramHelper(obj.params())
+        is ContextualEntityDefinitionContext -> paramHelper(obj.params())
+        is MutableEntityDefinitionContext -> paramHelper(obj.lhsParams)
+
+        else -> throw DetailedException("Unexpected funcon type: ${obj::class.simpleName}, ${obj.text}")
+    }
+}
+
+fun extractArgs(expr: ParseTree): List<ExprContext> {
+    fun argHelper(args: List<ExprContext>): List<ExprContext> {
+        return args.map { arg ->
+            when (arg) {
+                is TypeExpressionContext -> if (arg.value != null) arg.value else arg.type
+                else -> arg
+            }
+        }
+    }
+
+    fun paramHelper(params: ParamsContext?): List<ExprContext> {
+        if (params == null) return emptyList()
+        return params.param().map { param ->
+            if (param.value != null) param.value else param.type
+        }
+    }
+
+    return when (expr) {
+        is FunconDefinitionContext -> paramHelper(expr.params())
+        is TypeDefinitionContext -> paramHelper(expr.params())
+        is DatatypeDefinitionContext -> paramHelper(expr.params())
+
+        is FunconExpressionContext -> {
+            when (val args = expr.args()) {
+                is NoArgsContext -> emptyList()
+                is SingleArgsContext -> argHelper(listOf(args.expr()))
+                is MultipleArgsContext -> argHelper(args.exprs().expr())
+                is ListIndexExpressionContext -> argHelper(args.indices.expr())
+                else -> throw DetailedException("Unexpected args type: ${args::class.simpleName}, ${args.text}")
+            }
+        }
+
+        else -> throw DetailedException("Unexpected expression type: ${expr::class.simpleName}, ${expr.text}")
+    }
+}
+
+fun argsToParams(expr: ParseTree): List<Param> {
+    fun argHelper(args: List<ExprContext>): List<Param> {
+        return args.mapIndexed { i, arg ->
+            when (arg) {
+                is TypeExpressionContext -> Param(i, arg.value, arg.type)
+                else -> Param(i, arg, null)
+            }
+        }
+    }
+
+    return when (expr) {
+        is FunconExpressionContext -> {
+            when (val args = expr.args()) {
+                is NoArgsContext -> emptyList()
+                is SingleArgsContext -> argHelper(listOf(args.expr()))
+                is MultipleArgsContext -> argHelper(args.exprs().expr())
+                is ListIndexExpressionContext -> argHelper(args.indices.expr())
+                else -> throw DetailedException("Unexpected args type: ${args::class.simpleName}, ${args.text}")
+            }
+        }
+
+        else -> throw DetailedException("Unexpected expression type: ${expr::class.simpleName}, ${expr.text}")
+    }
 }

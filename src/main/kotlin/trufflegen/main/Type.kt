@@ -3,12 +3,13 @@ package trufflegen.main
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
-abstract class Type(val expr: ExprContext) : CBSBaseVisitor<Unit>() {
+abstract class Type(val expr: ExprContext?) : CBSBaseVisitor<Unit>() {
     private var computes: Int = 0
     var qmarks: Int = 0
     var pluses: Int = 0
     var stars: Int = 0
-    val text: String = expr.text
+    var powers: Int = 0
+    val text: String = expr?.text ?: "null"
 
     init {
         this.visit(expr)
@@ -44,6 +45,11 @@ abstract class Type(val expr: ExprContext) : CBSBaseVisitor<Unit>() {
     override fun visitUnaryComputesExpression(ctx: UnaryComputesExpressionContext) {
         computes++
         super.visitUnaryComputesExpression(ctx)
+    }
+
+    override fun visitPowerExpression(ctx: PowerExpressionContext?) {
+        powers++
+        return super.visitPowerExpression(ctx)
     }
 
     override fun visitFunconExpression(ctx: FunconExpressionContext?) {}

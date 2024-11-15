@@ -61,11 +61,11 @@ class TypeRewriteVisitor(private val type: Type, private val nullable: Boolean) 
         return when (val op = ctx.op.text) {
             "?" -> visit(ctx.expr()) + if (nullable) "?" else ""
             "*", "+" -> when (type) {
-                is ReturnType -> "Array<${visit(ctx.expr())}>"
+                is ReturnType -> "ListNode<${visit(ctx.expr())}>"
                 is ParamType -> if (nestedValue == 0) {
                     nestedValue++
                     visit(ctx.expr())
-                } else "Array<${visit(ctx.expr())}>"
+                } else "ListNode<${visit(ctx.expr())}>"
 
                 else -> throw DetailedException("Unexpected type: ${ctx::class.simpleName}")
             }
@@ -75,9 +75,8 @@ class TypeRewriteVisitor(private val type: Type, private val nullable: Boolean) 
     }
 
     override fun visitTupleExpression(ctx: TupleExpressionContext): String {
-        if (ctx.exprs() == null) {
-            return "Unit"
-        }
+        if (ctx.exprs() == null) return "Unit"
+
         val clsName = when (val tupleLength = ctx.exprs().expr().size) {
             2 -> "Tuple"
             3 -> "Triple"
@@ -98,11 +97,11 @@ class TypeRewriteVisitor(private val type: Type, private val nullable: Boolean) 
 
     override fun visitPowerExpression(ctx: PowerExpressionContext): String {
         return when (type) {
-            is ReturnType -> "List<${visit(ctx.operand)}>"
+            is ReturnType -> "ListNode<${visit(ctx.operand)}>"
             is ParamType -> if (nestedValue == 0) {
                 nestedValue++
                 visit(ctx.operand)
-            } else "List<${visit(ctx.operand)}>"
+            } else "ListNode<${visit(ctx.operand)}>"
 
             else -> throw DetailedException("Unexpected type: ${ctx::class.simpleName}")
         }

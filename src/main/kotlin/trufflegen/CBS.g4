@@ -32,7 +32,9 @@ obj
    | (modifier = BUILTIN? DATATYPE name = IDENTIFIER ('(' params ')')? op = ('::=' | SUBTYPE) definition = expr (ALIAS aliasDefinition | ASSERT assertDefinition)*) # DatatypeDefinition
    | (modifier = BUILTIN? TYPE name = IDENTIFIER ('(' params ')')? (op = (REWRITE | SUBTYPE) definition = expr)? (ALIAS aliasDefinition)*) # TypeDefinition
    | METAVARIABLES metavarDef+ # MetavariablesDefinition
-   | ENTITY (stepExpr | mutableExpr) (ALIAS aliasDefinition)* # EntityDefinition
+   | ENTITY lhs = expr '--' (name = IDENTIFIER polarity = ('!' | '?')? ('(' params ')')?) '->' rhs = expr (ALIAS aliasDefinition)* # ControlEntityDefinition
+   | ENTITY def = '<' lhs = expr ',' (lhsName = IDENTIFIER ('(' lhsParams = params) ')')? '>' '--->' '<' rhs = expr ',' (rhsName = IDENTIFIER ('(' rhsParams = params ')')?) '>' (ALIAS aliasDefinition)* # MutableEntityDefinition
+   | ENTITY name = IDENTIFIER ('(' params ')')? '|-' lhs = expr '--->' rhs = expr (ALIAS aliasDefinition)* # ContextualEntityDefinition
    ;
 
 assertDefinition

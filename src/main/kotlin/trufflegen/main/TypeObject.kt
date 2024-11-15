@@ -13,8 +13,6 @@ class TypeObject(
     metavariables: Map<String, String>,
 ) : Object(name, ctx, params, aliases, metavariables) {
     override fun generateCode(): String {
-        val (paramsStr, typeParams) = buildParamStrs()
-
         val superClass: Triple<String, MutableList<String>, MutableList<String>>? =
             when (definitions.size) {
                 1 -> {
@@ -31,7 +29,7 @@ class TypeObject(
                     }
                 }
 
-                2 -> null
+                2 -> null // TODO: make sure to check this someday
 
                 else -> null
             }
