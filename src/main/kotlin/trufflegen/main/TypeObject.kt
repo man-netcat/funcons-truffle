@@ -40,7 +40,8 @@ class TypeObject(
             constructorArgs = paramsStr,
             superClass = superClass,
             typeParams = typeParams,
-            body = false
+            body = false,
+            annotations = listOf("Type")
         )
     }
 }

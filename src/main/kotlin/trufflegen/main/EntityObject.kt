@@ -13,10 +13,10 @@ open class EntityObject(
     override fun generateCode(): String {
         return makeClass(
             name = nodeName,
-            keywords = listOf("open"),
             constructorArgs = paramsStr,
             typeParams = typeParams,
-            body = false
+            body = false,
+            annotations = listOf("Entity")
         )
     }
 }

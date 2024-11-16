@@ -24,6 +24,7 @@ abstract class FunconObject(
             constructorArgs = paramsStr,
             typeParams = typeParams,
             superClass = emptySuperClass(COMPUTATION),
+            annotations = listOf("Funcon")
         )
     }
 }

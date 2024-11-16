@@ -16,7 +16,8 @@ class DatatypeFunconObject(
             constructorArgs = paramsStr,
             typeParams = typeParams,
             superClass = emptySuperClass(superclass.nodeName), // TODO Fix
-            body = false
+            body = false,
+            annotations = listOf("Funcon")
         )
     }
 }

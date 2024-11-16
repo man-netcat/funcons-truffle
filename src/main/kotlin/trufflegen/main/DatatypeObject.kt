@@ -19,6 +19,7 @@ class DatatypeObject(
             keywords = listOf("open"),
             typeParams = typeParams,
             superClass = emptySuperClass(TERMINAL),
+            annotations = listOf("Datatype")
         )
 
         return superClass
