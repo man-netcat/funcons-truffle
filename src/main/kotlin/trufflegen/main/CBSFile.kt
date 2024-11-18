@@ -47,28 +47,38 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val params = extractParams(datatype)
         val operator = datatype.op?.text ?: ""
         val aliases = datatype.aliasDefinition()
-        val builtin = datatype.modifier != null
-        val datatypeDataContainer = DatatypeObject(name, datatype, params, operator, aliases, builtin, metavariables)
-        objects[name] = datatypeDataContainer
-
         val definitions = extractAndOrExprs(datatype.definition)
-        definitions.forEach { funcon ->
-            when (funcon) {
-                is FunconExpressionContext -> {
-                    val name = funcon.name.text
-                    val params = argsToParams(funcon)
-                    val dataContainer =
-                        DatatypeFunconObject(name, funcon, params, datatypeDataContainer, metavariables)
-                    objects[name] = dataContainer
-                }
 
-                is SetExpressionContext -> {
-                    // TODO
-                }
+        when (operator) {
+            "<:" -> {
+                val datatypeDataContainer =
+                    SupertypeDatatypeObject(name, datatype, params, definitions, aliases, metavariables)
+                objects[name] = datatypeDataContainer
+            }
 
-                else -> throw DetailedException(
-                    "Unexpected expression type encountered: ${funcon::class.simpleName}, with text: '${funcon.text}'"
-                )
+            "::=" -> {
+                val datatypeDataContainer = AlgebraicDatatypeObject(name, datatype, params, aliases, metavariables)
+                objects[name] = datatypeDataContainer
+
+                definitions.forEach { funcon ->
+                    when (funcon) {
+                        is FunconExpressionContext -> {
+                            val name = funcon.name.text
+                            val params = argsToParams(funcon)
+                            val dataContainer =
+                                DatatypeFunconObject(name, funcon, params, datatypeDataContainer, metavariables)
+                            objects[name] = dataContainer
+                        }
+
+                        is SetExpressionContext -> {
+                            // TODO what fresh hell is this
+                        }
+
+                        else -> throw DetailedException(
+                            "Unexpected expression type encountered: ${funcon::class.simpleName}, with text: '${funcon.text}'"
+                        )
+                    }
+                }
             }
         }
     }
@@ -80,7 +90,7 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val definitions = if (type.definition != null) extractAndOrExprs(type.definition) else emptyList()
         val aliases = type.aliasDefinition()
         val builtin = type.modifier != null
-        val dataContainer = TypeObject(name, type, params, operator, definitions, aliases, builtin, metavariables)
+        val dataContainer = TypeObject(name, type, params, definitions, aliases, metavariables)
 
         objects[name] = dataContainer
     }

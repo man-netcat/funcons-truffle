@@ -6,10 +6,8 @@ class TypeObject(
     name: String,
     ctx: TypeDefinitionContext,
     params: List<Param>,
-    private val operator: String,
     private val definitions: List<ExprContext>,
     aliases: MutableList<AliasDefinitionContext>,
-    builtin: Boolean,
     metavariables: Map<String, String>,
 ) : Object(name, ctx, params, aliases, metavariables) {
     override fun generateCode(): String {

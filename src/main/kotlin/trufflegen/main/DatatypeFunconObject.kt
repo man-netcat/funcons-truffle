@@ -6,7 +6,7 @@ class DatatypeFunconObject(
     name: String,
     ctx: CBSParser.FunconExpressionContext,
     params: List<Param>,
-    private val superclass: DatatypeObject,
+    private val superclass: AlgebraicDatatypeObject,
     metavariables: Map<String, String>
 ) : Object(name, ctx, params, emptyList(), metavariables) {
     override fun generateCode(): String {

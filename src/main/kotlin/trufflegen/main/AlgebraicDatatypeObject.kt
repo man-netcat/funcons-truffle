@@ -2,19 +2,15 @@ package trufflegen.main
 
 import trufflegen.antlr.CBSParser.*
 
-class DatatypeObject(
+class AlgebraicDatatypeObject(
     name: String,
     ctx: DatatypeDefinitionContext,
     params: List<Param>,
-    operator: String,
     aliases: MutableList<AliasDefinitionContext>,
-    builtin: Boolean,
     metavariables: Map<String, String>,
 ) : Object(name, ctx, params, aliases, metavariables) {
     override fun generateCode(): String {
-        // TODO: Fix builtin inheriting types
-
-        val superClass = makeClass(
+        return makeClass(
             nodeName,
             body = false,
             constructorArgs = valueParams,
@@ -23,8 +19,6 @@ class DatatypeObject(
             superClass = TERMINAL,
             annotations = listOf("Datatype")
         )
-
-        return superClass
     }
 }
 
