@@ -58,7 +58,7 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
                     val name = funcon.name.text
                     val params = argsToParams(funcon)
                     val dataContainer =
-                        DatatypeFunconObject(name, funcon, params, datatypeDataContainer, aliases, metavariables)
+                        DatatypeFunconObject(name, funcon, params, datatypeDataContainer, metavariables)
                     objects[name] = dataContainer
                 }
 

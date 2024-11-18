@@ -85,6 +85,11 @@ class TypeRewriteVisitor(private val type: Type, private val nullable: Boolean) 
         return clsName + "<" + ctx.exprs().expr().joinToString { visit(it) } + ">"
     }
 
+    override fun visitListExpression(ctx: ListExpressionContext): String? {
+        if (ctx.exprs() == null) return "Unit"
+        return "ListNode<${ctx.exprs().expr().joinToString { visit(it) }}>"
+    }
+
     override fun visitBinaryComputesExpression(ctx: BinaryComputesExpressionContext): String =
         "(" + visit(ctx.lhs) + ") -> " + visit(ctx.rhs)
 

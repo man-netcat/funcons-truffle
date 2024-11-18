@@ -30,29 +30,37 @@ fun makeFunction(
     body: String,
     modifiers: List<String> = emptyList(),
 ): String {
-    val params = parameters.joinToString(", ")
+    val result = StringBuilder()
 
-    val modifierStr = if (modifiers.isNotEmpty()) {
-        modifiers.joinToString(" ") + " "
-    } else {
-        ""
+    if (modifiers.isNotEmpty()) {
+        result.append(modifiers.joinToString(" "))
+        result.append(" ")
     }
 
-    val functionHeader = "${modifierStr}fun $name($params): $returnType {"
-    val content = makeBody(body)
+    result.append("fun $name(${parameters.joinToString(", ")}): $returnType {\n")
+    result.append(makeBody(body))
+    result.append("\n}")
 
-    return "$functionHeader\n$content\n}"
+    return result.toString()
 }
 
-
 fun makeIfStatement(vararg conditions: Pair<String, String>, elseBranch: String? = null): String {
-    val ifStatements = conditions.mapIndexed { index, (condition, block) ->
-        (if (index == 0) "" else "else ") + "if ($condition) {\n${makeBody(block)}\n}"
-    }.joinToString(" ")
+    val result = StringBuilder()
 
-    val elseStatement = elseBranch?.let { " else {\n${makeBody(it)}\n}" } ?: ""
+    conditions.forEachIndexed { index, (condition, block) ->
+        if (index > 0) result.append("else ")
+        result.append("if ($condition) {\n")
+        result.append(makeBody(block))
+        result.append("\n} ")
+    }
 
-    return "$ifStatements$elseStatement"
+    if (elseBranch != null) {
+        result.append("else {\n")
+        result.append(makeBody(elseBranch))
+        result.append("\n}")
+    }
+
+    return result.toString()
 }
 
 fun makeExecuteFunction(content: String, returns: String): String {
@@ -78,71 +86,82 @@ fun makeClass(
     constructorArgs: List<String> = emptyList(),
     properties: List<Pair<String, String>> = emptyList(),
     typeParams: List<Pair<String, String?>> = emptyList(),
-    superClass: Triple<String, List<String>, List<String>>? = null,
+    superClass: String = "",
     interfaces: List<String> = emptyList(),
 ): String {
-    val annotationsStr = if (annotations.isNotEmpty()) {
-        annotations.joinToString("\n") { str -> "@$str" } + "\n"
-    } else {
-        ""
+    val result = StringBuilder()
+
+    // Annotations
+    if (annotations.isNotEmpty()) {
+        annotations.forEach { result.append("@$it\n") }
     }
 
-    val constructorStr = constructorArgs.joinToString(", ")
-
-    val propertiesStr = properties.joinToString("\n") { "val ${it.first}: ${it.second}" }
-
-    val typeParamStr = if (typeParams.isNotEmpty()) "<" + typeParams.joinToString { (metavar, superClass) ->
-        if (superClass != null) "$metavar : $superClass" else metavar
-    } + "> " else ""
-
-    val superClassStr = if (superClass != null) {
-        val (superClassName, superClassTypeParams, superClassArgs) = superClass
-        makeFun(superClassName, superClassTypeParams, superClassArgs)
-    } else ""
-
-    val inheritanceStr = when {
-        superClassStr.isNotEmpty() && interfaces.isNotEmpty() -> ": $superClassStr, ${interfaces.joinToString(", ")}"
-        superClassStr.isNotEmpty() -> ": $superClassStr"
-        interfaces.isNotEmpty() -> ": ${interfaces.joinToString(", ")}"
-        else -> ""
+    // Keywords
+    if (keywords.isNotEmpty()) {
+        result.append(keywords.joinToString(" "))
+        result.append(" ")
     }
 
-    val keywordsStr = if (keywords.isNotEmpty()) {
-        keywords.joinToString(" ") + " "
-    } else {
-        ""
+    // Class header
+    result.append("class $name")
+
+    // Type parameters
+    if (typeParams.isNotEmpty()) {
+        result.append("<")
+        result.append(typeParams.joinToString { (metavar, superClass) ->
+            if (superClass != null) "$metavar : $superClass" else metavar
+        })
+        result.append("> ")
     }
 
-    val classHeader = if (constructorStr.isNotEmpty()) {
-        "${keywordsStr}class $name$typeParamStr($constructorStr) $inheritanceStr"
-    } else {
-        "${keywordsStr}class $name$typeParamStr $inheritanceStr"
+    // Constructor arguments
+    if (constructorArgs.isNotEmpty()) {
+        result.append("(")
+        result.append(constructorArgs.joinToString(", "))
+        result.append(")")
     }
 
-    return if (body) {
-        val classBody = listOf(propertiesStr, content).filter { it.isNotBlank() }.joinToString("\n\n")
-        val indentedClassBody = makeBody(classBody)
-        "${annotationsStr}${classHeader} {\n$indentedClassBody\n}"
-    } else {
-        "${annotationsStr}${classHeader}"
+    // Inheritance
+    val inheritance = buildList {
+        if (superClass.isNotEmpty()) add(superClass)
+        addAll(interfaces)
     }
+    if (inheritance.isNotEmpty()) {
+        result.append(" : ")
+        result.append(inheritance.joinToString(" : "))
+    }
+
+    // Body
+    if (body) {
+        result.append(" {\n")
+        if (properties.isNotEmpty()) {
+            properties.forEach { result.append("    val ${it.first}: ${it.second}\n") }
+            if (content.isNotBlank()) result.append("\n")
+        }
+        if (content.isNotBlank()) result.append(makeBody(content))
+        result.append("\n}")
+    }
+
+    return result.toString()
 }
-
 
 fun makeWhenExpression(
     expression: String,
     branches: List<Pair<String, String>>,
     elseBranch: String? = null,
 ): String {
-    val branchesStr = branches.joinToString("\n") {
-        "    ${it.first} -> ${it.second}"
+    val result = StringBuilder()
+
+    result.append("when ($expression) {\n")
+    branches.forEach { (condition, action) ->
+        result.append("    $condition -> $action\n")
     }
-    val elseStr = if (elseBranch != null) {
-        "\n    else -> $elseBranch"
-    } else {
-        ""
+    if (elseBranch != null) {
+        result.append("    else -> $elseBranch\n")
     }
-    return "when ($expression) {\n$branchesStr$elseStr\n}"
+    result.append("}")
+
+    return result.toString()
 }
 
 fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<String> = emptySet()): String {
@@ -195,42 +214,6 @@ fun extractParams(obj: ParseTree): List<Param> {
         is MutableEntityDefinitionContext -> paramHelper(obj.lhsParams)
 
         else -> throw DetailedException("Unexpected funcon type: ${obj::class.simpleName}, ${obj.text}")
-    }
-}
-
-fun extractArgs(expr: ParseTree): List<ExprContext> {
-    fun argHelper(args: List<ExprContext>): List<ExprContext> {
-        return args.map { arg ->
-            when (arg) {
-                is TypeExpressionContext -> if (arg.value != null) arg.value else arg.type
-                else -> arg
-            }
-        }
-    }
-
-    fun paramHelper(params: ParamsContext?): List<ExprContext> {
-        if (params == null) return emptyList()
-        return params.param().map { param ->
-            if (param.value != null) param.value else param.type
-        }
-    }
-
-    return when (expr) {
-        is FunconDefinitionContext -> paramHelper(expr.params())
-        is TypeDefinitionContext -> paramHelper(expr.params())
-        is DatatypeDefinitionContext -> paramHelper(expr.params())
-
-        is FunconExpressionContext -> {
-            when (val args = expr.args()) {
-                is NoArgsContext -> emptyList()
-                is SingleArgsContext -> argHelper(listOf(args.expr()))
-                is MultipleArgsContext -> argHelper(args.exprs().expr())
-                is ListIndexExpressionContext -> argHelper(args.indices.expr())
-                else -> throw DetailedException("Unexpected args type: ${args::class.simpleName}, ${args.text}")
-            }
-        }
-
-        else -> throw DetailedException("Unexpected expression type: ${expr::class.simpleName}, ${expr.text}")
     }
 }
 

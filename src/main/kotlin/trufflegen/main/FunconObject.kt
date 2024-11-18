@@ -5,7 +5,7 @@ import trufflegen.antlr.CBSParser.*
 abstract class FunconObject(
     name: String,
     ctx: FunconDefinitionContext,
-    val params: List<Param>,
+    params: List<Param>,
     val returns: ReturnType,
     aliases: List<AliasDefinitionContext>,
     val builtin: Boolean,
@@ -21,9 +21,9 @@ abstract class FunconObject(
         return makeClass(
             nodeName,
             content = content,
-            constructorArgs = paramsStr,
+            constructorArgs = valueParams,
             typeParams = typeParams,
-            superClass = emptySuperClass(COMPUTATION),
+            superClass = COMPUTATION,
             annotations = listOf("Funcon")
         )
     }

@@ -1,5 +1,6 @@
 package trufflegen.main
 
+import org.antlr.v4.runtime.tree.ParseTree
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
@@ -9,6 +10,7 @@ abstract class Type(val expr: ExprContext?) : CBSBaseVisitor<Unit>() {
     var pluses: Int = 0
     var stars: Int = 0
     var powers: Int = 0
+    var complement: Boolean = false
     val text: String = expr?.text ?: "null"
 
     init {
@@ -52,9 +54,14 @@ abstract class Type(val expr: ExprContext?) : CBSBaseVisitor<Unit>() {
         return super.visitPowerExpression(ctx)
     }
 
-    override fun visitFunconExpression(ctx: FunconExpressionContext?) {}
-    override fun visitTupleExpression(ctx: TupleExpressionContext?) {}
-    override fun visitListExpression(ctx: ListExpressionContext?) {}
-    override fun visitSetExpression(ctx: SetExpressionContext?) {}
-    override fun visitMapExpression(ctx: MapExpressionContext?) {}
+    override fun visitComplementExpression(ctx: ComplementExpressionContext?) {
+        complement = true
+        return super.visitComplementExpression(ctx)
+    }
+
+//    override fun visitFunconExpression(ctx: FunconExpressionContext?) {}
+//    override fun visitTupleExpression(ctx: TupleExpressionContext?) {}
+//    override fun visitListExpression(ctx: ListExpressionContext?) {}
+//    override fun visitSetExpression(ctx: SetExpressionContext?) {}
+//    override fun visitMapExpression(ctx: MapExpressionContext?) {}
 }

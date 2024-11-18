@@ -1,29 +1,76 @@
 package trufflegen.main
 
 import org.antlr.v4.runtime.tree.ParseTree
+import org.antlr.v4.runtime.tree.RuleNode
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
 class RewriteVisitor(
+    definition: ParseTree,
     private val rootExpr: ParseTree,
-    params: List<Param>,
-    private val args: List<ExprContext>,
+    obj: Object,
     private val entities: Map<String, String>,
 ) : CBSBaseVisitor<String>() {
     private val callStack = ArrayDeque<String>()
 
-    private val varargParamIndex: Int = params.indexOfFirst { it.type.isVararg }
-    private val argsSize: Int = args.size
-    private val paramsSize: Int = params.size
-    private val nVarargArgs: Int = argsSize - (paramsSize - 1)
-    private val paramsAfterVararg: Int = paramsSize - (varargParamIndex + 1)
-    private val argsAfterVararg: Int = argsSize - (varargParamIndex + nVarargArgs)
+    private val varargParamIndex: Int = obj.params.indexOfFirst { it.type.isVararg }
+    private val args: MutableList<ExprContext> = mutableListOf()
+    private val typeParams: MutableList<ExprContext> = mutableListOf()
+    private val argsSize: Int
+    private val paramsSize: Int
+    private val nVarargArgs: Int
+    private val paramsAfterVararg: Int
+    private val argsAfterVararg: Int
 
     init {
-        if (paramsAfterVararg != argsAfterVararg) {
-            throw DetailedException("Unequal args for params after vararg")
+        val (extractedArgs, extractedTypes) = extractArgs(definition)
+        args.addAll(extractedArgs)
+        typeParams.addAll(extractedTypes)
+        argsSize = args.size
+        paramsSize = obj.params.size
+        nVarargArgs = argsSize - (paramsSize - 1)
+        paramsAfterVararg = paramsSize - (varargParamIndex + 1)
+        argsAfterVararg = argsSize - (varargParamIndex + nVarargArgs)
+    }
+
+    fun extractArgs(expr: ParseTree): Pair<List<ExprContext>, List<ExprContext>> {
+        fun argHelper(args: List<ExprContext>): Pair<List<ExprContext>, List<ExprContext>> {
+            val (values, types) = args.partition { arg -> arg !is TypeExpressionContext || arg.value != null }
+            val argsWithValue = values.map { arg -> if (arg is TypeExpressionContext) arg.value else arg }
+            val argsWithType = types.map { arg -> (arg as TypeExpressionContext).type }
+
+            return argsWithValue to argsWithType
+        }
+
+
+        fun paramHelper(params: ParamsContext?): Pair<List<ExprContext>, List<ExprContext>> {
+            if (params == null) return emptyList<ExprContext>() to emptyList()
+            val (values, types) = params.param().partition { param -> param.value != null }
+            val args = values.map { param -> param.value }
+            val paramTypes = types.map { param -> param.type }
+
+            return args to paramTypes
+        }
+
+        return when (expr) {
+            is FunconDefinitionContext -> paramHelper(expr.params())
+            is TypeDefinitionContext -> paramHelper(expr.params())
+            is DatatypeDefinitionContext -> paramHelper(expr.params())
+
+            is FunconExpressionContext -> {
+                when (val args = expr.args()) {
+                    is NoArgsContext -> emptyList<ExprContext>() to emptyList()
+                    is SingleArgsContext -> argHelper(listOf(args.expr()))
+                    is MultipleArgsContext -> argHelper(args.exprs().expr())
+                    is ListIndexExpressionContext -> argHelper(args.indices.expr())
+                    else -> throw DetailedException("Unexpected args type: ${args::class.simpleName}, ${args.text}")
+                }
+            }
+
+            else -> throw DetailedException("Unexpected expression type: ${expr::class.simpleName}, ${expr.text}")
         }
     }
+
 
     override fun visitFunconExpression(funcon: FunconExpressionContext): String {
         val name = funcon.name.text
@@ -42,7 +89,7 @@ class RewriteVisitor(
 
     override fun visitTupleExpression(tuple: TupleExpressionContext): String {
         val exprs = tuple.exprs()?.expr()
-        return if (exprs.isNullOrEmpty()) "ListNilNode1()" else "ListNode(${visit(tuple.exprs())})"
+        return if (exprs.isNullOrEmpty()) "ListNilNode()" else "ListNode(${visit(tuple.exprs())})"
     }
 
     override fun visitListExpression(list: ListExpressionContext): String {
@@ -69,6 +116,7 @@ class RewriteVisitor(
     override fun visitSuffixExpression(suffixExpr: SuffixExpressionContext): String =
         if (suffixExpr.text != "_?") when (suffixExpr.op.text) {
             "*", "+" -> makeParamStr(suffixExpr.text, argIsArray = true)
+            "?" -> makeParamStr(suffixExpr.text) + "?"
             else -> throw DetailedException("Unexpected operator type: ${suffixExpr.op.text}")
         } else "null"
 
@@ -82,7 +130,7 @@ class RewriteVisitor(
 
     override fun visitNumber(num: NumberContext): String = "(${num.text}).toIntegersNode()"
 
-    override fun visitString(string: StringContext): String = string.text
+    override fun visitString(string: StringContext): String = "(${string.text}).toStringsNode()"
 
     override fun visitTypeExpression(typeExpr: TypeExpressionContext): String = visit(typeExpr.value)
 
@@ -155,4 +203,9 @@ class RewriteVisitor(
             else -> throw IndexOutOfBoundsException("argIndex $argIndex out of bounds.")
         }
     }
+
+//    override fun visitChildren(node: RuleNode): String {
+//        println("Visiting ${node::class.simpleName} ${node.text}")
+//        return super.visitChildren(node)
+//    }
 }

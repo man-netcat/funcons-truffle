@@ -7,15 +7,14 @@ class DatatypeFunconObject(
     ctx: CBSParser.FunconExpressionContext,
     params: List<Param>,
     private val superclass: DatatypeObject,
-    aliases: List<CBSParser.AliasDefinitionContext>,
     metavariables: Map<String, String>
-) : Object(name, ctx, params, aliases, metavariables) {
+) : Object(name, ctx, params, emptyList(), metavariables) {
     override fun generateCode(): String {
         return makeClass(
             nodeName,
-            constructorArgs = paramsStr,
+            constructorArgs = valueParams,
             typeParams = typeParams,
-            superClass = emptySuperClass(superclass.nodeName), // TODO Fix
+            superClass = superclass.nodeName, // TODO Fix
             body = false,
             annotations = listOf("Funcon")
         )

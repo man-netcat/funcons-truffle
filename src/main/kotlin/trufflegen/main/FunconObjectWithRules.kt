@@ -43,7 +43,7 @@ class FunconObjectWithRules(
             }
 
             return args.mapIndexedNotNull { argIndex, arg ->
-                val (argValue, argType) = if (arg is TypeExpressionContext) arg.value to arg.type else arg to null
+                val (argValue, argTypeExpr) = if (arg is TypeExpressionContext) arg.value to arg.type else arg to null
 
                 val paramStr = buildRewrite(def, argValue, makeParamStr = true, forcedArgIndex = argIndex)
                 val valueCondition = when (argValue) {
@@ -54,7 +54,7 @@ class FunconObjectWithRules(
                             "${paramStr}.isEmpty()"
                         } else {
                             // TODO: FIX
-                            println("name: $name, paramStr: $paramStr, argValue: ${argValue.text}")
+//                            println("name: $name, paramStr: $paramStr, argValue: ${argValue.text}")
                         }
                     }
 
@@ -62,9 +62,10 @@ class FunconObjectWithRules(
                     else -> throw IllegalArgumentException("Unexpected arg type: ${argValue::class.simpleName}")
                 }
 
-                val typeCondition = if (argType != null) {
-                    val (rewritten, complement) = buildTypeRewriteWithComplement(ReturnType(argType))
-                    "$paramStr ${complementStr(complement)}is $rewritten"
+                val typeCondition = if (argTypeExpr != null) {
+                    val argType = ReturnType(argTypeExpr)
+                    val rewritten = buildTypeRewrite(argType)
+                    "$paramStr ${complementStr(argType.complement)}is $rewritten"
                 } else null
 
                 if (typeCondition != null && valueCondition != null) {
@@ -147,8 +148,9 @@ class FunconObjectWithRules(
                     val rewriteLhs = buildRewrite(ruleDef, premise.lhs)
                     val (op, rewriteRhs) = when (premise.rhs) {
                         is FunconExpressionContext -> {
-                            val (rewriteRhs, complement) = buildTypeRewriteWithComplement(ReturnType(premise.rhs))
-                            "${complementStr(complement)}is" to rewriteRhs
+                            val type = ReturnType(premise.rhs)
+                            val rewriteRhs = buildTypeRewrite(type)
+                            "${complementStr(type.complement)}is" to rewriteRhs
                         }
 
                         else -> {
@@ -165,8 +167,9 @@ class FunconObjectWithRules(
 
                 is TypePremiseContext -> {
                     val value = buildRewrite(ruleDef, premise.value)
-                    val (type, complement) = buildTypeRewriteWithComplement(ReturnType(premise.type))
-                    val condition = "$value ${complementStr(complement)}is $type"
+                    val type = ReturnType(premise.type)
+                    val typeStr = buildTypeRewrite(type)
+                    val condition = "$value ${complementStr(type.complement)}is $typeStr"
                     Pair(condition, null)
                 }
 

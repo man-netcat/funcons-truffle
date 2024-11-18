@@ -9,35 +9,29 @@ class TypeObject(
     private val operator: String,
     private val definitions: List<ExprContext>,
     aliases: MutableList<AliasDefinitionContext>,
-    val builtin: Boolean,
+    builtin: Boolean,
     metavariables: Map<String, String>,
 ) : Object(name, ctx, params, aliases, metavariables) {
     override fun generateCode(): String {
-        val superClass: Triple<String, MutableList<String>, MutableList<String>>? =
-            when (definitions.size) {
-                1 -> {
-                    val definition = definitions[0]
-                    val args = extractArgs(definition)
-                    val (argsStrs, superClassTypeParams) = buildArgStrs(args)
+        println("processing type $name")
 
-                    when (definition) {
-                        is FunconExpressionContext -> Triple(
-                            toClassName(definition.name.text), superClassTypeParams, argsStrs
-                        )
-
-                        else -> throw DetailedException("Unexpected Expr type: ${definition.text}")
-                    }
-                }
-
-                2 -> null // TODO: make sure to check this someday
-
-                else -> null
+        val superClass: String = when (definitions.size) {
+            0 -> ""
+            1 -> {
+                val definition = definitions[0]
+                if (definition is FunconExpressionContext) {
+                    buildRewrite(ctx, definition)
+                } else throw DetailedException("Unexpected definition ${definition.text}")
             }
+
+            2 -> "" // TODO: Fix this edge case
+            else -> throw DetailedException("Unexpected amount of definitions, ${definitions.joinToString()} has ${definitions.size} items")
+        }
 
         return makeClass(
             name = nodeName,
             keywords = listOf("open"),
-            constructorArgs = paramsStr,
+            constructorArgs = valueParams,
             superClass = superClass,
             typeParams = typeParams,
             body = false,

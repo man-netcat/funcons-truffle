@@ -8,17 +8,19 @@ class DatatypeObject(
     params: List<Param>,
     operator: String,
     aliases: MutableList<AliasDefinitionContext>,
-    val builtin: Boolean,
+    builtin: Boolean,
     metavariables: Map<String, String>,
 ) : Object(name, ctx, params, aliases, metavariables) {
     override fun generateCode(): String {
+        // TODO: Fix builtin inheriting types
+
         val superClass = makeClass(
             nodeName,
             body = false,
-            constructorArgs = paramsStr,
+            constructorArgs = valueParams,
             keywords = listOf("open"),
             typeParams = typeParams,
-            superClass = emptySuperClass(TERMINAL),
+            superClass = TERMINAL,
             annotations = listOf("Datatype")
         )
 

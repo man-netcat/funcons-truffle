@@ -13,7 +13,7 @@ open class EntityObject(
     override fun generateCode(): String {
         return makeClass(
             name = nodeName,
-            constructorArgs = paramsStr,
+            constructorArgs = valueParams,
             typeParams = typeParams,
             body = false,
             annotations = listOf("Entity")
