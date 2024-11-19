@@ -6,7 +6,7 @@ abstract class FunconObject(
     name: String,
     ctx: FunconDefinitionContext,
     params: List<Param>,
-    val returns: ReturnType,
+    val returns: Type,
     aliases: List<AliasDefinitionContext>,
     val builtin: Boolean,
     metavariables: Map<String, String>,

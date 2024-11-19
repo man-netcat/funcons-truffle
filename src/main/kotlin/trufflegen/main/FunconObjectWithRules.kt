@@ -9,7 +9,7 @@ class FunconObjectWithRules(
     def: FunconDefinitionContext,
     params: List<Param>,
     private val rules: List<RuleDefinitionContext>,
-    returns: ReturnType,
+    returns: Type,
     aliases: List<AliasDefinitionContext>,
     builtin: Boolean,
     metavariables: Map<String, String>
@@ -53,7 +53,7 @@ class FunconObjectWithRules(
                         } else {
                             val element = elements[0]
                             if (element is TypeExpressionContext) {
-                                val typeStr = buildTypeRewrite(ReturnType(element.type))
+                                val typeStr = buildTypeRewrite(Type(element.type))
                                 "$paramStr is $typeStr"
                             } else throw DetailedException("Unexpected element type: ${element::class.simpleName}, ${element.text}")
                         }
@@ -64,7 +64,7 @@ class FunconObjectWithRules(
 
                 val paramStr = buildRewrite(def, argValue, makeParamStr = true, forcedArgIndex = argIndex)
                 val valueCondition = when (argValue) {
-                    is FunconExpressionContext -> "$paramStr is ${buildTypeRewrite(ReturnType(argValue))}"
+                    is FunconExpressionContext -> "$paramStr is ${buildTypeRewrite(Type(argValue))}"
                     is NumberContext -> "$paramStr == ${argValue.text}"
                     is ListExpressionContext -> processListTuple(paramStr, argValue.elements)
                     is TupleExpressionContext -> processListTuple(paramStr, argValue.elements)
@@ -74,7 +74,7 @@ class FunconObjectWithRules(
                 }
 
                 val typeCondition = if (argTypeExpr != null) {
-                    val argType = ReturnType(argTypeExpr)
+                    val argType = Type(argTypeExpr)
                     val rewritten = buildTypeRewrite(argType)
                     "$paramStr ${complementStr(argType.complement)}is $rewritten"
                 } else null
@@ -159,7 +159,7 @@ class FunconObjectWithRules(
                     val rewriteLhs = buildRewrite(ruleDef, premise.lhs)
                     val (op, rewriteRhs) = when (premise.rhs) {
                         is FunconExpressionContext -> {
-                            val type = ReturnType(premise.rhs)
+                            val type = Type(premise.rhs)
                             val rewriteRhs = buildTypeRewrite(type)
                             "${complementStr(type.complement)}is" to rewriteRhs
                         }
@@ -178,7 +178,7 @@ class FunconObjectWithRules(
 
                 is TypePremiseContext -> {
                     val value = buildRewrite(ruleDef, premise.value)
-                    val type = ReturnType(premise.type)
+                    val type = Type(premise.type)
                     val typeStr = buildTypeRewrite(type)
                     val condition = "$value ${complementStr(type.complement)}is $typeStr"
                     Pair(condition, null)

@@ -18,7 +18,7 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
                         "Unexpected metaVar type encountered: ${metaVar::class.simpleName}, with text: '${metaVar.text}'"
                     )
                 }
-                key to buildTypeRewrite(ReturnType(def.definition))
+                key to buildTypeRewrite(Type(def.definition))
             }
         }.toMap()
     }
@@ -26,7 +26,7 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
     override fun visitFunconDefinition(funcon: FunconDefinitionContext) {
         val name = funcon.name.text
         val params = extractParams(funcon)
-        val returns = ReturnType(funcon.returnType)
+        val returns = Type(funcon.returnType)
         val aliases = funcon.aliasDefinition()
         val builtin = funcon.modifier != null
         val dataContainer = if (funcon.rewritesTo != null) {

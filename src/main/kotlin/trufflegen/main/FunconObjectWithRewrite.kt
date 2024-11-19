@@ -7,7 +7,7 @@ class FunconObjectWithRewrite(
     ctx: FunconDefinitionContext,
     params: List<Param>,
     val rewritesTo: ExprContext,
-    returns: ReturnType,
+    returns: Type,
     aliases: List<AliasDefinitionContext>,
     builtin: Boolean,
     metavariables: Map<String, String>,
