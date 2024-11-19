@@ -3,7 +3,9 @@ package trufflegen.main
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
-class TypeRewriteVisitor(private val type: Type, private val nullable: Boolean) : CBSBaseVisitor<String>() {
+class TypeRewriteVisitor(
+    private val type: Type, private val nullable: Boolean
+) : CBSBaseVisitor<String>() {
     var nestedValue = 0
     var complement = false
 
@@ -18,57 +20,17 @@ class TypeRewriteVisitor(private val type: Type, private val nullable: Boolean) 
         }
         val argStr = args.filter { arg -> arg != "_" }.joinToString()
         return funconName + if (!argStr.isEmpty()) "<$argStr>" else ""
-//        TODO: Could be useful for hardcoding types
-//        return when (funconName) {
-//            "map" -> {
-//                val args = (ctx.args() as MultipleArgsContext).exprs().expr()
-//                assert(args.size == 2)
-//                val argStr = args.joinToString { visit(it) }
-//                "Map<$argStr>"
-//            }
-//
-//            "set" -> {
-//                val args = (ctx.args() as MultipleArgsContext).exprs().expr()
-//                assert(args.size == 1)
-//                "Set<${visit(args[0])}>"
-//            }
-//
-//            "list" -> {
-//                val args = (ctx.args() as MultipleArgsContext).exprs().expr()
-//                assert(args.size == 1)
-//                "List<${visit(args[0])}>"
-//            }
-//
-//            "tuple" -> {
-//                val args = (ctx.args() as MultipleArgsContext).exprs().expr()
-//                val cls = when (args.size) {
-//                    2 -> "Tuple"
-//                    3 -> "Triple"
-//                    else -> throw DetailedException("Unexpected arg size: ${args.size}")
-//                }
-//                val argStr = args.joinToString { visit(it) }
-//                "$cls<$argStr>"
-//            }
-//
-//            else -> when (ctx.args()) {
-//                is NoArgsContext -> toClassName(funconName)
-//                else -> throw DetailedException("Unexpected funcon ${ctx::class.simpleName}: ${ctx.text}")
-//            }
-//    }
     }
 
     override fun visitSuffixExpression(ctx: SuffixExpressionContext): String {
         return when (val op = ctx.op.text) {
             "?" -> visit(ctx.expr()) + if (nullable) "?" else ""
-            "*", "+" -> when (type) {
-                is ReturnType -> "ListNode<${visit(ctx.expr())}>"
-                is ParamType -> if (nestedValue == 0) {
+            "*", "+" -> if (type.isParam) {
+                if (nestedValue == 0) {
                     nestedValue++
                     visit(ctx.expr())
                 } else "ListNode<${visit(ctx.expr())}>"
-
-                else -> throw DetailedException("Unexpected type: ${ctx::class.simpleName}")
-            }
+            } else "ListNode<${visit(ctx.expr())}>"
 
             else -> throw DetailedException("Unexpected operator: $op, ${ctx.text}")
         }
@@ -101,15 +63,12 @@ class TypeRewriteVisitor(private val type: Type, private val nullable: Boolean) 
     }
 
     override fun visitPowerExpression(ctx: PowerExpressionContext): String {
-        return when (type) {
-            is ReturnType -> "ListNode<${visit(ctx.operand)}>"
-            is ParamType -> if (nestedValue == 0) {
+        return if (type.isParam) {
+            if (nestedValue == 0) {
                 nestedValue++
                 visit(ctx.operand)
             } else "ListNode<${visit(ctx.operand)}>"
-
-            else -> throw DetailedException("Unexpected type: ${ctx::class.simpleName}")
-        }
+        } else "ListNode<${visit(ctx.operand)}>"
     }
 
     override fun visitVariable(ctx: VariableContext): String = ctx.varname.text
