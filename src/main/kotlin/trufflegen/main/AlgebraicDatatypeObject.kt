@@ -16,7 +16,7 @@ class AlgebraicDatatypeObject(
             constructorArgs = valueParams,
             keywords = listOf("open"),
             typeParams = typeParams,
-            superClass = TERMINAL,
+            superClass = emptySuperClass(TERMINAL),
             annotations = listOf("Datatype")
         )
     }

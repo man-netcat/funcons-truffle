@@ -43,20 +43,31 @@ class FunconObjectWithRules(
             }
 
             return args.mapIndexedNotNull { argIndex, arg ->
+                fun processListTuple(paramStr: String, elementContainer: ExprsContext?): String {
+                    return if (elementContainer == null) {
+                        "${paramStr}.isEmpty()"
+                    } else {
+                        val elements = elementContainer.expr()
+                        if (elements.size != 1) {
+                            throw DetailedException("Unexpected amount of list/tuple values: ${elements.size}")
+                        } else {
+                            val element = elements[0]
+                            if (element is TypeExpressionContext) {
+                                val typeStr = buildTypeRewrite(ReturnType(element.type))
+                                "$paramStr is $typeStr"
+                            } else throw DetailedException("Unexpected element type: ${element::class.simpleName}, ${element.text}")
+                        }
+                    }
+                }
+
                 val (argValue, argTypeExpr) = if (arg is TypeExpressionContext) arg.value to arg.type else arg to null
 
                 val paramStr = buildRewrite(def, argValue, makeParamStr = true, forcedArgIndex = argIndex)
                 val valueCondition = when (argValue) {
                     is FunconExpressionContext -> "$paramStr is ${buildTypeRewrite(ReturnType(argValue))}"
                     is NumberContext -> "$paramStr == ${argValue.text}"
-                    is ListExpressionContext, is TupleExpressionContext -> {
-                        if (argValue.text in listOf("()", "[]")) {
-                            "${paramStr}.isEmpty()"
-                        } else {
-                            // TODO: FIX
-//                            println("name: $name, paramStr: $paramStr, argValue: ${argValue.text}")
-                        }
-                    }
+                    is ListExpressionContext -> processListTuple(paramStr, argValue.elements)
+                    is TupleExpressionContext -> processListTuple(paramStr, argValue.elements)
 
                     is VariableContext, is VariableStepContext, is SuffixExpressionContext -> null
                     else -> throw IllegalArgumentException("Unexpected arg type: ${argValue::class.simpleName}")
@@ -239,7 +250,7 @@ class FunconObjectWithRules(
             Pair(finalConditions, finalRewrite)
         }
 
-//        if (pairs.any { it.first.isEmpty() }) throw EmptyConditionException(name)
+        if (pairs.any { it.first.isEmpty() }) throw EmptyConditionException(name)
 
         val content = "return " + makeIfStatement(*pairs.toTypedArray(), elseBranch = "fail()")
 

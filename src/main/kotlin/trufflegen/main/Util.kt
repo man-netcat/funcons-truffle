@@ -193,7 +193,7 @@ tailrec fun extractAndOrExprs(
 fun makeVariableStepName(varStep: VariableStepContext): String =
     varStep.varname.text + "p".repeat(varStep.squote().size)
 
-fun emptySuperClass(name: String): Triple<String, List<String>, List<String>> = Triple(name, emptyList(), emptyList())
+fun emptySuperClass(name: String): String = makeFun(name, emptyList(), emptyList())
 
 fun buildTypeRewrite(type: Type, nullable: Boolean = true): String {
     val rewriteVisitor = TypeRewriteVisitor(type, nullable)

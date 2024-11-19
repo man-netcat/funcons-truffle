@@ -14,7 +14,11 @@ class DatatypeFunconObject(
             nodeName,
             constructorArgs = valueParams,
             typeParams = typeParams,
-            superClass = superclass.nodeName, // TODO Fix
+            superClass = makeFun(
+                superclass.nodeName,
+                superclass.typeParams.map { it.first },
+                superclass.valueParams
+            ),
             body = false,
             annotations = listOf("Funcon")
         )

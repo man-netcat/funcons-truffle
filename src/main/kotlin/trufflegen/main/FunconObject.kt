@@ -23,7 +23,7 @@ abstract class FunconObject(
             content = content,
             constructorArgs = valueParams,
             typeParams = typeParams,
-            superClass = COMPUTATION,
+            superClass = emptySuperClass(COMPUTATION),
             annotations = listOf("Funcon")
         )
     }

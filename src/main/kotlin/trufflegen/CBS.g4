@@ -61,10 +61,10 @@ expr
    | lhs = expr op = OR rhs = expr # OrExpression
    | value = expr op = COLON type = expr # TypeExpression
    | '(' expr ')' # NestedExpression
-   | '[' exprs? ']' # ListExpression
-   | '{' expr? '}' # SetExpression
+   | '[' elements = exprs? ']' # ListExpression
+   | '{' elements = expr? '}' # SetExpression
    | '{' pairs '}' # MapExpression
-   | '(' exprs? ')' # TupleExpression
+   | '(' elements = exprs? ')' # TupleExpression
    | string = STRING # String
    | value = NUMBER # Number
    | varname = VARIABLE squote+ # VariableStep
