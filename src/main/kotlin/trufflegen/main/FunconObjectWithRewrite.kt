@@ -10,8 +10,8 @@ class FunconObjectWithRewrite(
     returns: Type,
     aliases: List<AliasDefinitionContext>,
     builtin: Boolean,
-    metavariables: Map<String, String>,
-) : FunconObject(name, ctx, params, returns, aliases, builtin, metavariables) {
+    metaVariables: Set<Pair<String, String>>
+) : FunconObject(name, ctx, params, returns, aliases, builtin, metaVariables) {
     override fun makeContent(): String {
         val content = "return " + buildRewrite(this@FunconObjectWithRewrite.ctx, rewritesTo)
         return makeExecuteFunction(content, returnStr)

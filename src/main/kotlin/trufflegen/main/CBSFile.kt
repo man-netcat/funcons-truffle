@@ -1,26 +1,24 @@
 package trufflegen.main
 
+import org.antlr.v4.runtime.tree.ParseTree
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
 class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() {
     internal val objects = mutableMapOf<String, Object?>()
-    internal var metavariables: Map<String, String> = emptyMap()
+    internal var fileMetavariables: List<Pair<ExprContext, ExprContext>> = emptyList()
+
+    fun identifyMetavariables(ctx: ParseTree): MutableSet<Pair<String, String>> {
+        val visitor = MetaVariableVisitor(fileMetavariables)
+        visitor.visit(ctx)
+        println(visitor.objectMetaVariables)
+        return visitor.objectMetaVariables
+    }
 
     override fun visitMetavariablesDefinition(metavarDefs: MetavariablesDefinitionContext) {
-        metavariables = metavarDefs.metavarDef().flatMap { def ->
-            def.variables.expr().mapNotNull { metaVar ->
-                val key = when (metaVar) {
-                    is VariableContext -> metaVar.text
-                    is VariableStepContext -> makeVariableStepName(metaVar)
-                    is SuffixExpressionContext -> metaVar.operand.text
-                    else -> throw DetailedException(
-                        "Unexpected metaVar type encountered: ${metaVar::class.simpleName}, with text: '${metaVar.text}'"
-                    )
-                }
-                key to buildTypeRewrite(Type(def.definition))
-            }
-        }.toMap()
+        fileMetavariables = metavarDefs.metavarDef().flatMap { def ->
+            def.variables.expr().mapNotNull { metaVar -> metaVar to def.supertype }
+        }
     }
 
     override fun visitFunconDefinition(funcon: FunconDefinitionContext) {
@@ -29,14 +27,16 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val returns = Type(funcon.returnType)
         val aliases = funcon.aliasDefinition()
         val builtin = funcon.modifier != null
+        val metaVariables = identifyMetavariables(funcon)
+
         val dataContainer = if (funcon.rewritesTo != null) {
             val rewritesTo = funcon.rewritesTo
-            FunconObjectWithRewrite(name, funcon, params, rewritesTo, returns, aliases, builtin, metavariables)
+            FunconObjectWithRewrite(name, funcon, params, rewritesTo, returns, aliases, builtin, metaVariables)
         } else if (!funcon.ruleDefinition().isEmpty()) {
             val rules: List<RuleDefinitionContext> = funcon.ruleDefinition()
-            FunconObjectWithRules(name, funcon, params, rules, returns, aliases, builtin, metavariables)
+            FunconObjectWithRules(name, funcon, params, rules, returns, aliases, builtin, metaVariables)
         } else {
-            FunconObjectWithoutRules(name, funcon, params, returns, aliases, builtin, metavariables)
+            FunconObjectWithoutRules(name, funcon, params, returns, aliases, builtin, metaVariables)
         }
 
         objects[name] = dataContainer
@@ -48,16 +48,17 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val operator = datatype.op?.text ?: ""
         val aliases = datatype.aliasDefinition()
         val definitions = extractAndOrExprs(datatype.definition)
+        val metaVariables = identifyMetavariables(datatype)
 
         when (operator) {
             "<:" -> {
                 val datatypeDataContainer =
-                    SupertypeDatatypeObject(name, datatype, params, definitions, aliases, metavariables)
+                    SupertypeDatatypeObject(name, datatype, params, definitions, aliases, metaVariables)
                 objects[name] = datatypeDataContainer
             }
 
             "::=" -> {
-                val datatypeDataContainer = AlgebraicDatatypeObject(name, datatype, params, aliases, metavariables)
+                val datatypeDataContainer = AlgebraicDatatypeObject(name, datatype, params, aliases, metaVariables)
                 objects[name] = datatypeDataContainer
 
                 definitions.forEach { funcon ->
@@ -66,7 +67,7 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
                             val name = funcon.name.text
                             val params = argsToParams(funcon)
                             val dataContainer =
-                                DatatypeFunconObject(name, funcon, params, datatypeDataContainer, metavariables)
+                                DatatypeFunconObject(name, funcon, params, datatypeDataContainer, metaVariables)
                             objects[name] = dataContainer
                         }
 
@@ -90,7 +91,9 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val definitions = if (type.definition != null) extractAndOrExprs(type.definition) else emptyList()
         val aliases = type.aliasDefinition()
         val builtin = type.modifier != null
-        val dataContainer = TypeObject(name, type, params, definitions, aliases, metavariables)
+        val metaVariables = identifyMetavariables(type)
+
+        val dataContainer = TypeObject(name, type, params, definitions, aliases, metaVariables)
 
         objects[name] = dataContainer
     }
@@ -100,7 +103,9 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val params = extractParams(controlEntity)
         val polarity = controlEntity.polarity?.text
         val aliases = controlEntity.aliasDefinition()
-        val dataContainer = ControlEntityObject(name, controlEntity, params, polarity, aliases, metavariables)
+        val metaVariables = identifyMetavariables(controlEntity)
+
+        val dataContainer = ControlEntityObject(name, controlEntity, params, polarity, aliases, metaVariables)
 
         objects[name] = dataContainer
     }
@@ -112,7 +117,9 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val name = mutableEntity.lhsName.text
         val params = extractParams(mutableEntity)
         val aliases = mutableEntity.aliasDefinition()
-        val dataContainer = MutableEntityObject(name, mutableEntity, params, aliases, metavariables)
+        val metaVariables = identifyMetavariables(mutableEntity)
+
+        val dataContainer = MutableEntityObject(name, mutableEntity, params, aliases, metaVariables)
 
         objects[name] = dataContainer
     }
@@ -121,7 +128,9 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val name = contextualEntity.name.text
         val params = extractParams(contextualEntity)
         val aliases = contextualEntity.aliasDefinition()
-        val dataContainer = ContextualEntityObject(name, contextualEntity, params, aliases, metavariables)
+        val metaVariables = identifyMetavariables(contextualEntity)
+
+        val dataContainer = ContextualEntityObject(name, contextualEntity, params, aliases, metaVariables)
 
         objects[name] = dataContainer
     }

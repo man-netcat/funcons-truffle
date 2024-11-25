@@ -48,5 +48,5 @@ class Type(val expr: ExprContext?, val isParam: Boolean = false) {
     }
 
     val annotation: String
-        get() = if (isVararg) "@Children private vararg val" else "@Child private val"
+        get() = if (isVararg) "@Children vararg val" else "@Child val"
 }

@@ -24,7 +24,7 @@ index
    ;
 
 metavarDef
-   : variables = exprs SUBTYPE definition = expr
+   : variables = exprs SUBTYPE supertype = expr
    ;
 
 obj
@@ -197,6 +197,10 @@ BLOCKCOMMENT
 
 STRING
    : '"' .*? '"'
+   ;
+
+CHARACTER
+   : '\'' . '\''
    ;
 
 NUMBER

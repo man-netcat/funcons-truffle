@@ -12,8 +12,8 @@ class FunconObjectWithRules(
     returns: Type,
     aliases: List<AliasDefinitionContext>,
     builtin: Boolean,
-    metavariables: Map<String, String>
-) : FunconObject(name, def, params, returns, aliases, builtin, metavariables) {
+    metaVariables: MutableSet<Pair<String, String>>
+) : FunconObject(name, def, params, returns, aliases, builtin, metaVariables) {
     private fun complementStr(bool: Boolean): String = if (bool) "!" else ""
     private fun isInputOutputEntity(stepExpr: StepExprContext): Boolean {
         val steps = stepExpr.steps().step()

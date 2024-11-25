@@ -8,13 +8,13 @@ open class EntityObject(
     ctx: ParseTree,
     params: List<Param>,
     aliases: List<AliasDefinitionContext>,
-    metavariables: Map<String, String>
-) : Object(name, ctx, params, aliases, metavariables) {
+    metaVariables: Set<Pair<String, String>>
+) : Object(name, ctx, params, aliases, metaVariables) {
     override fun generateCode(): String {
         return makeClass(
             name = nodeName,
             constructorArgs = valueParams,
-            typeParams = typeParams,
+            typeParams = emptyList(), // TODO Fix
             body = false,
             annotations = listOf("Entity")
         )

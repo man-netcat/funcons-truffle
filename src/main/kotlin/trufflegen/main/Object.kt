@@ -8,7 +8,7 @@ abstract class Object(
     val ctx: ParseTree,
     val params: List<Param>,
     private val aliases: List<AliasDefinitionContext>,
-    private val metavariables: Map<String, String>,
+    val metaVariables: Set<Pair<String, String>>,
 ) {
     abstract fun generateCode(): String
 
@@ -16,11 +16,6 @@ abstract class Object(
         val annotation = param.type.annotation
         val paramTypeStr = buildTypeRewrite(param.type)
         makeParam(annotation, param.name, paramTypeStr)
-    }
-
-    val typeParams = params.filter { it.value == null }.map { param ->
-        val metavar = buildTypeRewrite(param.type)
-        metavar to metavariables[metavar]
     }
 
     fun aliasStr(): String {

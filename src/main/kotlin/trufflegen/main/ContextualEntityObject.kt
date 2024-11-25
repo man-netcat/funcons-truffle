@@ -8,5 +8,5 @@ class ContextualEntityObject(
     ctx: ContextualEntityDefinitionContext,
     params: List<Param>,
     aliases: List<AliasDefinitionContext>,
-    metavariables: Map<String, String>
-) : EntityObject(name, ctx, params, aliases, metavariables)
+    metaVariables: Set<Pair<String, String>>
+) : EntityObject(name, ctx, params, aliases, metaVariables)

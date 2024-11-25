@@ -1,7 +1,6 @@
 package trufflegen.main
 
 import org.antlr.v4.runtime.tree.ParseTree
-import org.antlr.v4.runtime.tree.RuleNode
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
@@ -137,8 +136,6 @@ class RewriteVisitor(
     fun makeParamStr(
         text: String, stepSuffix: String = "", argIsArray: Boolean = false, forcedArgIndex: Int = -1
     ): String {
-        // TODO: Fix parameter comparisons
-
         if (text in entities.keys) {
             val labelName = entities[text]
             return entityMap(labelName!!)
@@ -203,9 +200,4 @@ class RewriteVisitor(
             else -> throw IndexOutOfBoundsException("argIndex $argIndex out of bounds.")
         }
     }
-
-//    override fun visitChildren(node: RuleNode): String {
-//        println("Visiting ${node::class.simpleName} ${node.text}")
-//        return super.visitChildren(node)
-//    }
 }
