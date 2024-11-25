@@ -18,7 +18,7 @@ class TypeRewriteVisitor(
             is MultipleArgsContext -> args.exprs().expr().map { visit(it) }
             else -> throw DetailedException("Unexpected arg type: ${args::class.simpleName}")
         }
-        val argStr = args.filter { arg -> arg != "_" }.joinToString()
+        val argStr = args.joinToString { arg -> if (arg == "_") "*" else arg }
         return funconName + if (!argStr.isEmpty()) "<$argStr>" else ""
     }
 

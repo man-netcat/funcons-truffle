@@ -1,7 +1,6 @@
 package trufflegen.main
 
 import org.antlr.v4.runtime.tree.ParseTree
-import org.antlr.v4.runtime.tree.RuleNode
 import trufflegen.antlr.CBSBaseVisitor
 import trufflegen.antlr.CBSParser.*
 
@@ -89,17 +88,17 @@ class RewriteVisitor(
 
     override fun visitTupleExpression(tuple: TupleExpressionContext): String {
         val exprs = tuple.exprs()?.expr()
-        return if (exprs.isNullOrEmpty()) "ListNilNode()" else "ListNode(${visit(tuple.exprs())})"
+        return if (exprs.isNullOrEmpty()) "EmptySequenceNode()" else "ListNode(${visit(tuple.exprs())})"
     }
 
     override fun visitListExpression(list: ListExpressionContext): String {
         val exprs = list.exprs()?.expr()
-        return if (exprs.isNullOrEmpty()) "ListNilNode()" else "ListNode(${visit(list.exprs())})"
+        return if (exprs.isNullOrEmpty()) "EmptyListNode()" else "ListNode(${visit(list.exprs())})"
     }
 
     override fun visitSetExpression(set: SetExpressionContext): String {
         val expr = set.expr()
-        return if (expr == null) "SetsNode()" else "SetsNode(${visit(set.expr())})"
+        return if (expr == null) "EmptySetNode()" else "SetsNode(${visit(set.expr())})"
     }
 
     override fun visitMapExpression(map: MapExpressionContext): String = "MapsNode(${visitPairs(map.pairs())})"
@@ -135,10 +134,11 @@ class RewriteVisitor(
     override fun visitTypeExpression(typeExpr: TypeExpressionContext): String = visit(typeExpr.value)
 
     fun makeParamStr(
-        text: String, stepSuffix: String = "", argIsArray: Boolean = false, forcedArgIndex: Int = -1
+        text: String,
+        stepSuffix: String = "",
+        argIsArray: Boolean = false,
+        forcedArgIndex: Int = -1
     ): String {
-        // TODO: Fix parameter comparisons
-
         if (text in entities.keys) {
             val labelName = entities[text]
             return entityMap(labelName!!)
@@ -203,9 +203,4 @@ class RewriteVisitor(
             else -> throw IndexOutOfBoundsException("argIndex $argIndex out of bounds.")
         }
     }
-
-//    override fun visitChildren(node: RuleNode): String {
-//        println("Visiting ${node::class.simpleName} ${node.text}")
-//        return super.visitChildren(node)
-//    }
 }

@@ -1,8 +1,6 @@
 package trufflegen.main
 
-import trufflegen.antlr.CBSParser.AliasDefinitionContext
-import trufflegen.antlr.CBSParser.DatatypeDefinitionContext
-import trufflegen.antlr.CBSParser.ExprContext
+import trufflegen.antlr.CBSParser.*
 
 class SupertypeDatatypeObject(
     name: String,
@@ -10,8 +8,8 @@ class SupertypeDatatypeObject(
     params: List<Param>,
     private val definitions: List<ExprContext>,
     aliases: List<AliasDefinitionContext>,
-    metavariables: Map<String, String>
-) : Object(name, ctx, params, aliases, metavariables) {
+    metaVariables: Set<Pair<String, String>>
+) : Object(name, ctx, params, aliases, metaVariables) {
     override fun generateCode(): String {
         println("processing type $name")
 
@@ -24,7 +22,7 @@ class SupertypeDatatypeObject(
             keywords = listOf("open"),
             constructorArgs = valueParams,
             superClass = superClass,
-            typeParams = typeParams,
+            typeParams = emptyList(), // TODO Fix
             body = false,
             annotations = listOf("DataType")
         )

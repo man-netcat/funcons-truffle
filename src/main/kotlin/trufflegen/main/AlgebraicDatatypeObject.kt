@@ -7,15 +7,15 @@ class AlgebraicDatatypeObject(
     ctx: DatatypeDefinitionContext,
     params: List<Param>,
     aliases: MutableList<AliasDefinitionContext>,
-    metavariables: Map<String, String>,
-) : Object(name, ctx, params, aliases, metavariables) {
+    metaVariables: Set<Pair<String, String>>
+) : Object(name, ctx, params, aliases, metaVariables) {
     override fun generateCode(): String {
         return makeClass(
             nodeName,
             body = false,
             constructorArgs = valueParams,
             keywords = listOf("open"),
-            typeParams = typeParams,
+            typeParams = metaVariables.toList(),
             superClass = emptySuperClass(TERMINAL),
             annotations = listOf("Datatype")
         )

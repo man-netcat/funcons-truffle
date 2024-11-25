@@ -8,5 +8,5 @@ class ControlEntityObject(
     params: List<Param>,
     private val polarity: String?,
     aliases: List<CBSParser.AliasDefinitionContext>,
-    metavariables: Map<String, String>
-) : EntityObject(name, ctx, params, aliases, metavariables)
+    metaVariables: MutableSet<Pair<String, String>>,
+) : EntityObject(name, ctx, params, aliases, metaVariables)

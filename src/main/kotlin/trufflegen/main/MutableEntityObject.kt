@@ -8,5 +8,5 @@ class MutableEntityObject(
     ctx: MutableEntityDefinitionContext,
     params: List<Param>,
     aliases: List<AliasDefinitionContext>,
-    metavariables: Map<String, String>
-) : EntityObject(name, ctx, params, aliases, metavariables)
+    metaVariables: MutableSet<Pair<String, String>>
+) : EntityObject(name, ctx, params, aliases, metaVariables)

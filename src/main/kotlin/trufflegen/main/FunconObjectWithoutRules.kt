@@ -10,9 +10,9 @@ class FunconObjectWithoutRules(
     returns: Type,
     aliases: List<AliasDefinitionContext>,
     builtin: Boolean,
-    metavariables: Map<String, String>
+    metaVariables: MutableSet<Pair<String, String>>
 ) :
-    FunconObject(name, ctx, params, returns, aliases, builtin, metavariables) {
+    FunconObject(name, ctx, params, returns, aliases, builtin, metaVariables) {
     override fun makeContent(): String {
         // TODO Fix
         val content = "return ${buildTypeRewrite(returns)}()"

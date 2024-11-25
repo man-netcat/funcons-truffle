@@ -9,8 +9,8 @@ abstract class FunconObject(
     val returns: Type,
     aliases: List<AliasDefinitionContext>,
     val builtin: Boolean,
-    metavariables: Map<String, String>,
-) : Object(name, ctx, params, aliases, metavariables) {
+    metaVariables: Set<Pair<String, String>>
+) : Object(name, ctx, params, aliases, metaVariables) {
     abstract fun makeContent(): String
 
     val returnStr = buildTypeRewrite(returns)
@@ -22,7 +22,7 @@ abstract class FunconObject(
             nodeName,
             content = content,
             constructorArgs = valueParams,
-            typeParams = typeParams,
+            typeParams = metaVariables.toList(),
             superClass = emptySuperClass(COMPUTATION),
             annotations = listOf("Funcon")
         )

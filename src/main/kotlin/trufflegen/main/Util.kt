@@ -164,17 +164,15 @@ fun makeWhenExpression(
     return result.toString()
 }
 
-fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<String> = emptySet()): String {
+fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<Pair<String, String>> = emptySet()): String {
     val typeParamStr = if (typeParams.isNotEmpty()) {
-        "<" + typeParams.joinToString() + "> "
-    } else {
-        ""
-    }
-    return "typealias $aliasName$typeParamStr = $targetType"
+        "<" + typeParams.joinToString(", ") { it.first } + "> "
+    } else ""
+    return "typealias $aliasName$typeParamStr = $targetType$typeParamStr"
 }
 
-fun makeFun(name: String, typeParams: List<String>, params: List<String>): String {
-    val superclassTypeParamStr = if (typeParams.isNotEmpty()) "<${typeParams.joinToString(", ")}>" else ""
+fun makeFun(name: String, typeParams: Set<Pair<String, String>>, params: List<String>): String {
+    val superclassTypeParamStr = if (typeParams.isNotEmpty()) "<${typeParams.joinToString(", ") { it.first }}>" else ""
     return "$name$superclassTypeParamStr(${params.joinToString(", ")})"
 }
 
@@ -193,7 +191,7 @@ tailrec fun extractAndOrExprs(
 fun makeVariableStepName(varStep: VariableStepContext): String =
     varStep.varname.text + "p".repeat(varStep.squote().size)
 
-fun emptySuperClass(name: String): String = makeFun(name, emptyList(), emptyList())
+fun emptySuperClass(name: String): String = makeFun(name, emptySet(), emptyList())
 
 fun buildTypeRewrite(type: Type, nullable: Boolean = true): String {
     val rewriteVisitor = TypeRewriteVisitor(type, nullable)

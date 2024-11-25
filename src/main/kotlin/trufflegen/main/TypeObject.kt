@@ -8,8 +8,8 @@ class TypeObject(
     params: List<Param>,
     private val definitions: List<ExprContext>,
     aliases: MutableList<AliasDefinitionContext>,
-    metavariables: Map<String, String>,
-) : Object(name, ctx, params, aliases, metavariables) {
+    metaVariables: Set<Pair<String, String>>
+) : Object(name, ctx, params, aliases, metaVariables) {
     override fun generateCode(): String {
         println("processing type $name")
 
@@ -31,7 +31,7 @@ class TypeObject(
             keywords = listOf("open"),
             constructorArgs = valueParams,
             superClass = superClass,
-            typeParams = typeParams,
+            typeParams = metaVariables.toList(),
             body = false,
             annotations = listOf("Type")
         )

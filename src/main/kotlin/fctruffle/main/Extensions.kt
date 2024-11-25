@@ -1,9 +1,6 @@
 package fctruffle.main
 
-//import fctruffle.generated.TupleNode
-//import fctruffle.generated.IntegersNode
-//import fctruffle.generated.SetsNode
-//import fctruffle.generated.StringsNode
+//import fctruffle.generated.*
 //
 //
 //open class FCTIntegerNode(val value: Int) : IntegersNode()
@@ -12,15 +9,14 @@ package fctruffle.main
 //    return FCTIntegerNode(this)
 //}
 //
-//open class FCTSetNode<T>(val value: Set<T>) : SetsNode<T>()
-//
-//fun <T>Set<T>.toSetNode(): SetsNode<T> {
-//    return FCTSetNode<T>(this)
-//}
-//
-//open class FCTStringNode(override val value: String) : StringsNode()
+//open class FCTStringNode(val value: String) : StringsNode()
 //
 //fun String.toStringsNode(): StringsNode {
 //    return FCTStringNode(this)
 //}
-
+//
+//@Funcon
+//class EmptyListNode : ListsNode<ValuesNode>()
+//
+//@Funcon
+//class EmptySequenceNode<T : ValuesNode> : TuplesNode<ListNode<ValuesNode>>()
