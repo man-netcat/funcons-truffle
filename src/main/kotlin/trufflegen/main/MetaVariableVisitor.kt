@@ -17,12 +17,15 @@ class MetaVariableVisitor(private val fileMetaVariables: List<Pair<ExprContext, 
                         val castSuperType = (superType as? SuffixExpressionContext)?.operand ?: throw DetailedException(
                             "Expected SuffixExpressionContext for superType, found ${superType::class.simpleName}"
                         )
-                        Pair(buildTypeRewrite(Type(metaVariable.operand)), buildTypeRewrite(Type(castSuperType)))
+                        Pair(
+                            buildTypeRewrite(Type(metaVariable.operand), nullable = false),
+                            buildTypeRewrite(Type(castSuperType), nullable = false)
+                        )
                     }
 
-                    is VariableContext, is VariableStepContext -> Pair(
-                        buildTypeRewrite(Type(metaVariable)),
-                        buildTypeRewrite(Type(superType))
+                    is VariableContext -> Pair(
+                        buildTypeRewrite(Type(metaVariable), nullable = false),
+                        buildTypeRewrite(Type(superType), nullable = false)
                     )
 
                     else -> throw DetailedException("Unexpected metaVariable type: ${metaVariable::class.simpleName}, ${metaVariable.text}")

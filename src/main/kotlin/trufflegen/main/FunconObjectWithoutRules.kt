@@ -1,14 +1,13 @@
 package trufflegen.main
 
 import trufflegen.antlr.CBSParser
-import trufflegen.antlr.CBSParser.AliasDefinitionContext
 
 class FunconObjectWithoutRules(
     name: String,
     ctx: CBSParser.FunconDefinitionContext,
     params: List<Param>,
     returns: Type,
-    aliases: List<AliasDefinitionContext>,
+    aliases: List<String>,
     builtin: Boolean,
     metaVariables: MutableSet<Pair<String, String>>
 ) :

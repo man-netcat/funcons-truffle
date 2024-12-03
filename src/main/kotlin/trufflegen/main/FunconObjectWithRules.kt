@@ -10,7 +10,7 @@ class FunconObjectWithRules(
     params: List<Param>,
     private val rules: List<RuleDefinitionContext>,
     returns: Type,
-    aliases: List<AliasDefinitionContext>,
+    aliases: List<String>,
     builtin: Boolean,
     metaVariables: MutableSet<Pair<String, String>>
 ) : FunconObject(name, def, params, returns, aliases, builtin, metaVariables) {
@@ -32,59 +32,36 @@ class FunconObjectWithRules(
     }
 
     private fun processConclusion(
-        conclusion: PremiseContext, entityMap: Map<String, String>
+        conclusion: PremiseContext
     ): Triple<ExprContext, String, String> {
         fun argsConditions(def: FunconExpressionContext): String {
-            val args = when (val argContext = def.args()) {
-                is MultipleArgsContext -> argContext.exprs().expr()
-                is ListIndexExpressionContext -> argContext.indices.expr()
-                is SingleArgsContext -> listOf(argContext.expr())
-                else -> emptyList()
-            }
+            val paramStrs = getParamStrs(def)
+            return paramStrs.mapNotNull { (argValue, argType, paramStr) ->
+                val valueCondition = if (argValue != null) {
+                    when (argValue) {
+                        //TODO: This needs to be improved
+                        is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext
+                            -> "$paramStr is ${buildTypeRewrite(Type(argValue))}"
 
-            return args.mapIndexedNotNull { argIndex, arg ->
-                fun processListTuple(paramStr: String, elementContainer: ExprsContext?): String {
-                    return if (elementContainer == null) {
-                        "${paramStr}.isEmpty()"
-                    } else {
-                        val elements = elementContainer.expr()
-                        if (elements.size != 1) {
-                            throw DetailedException("Unexpected amount of list/tuple values: ${elements.size}")
-                        } else {
-                            val element = elements[0]
-                            if (element is TypeExpressionContext) {
-                                val typeStr = buildTypeRewrite(Type(element.type))
-                                "$paramStr is $typeStr"
-                            } else throw DetailedException("Unexpected element type: ${element::class.simpleName}, ${element.text}")
-                        }
+                        is NumberContext -> "$paramStr == ${argValue.text}"
+                        is TupleExpressionContext -> "${paramStr}.isEmpty()"
+                        is VariableContext, is SuffixExpressionContext -> null
+                        else -> throw IllegalArgumentException("Unexpected arg type: ${argValue::class.simpleName}, ${argValue.text}")
                     }
-                }
+                } else null
 
-                val (argValue, argTypeExpr) = if (arg is TypeExpressionContext) arg.value to arg.type else arg to null
-
-                val paramStr = buildRewrite(def, argValue, makeParamStr = true, forcedArgIndex = argIndex)
-                val valueCondition = when (argValue) {
-                    is FunconExpressionContext -> "$paramStr is ${buildTypeRewrite(Type(argValue))}"
-                    is NumberContext -> "$paramStr == ${argValue.text}"
-                    is ListExpressionContext -> processListTuple(paramStr, argValue.elements)
-                    is TupleExpressionContext -> processListTuple(paramStr, argValue.elements)
-
-                    is VariableContext, is VariableStepContext, is SuffixExpressionContext -> null
-                    else -> throw IllegalArgumentException("Unexpected arg type: ${argValue::class.simpleName}")
-                }
-
-                val typeCondition = if (argTypeExpr != null) {
-                    val argType = Type(argTypeExpr)
+                val typeCondition = if (argType != null) {
+                    val argType = Type(argType)
                     val rewritten = buildTypeRewrite(argType)
                     "$paramStr ${complementStr(argType.complement)}is $rewritten"
                 } else null
 
-                if (typeCondition != null && valueCondition != null) {
-                    "$valueCondition && $typeCondition"
-                } else if (typeCondition != null) typeCondition else valueCondition
+                when {
+                    typeCondition != null && valueCondition != null -> "$valueCondition && $typeCondition"
+                    else -> typeCondition ?: valueCondition
+                }
             }.joinToString(" && ")
         }
-
 
         return when (conclusion) {
             is RewritePremiseContext -> {
@@ -102,10 +79,10 @@ class FunconObjectWithRules(
                 )
                 val entityStr = gatherLabels(stepExpr).joinToString("\n") { label ->
                     entityMap(label.name.text) + " = " + if (label.value != null) {
-                        buildRewrite(stepExpr.lhs, label.value, entityMap)
+                        buildRewrite(stepExpr.lhs, label.value)
                     } else "null"
                 }
-                var rewriteStr = buildRewrite(stepExpr.lhs, stepExpr.rhs, entityMap)
+                var rewriteStr = buildRewrite(stepExpr.lhs, stepExpr.rhs)
                 rewriteStr = if (entityStr.isNotEmpty()) "$entityStr\n$rewriteStr" else rewriteStr
                 val conditions = if (stepExpr.lhs is FunconExpressionContext) {
                     argsConditions(stepExpr.lhs as FunconExpressionContext)
@@ -115,7 +92,7 @@ class FunconObjectWithRules(
 
             is MutableEntityPremiseContext -> {
                 val mutableExpr = conclusion.mutableExpr()
-                val rewrite = buildRewrite(mutableExpr.lhs, mutableExpr.rhs, entityMap)
+                val rewrite = buildRewrite(mutableExpr.lhs, mutableExpr.rhs)
                 val conditions = if (mutableExpr.lhs is FunconExpressionContext) {
                     argsConditions(mutableExpr.lhs as FunconExpressionContext)
                 } else ""
@@ -128,7 +105,7 @@ class FunconObjectWithRules(
     }
 
     private fun processPremises(
-        premises: List<PremiseContext>, ruleDef: ExprContext, entityMap: Map<String, String>
+        premises: List<PremiseContext>, ruleDef: ExprContext
     ): Pair<String, String> {
         val result = premises.map { premise ->
             when (premise) {
@@ -139,13 +116,24 @@ class FunconObjectWithRules(
                             buildRewrite(ruleDef, label.value)
                         } else "null")
                     }
-                    val rewriteLhs = buildRewrite(ruleDef, stepExpr.lhs, entityMap)
-                    val rewriteRhs = buildRewrite(ruleDef, stepExpr.rhs, entityMap)
+                    val rewriteLhs = buildRewrite(ruleDef, stepExpr.lhs)
+                    val rewriteRhs = buildRewrite(ruleDef, stepExpr.rhs)
                     val condition = "$rewriteLhs is $COMPUTATION"
                     val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
 
                     if (labelConditions.isNotBlank()) Pair("$condition && $labelConditions", rewrite)
                     else Pair(condition, rewrite)
+                }
+
+                is MutableEntityPremiseContext -> {
+                    //TODO Fix
+                    val mutableExpr = premise.mutableExpr()
+                    val rewriteLhs = buildRewrite(ruleDef, mutableExpr.lhs)
+                    val rewriteRhs = buildRewrite(ruleDef, mutableExpr.rhs)
+                    val condition = "$rewriteLhs is $COMPUTATION"
+                    val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
+
+                    Pair(condition, rewrite)
                 }
 
                 is RewritePremiseContext -> {
@@ -194,53 +182,14 @@ class FunconObjectWithRules(
         return Pair(conditions, rewrites)
     }
 
-    private fun buildEntityMap(premises: List<PremiseContext>, conclusion: PremiseContext): Map<String, String> {
-        fun extractValue(labelValue: ExprContext): String {
-            val rewritten = when (labelValue) {
-                is TypeExpressionContext -> labelValue.value.text
-                is VariableContext -> labelValue.text
-                is VariableStepContext -> makeVariableStepName(labelValue)
-                is FunconExpressionContext -> buildRewrite(labelValue, labelValue)
-                is SuffixExpressionContext -> "TODO"
-                else -> throw DetailedException("Unexpected labelValue type: ${labelValue::class.simpleName}, ${labelValue.text}")
-            }
-            return rewritten
-        }
-
-        return (premises + conclusion).flatMap { premise ->
-            fun labelData(label: LabelContext) = extractValue(label.value) to label.name.text
-            if (premise is StepPremiseContext) {
-                val stepExpr = premise.stepExpr()
-                if (stepExpr.context_?.name != null) {
-                    if (stepExpr.context_.value != null) {
-                        listOf(labelData(stepExpr.context_))
-                    } else emptyList()
-                } else {
-                    stepExpr.steps()?.step()?.sortedBy { step -> step.sequenceNumber?.text?.toInt() }?.flatMap { step ->
-                        step.labels()?.label()?.filter { label -> label.value != null }?.map { label ->
-                            labelData(label)
-                        }.orEmpty()
-                    }.orEmpty()
-                }
-            } else if (premise is MutableEntityPremiseContext) {
-                val mutableExpr = premise.mutableExpr()
-                val lhsLabel = mutableExpr.entityLhs
-                val rhsLabel = mutableExpr.entityRhs
-                listOf(labelData(lhsLabel), labelData(rhsLabel))
-            } else emptyList()
-        }.toMap()
-    }
-
     override fun makeContent(): String {
         val pairs = rules.map { rule ->
             val premises = rule.premises()?.premise()?.toList() ?: emptyList()
             val conclusion = rule.conclusion
 
-            val entityMap = buildEntityMap(premises, conclusion)
+            val (ruleDef, conclusionConditions, conclusionRewrite) = processConclusion(conclusion)
 
-            val (ruleDef, conclusionConditions, conclusionRewrite) = processConclusion(conclusion, entityMap)
-
-            val (premiseConditions, premiseRewrite) = processPremises(premises, ruleDef, entityMap)
+            val (premiseConditions, premiseRewrite) = processPremises(premises, ruleDef)
 
             val finalConditions =
                 listOf(premiseConditions, conclusionConditions).filter { it.isNotEmpty() }.joinToString(" && ")

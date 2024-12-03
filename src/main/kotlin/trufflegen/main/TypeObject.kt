@@ -7,12 +7,10 @@ class TypeObject(
     ctx: TypeDefinitionContext,
     params: List<Param>,
     private val definitions: List<ExprContext>,
-    aliases: MutableList<AliasDefinitionContext>,
+    aliases: List<String>,
     metaVariables: Set<Pair<String, String>>
 ) : Object(name, ctx, params, aliases, metaVariables) {
     override fun generateCode(): String {
-        println("processing type $name")
-
         val superClass: String = when (definitions.size) {
             0 -> ""
             1 -> {

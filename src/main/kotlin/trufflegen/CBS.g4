@@ -5,7 +5,7 @@ grammar CBS;
 package trufflegen.antlr;
 }
 root
-   : (index | obj)* EOF
+   : (index | object)* EOF
    ;
 
 definitionId
@@ -27,7 +27,7 @@ metavarDef
    : variables = exprs SUBTYPE supertype = expr
    ;
 
-obj
+object
    : (modifier = (BUILTIN | AUXILIARY)? FUNCON name = IDENTIFIER ('(' params ')')? COLON returnType = expr (REWRITE rewritesTo = expr)? (ALIAS aliasDefinition | RULE ruleDefinition | ASSERT assertDefinition)*) # FunconDefinition
    | (modifier = BUILTIN? DATATYPE name = IDENTIFIER ('(' params ')')? op = ('::=' | SUBTYPE) definition = expr (ALIAS aliasDefinition | ASSERT assertDefinition)*) # DatatypeDefinition
    | (modifier = BUILTIN? TYPE name = IDENTIFIER ('(' params ')')? (op = (REWRITE | SUBTYPE) definition = expr)? (ALIAS aliasDefinition)*) # TypeDefinition
@@ -62,13 +62,12 @@ expr
    | value = expr op = COLON type = expr # TypeExpression
    | '(' expr ')' # NestedExpression
    | '[' elements = exprs? ']' # ListExpression
-   | '{' elements = expr? '}' # SetExpression
+   | '{' elements = exprs? '}' # SetExpression
    | '{' pairs '}' # MapExpression
    | '(' elements = exprs? ')' # TupleExpression
    | string = STRING # String
    | value = NUMBER # Number
-   | varname = VARIABLE squote+ # VariableStep
-   | varname = VARIABLE # Variable
+   | varname = VARIABLE squote* # Variable
    ;
 
 exprs
@@ -77,7 +76,7 @@ exprs
 
 args
    : '(' exprs ')' # MultipleArgs
-   | '[' indices = exprs ']' # ListIndexExpression
+//   | '[' indices = exprs ']' # ListIndexExpression
    | expr # SingleArgs
    | # NoArgs
    ;

@@ -7,7 +7,7 @@ class SupertypeDatatypeObject(
     ctx: DatatypeDefinitionContext,
     params: List<Param>,
     private val definitions: List<ExprContext>,
-    aliases: List<AliasDefinitionContext>,
+    aliases: List<String>,
     metaVariables: Set<Pair<String, String>>
 ) : Object(name, ctx, params, aliases, metaVariables) {
     override fun generateCode(): String {

@@ -7,6 +7,6 @@ class ControlEntityObject(
     ctx: CBSParser.ControlEntityDefinitionContext,
     params: List<Param>,
     private val polarity: String?,
-    aliases: List<CBSParser.AliasDefinitionContext>,
+    aliases: List<String>,
     metaVariables: MutableSet<Pair<String, String>>,
 ) : EntityObject(name, ctx, params, aliases, metaVariables)

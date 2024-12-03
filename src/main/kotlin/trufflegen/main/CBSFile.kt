@@ -11,8 +11,16 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
     fun identifyMetavariables(ctx: ParseTree): MutableSet<Pair<String, String>> {
         val visitor = MetaVariableVisitor(fileMetavariables)
         visitor.visit(ctx)
-        println(visitor.objectMetaVariables)
         return visitor.objectMetaVariables
+    }
+
+    fun processAliases(aliases: List<AliasDefinitionContext>): List<String> {
+        return aliases.map { it.name.text }
+    }
+
+    fun addObjectReference(obj: Object, name: String, aliases: List<String> = emptyList()) {
+        objects[name] = obj
+        aliases.forEach { alias -> objects[alias] = obj }
     }
 
     override fun visitMetavariablesDefinition(metavarDefs: MetavariablesDefinitionContext) {
@@ -25,7 +33,7 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val name = funcon.name.text
         val params = extractParams(funcon)
         val returns = Type(funcon.returnType)
-        val aliases = funcon.aliasDefinition()
+        val aliases = processAliases(funcon.aliasDefinition())
         val builtin = funcon.modifier != null
         val metaVariables = identifyMetavariables(funcon)
 
@@ -39,14 +47,14 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
             FunconObjectWithoutRules(name, funcon, params, returns, aliases, builtin, metaVariables)
         }
 
-        objects[name] = dataContainer
+        addObjectReference(dataContainer, name, aliases)
     }
 
     override fun visitDatatypeDefinition(datatype: DatatypeDefinitionContext) {
         val name = datatype.name.text
         val params = extractParams(datatype)
         val operator = datatype.op?.text ?: ""
-        val aliases = datatype.aliasDefinition()
+        val aliases = processAliases(datatype.aliasDefinition())
         val definitions = extractAndOrExprs(datatype.definition)
         val metaVariables = identifyMetavariables(datatype)
 
@@ -54,12 +62,14 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
             "<:" -> {
                 val datatypeDataContainer =
                     SupertypeDatatypeObject(name, datatype, params, definitions, aliases, metaVariables)
-                objects[name] = datatypeDataContainer
+                addObjectReference(datatypeDataContainer, name, aliases)
+
             }
 
             "::=" -> {
                 val datatypeDataContainer = AlgebraicDatatypeObject(name, datatype, params, aliases, metaVariables)
-                objects[name] = datatypeDataContainer
+                addObjectReference(datatypeDataContainer, name, aliases)
+
 
                 definitions.forEach { funcon ->
                     when (funcon) {
@@ -68,11 +78,11 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
                             val params = argsToParams(funcon)
                             val dataContainer =
                                 DatatypeFunconObject(name, funcon, params, datatypeDataContainer, metaVariables)
-                            objects[name] = dataContainer
+                            addObjectReference(dataContainer, name)
                         }
 
                         is SetExpressionContext -> {
-                            // TODO what fresh hell is this
+                            // TODO: In the case one of the definitions is a set expression, make it the supertype of the parent
                         }
 
                         else -> throw DetailedException(
@@ -89,25 +99,25 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val params = extractParams(type)
         val operator = type.op?.text ?: ""
         val definitions = if (type.definition != null) extractAndOrExprs(type.definition) else emptyList()
-        val aliases = type.aliasDefinition()
+        val aliases = processAliases(type.aliasDefinition())
         val builtin = type.modifier != null
         val metaVariables = identifyMetavariables(type)
 
         val dataContainer = TypeObject(name, type, params, definitions, aliases, metaVariables)
 
-        objects[name] = dataContainer
+        addObjectReference(dataContainer, name, aliases)
     }
 
     override fun visitControlEntityDefinition(controlEntity: ControlEntityDefinitionContext) {
         val name = controlEntity.name.text
         val params = extractParams(controlEntity)
         val polarity = controlEntity.polarity?.text
-        val aliases = controlEntity.aliasDefinition()
+        val aliases = processAliases(controlEntity.aliasDefinition())
         val metaVariables = identifyMetavariables(controlEntity)
 
         val dataContainer = ControlEntityObject(name, controlEntity, params, polarity, aliases, metaVariables)
 
-        objects[name] = dataContainer
+        addObjectReference(dataContainer, name, aliases)
     }
 
     override fun visitMutableEntityDefinition(mutableEntity: MutableEntityDefinitionContext) {
@@ -116,23 +126,23 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         )
         val name = mutableEntity.lhsName.text
         val params = extractParams(mutableEntity)
-        val aliases = mutableEntity.aliasDefinition()
+        val aliases = processAliases(mutableEntity.aliasDefinition())
         val metaVariables = identifyMetavariables(mutableEntity)
 
         val dataContainer = MutableEntityObject(name, mutableEntity, params, aliases, metaVariables)
 
-        objects[name] = dataContainer
+        addObjectReference(dataContainer, name, aliases)
     }
 
     override fun visitContextualEntityDefinition(contextualEntity: ContextualEntityDefinitionContext) {
         val name = contextualEntity.name.text
         val params = extractParams(contextualEntity)
-        val aliases = contextualEntity.aliasDefinition()
+        val aliases = processAliases(contextualEntity.aliasDefinition())
         val metaVariables = identifyMetavariables(contextualEntity)
 
         val dataContainer = ContextualEntityObject(name, contextualEntity, params, aliases, metaVariables)
 
-        objects[name] = dataContainer
+        addObjectReference(dataContainer, name, aliases)
     }
 
     fun generateCode(): String {

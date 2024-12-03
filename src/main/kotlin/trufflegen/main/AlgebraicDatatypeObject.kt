@@ -6,7 +6,7 @@ class AlgebraicDatatypeObject(
     name: String,
     ctx: DatatypeDefinitionContext,
     params: List<Param>,
-    aliases: MutableList<AliasDefinitionContext>,
+    aliases: List<String>,
     metaVariables: Set<Pair<String, String>>
 ) : Object(name, ctx, params, aliases, metaVariables) {
     override fun generateCode(): String {

@@ -166,7 +166,7 @@ fun makeWhenExpression(
 
 fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<Pair<String, String>> = emptySet()): String {
     val typeParamStr = if (typeParams.isNotEmpty()) {
-        "<" + typeParams.joinToString(", ") { it.first } + "> "
+        "<" + typeParams.joinToString(", ") { it.first } + ">"
     } else ""
     return "typealias $aliasName$typeParamStr = $targetType$typeParamStr"
 }
@@ -188,8 +188,7 @@ tailrec fun extractAndOrExprs(
     else -> definitions + expr
 }
 
-fun makeVariableStepName(varStep: VariableStepContext): String =
-    varStep.varname.text + "p".repeat(varStep.squote().size)
+fun processVariable(varStep: VariableContext): String = varStep.varname.text + "p".repeat(varStep.squote().size)
 
 fun emptySuperClass(name: String): String = makeFun(name, emptySet(), emptyList())
 
@@ -197,6 +196,11 @@ fun buildTypeRewrite(type: Type, nullable: Boolean = true): String {
     val rewriteVisitor = TypeRewriteVisitor(type, nullable)
     val rewritten = rewriteVisitor.visit(type.expr)
     return rewritten
+}
+
+fun buildRewrite(definition: ParseTree, toRewrite: ParseTree, argIndex: Int = -1): String {
+    val rewriteVisitor = RewriteVisitor(definition)
+    return rewriteVisitor.visit(toRewrite)
 }
 
 fun extractParams(obj: ParseTree): List<Param> {
@@ -226,16 +230,107 @@ fun argsToParams(expr: ParseTree): List<Param> {
     }
 
     return when (expr) {
-        is FunconExpressionContext -> {
-            when (val args = expr.args()) {
-                is NoArgsContext -> emptyList()
-                is SingleArgsContext -> argHelper(listOf(args.expr()))
-                is MultipleArgsContext -> argHelper(args.exprs().expr())
-                is ListIndexExpressionContext -> argHelper(args.indices.expr())
-                else -> throw DetailedException("Unexpected args type: ${args::class.simpleName}, ${args.text}")
+        is FunconExpressionContext -> argHelper(makeArgList(expr.args()))
+        is ListExpressionContext -> argHelper(expr.elements?.expr() ?: emptyList())
+        is SetExpressionContext -> argHelper(expr.elements?.expr() ?: emptyList())
+        else -> throw DetailedException("Unexpected expression type: ${expr::class.simpleName}, ${expr.text}")
+    }
+}
+
+fun makeArgList(args: ArgsContext): List<ExprContext> = when (args) {
+    is NoArgsContext -> emptyList()
+    is SingleArgsContext -> listOf(args.expr())
+    is MultipleArgsContext -> args.exprs().expr()
+    else -> throw DetailedException("Unexpected args type: ${args::class.simpleName}, ${args.text}")
+}
+
+fun getParamStrs(definition: ParseTree): List<Triple<ExprContext?, ExprContext?, String>> {
+    fun makeParamStr(
+        argIndex: Int, argsSize: Int, obj: Object, parentStr: String, argIsArray: Boolean = false
+    ): String {
+        // Calculate the number of arguments passed to the vararg
+        val nVarargArgs = argsSize - (obj.paramsSize - 1)
+        val argsAfterVararg = argsSize - (obj.varargParamIndex + nVarargArgs)
+
+        // Prefix '*' if the argument is an array
+        val starPrefix = if (argIsArray) "*" else ""
+
+        // Utility function to build parameter string based on provided condition
+        fun buildParamString(paramIndex: Int, suffix: String = ""): String {
+            return listOf(parentStr, "p$paramIndex").filterNot { it.isEmpty() }.joinToString(".") + suffix
+        }
+
+        return starPrefix + when {
+            // Case when there is no vararg parameter (obj.varargParamIndex == -1)
+            obj.varargParamIndex == -1 || argIndex < obj.varargParamIndex -> {
+                buildParamString(argIndex)
+            }
+
+            // Case for an actual vararg parameter range
+            argIndex in obj.varargParamIndex until obj.varargParamIndex + nVarargArgs -> {
+                val varargParamIndexed = argIndex - obj.varargParamIndex
+                val paramIndex = obj.varargParamIndex
+
+                if (!argIsArray) {
+                    buildParamString(paramIndex, "[$varargParamIndexed]")
+                } else if (argsAfterVararg > 0) {
+                    "slice(${buildParamString(paramIndex)}, $argIndex, $argsAfterVararg)"
+                } else if (argIndex != 0) {
+                    "slice(${buildParamString(paramIndex)}, $argIndex)"
+                } else {
+                    buildParamString(paramIndex)
+                }
+            }
+
+            // Case for parameters after the vararg parameter
+            argIndex >= argsSize -> throw IndexOutOfBoundsException("argIndex $argIndex out of bounds.")
+
+            else -> {
+                // Adjust argIndex based on the number of vararg arguments
+                val paramIndex = argIndex - (nVarargArgs - 1)
+                require(paramIndex >= 0) { "Calculated paramIndex is negative. Check nVarargArgs." }
+                buildParamString(paramIndex)
+            }
+        }
+    }
+
+    fun extractArgsRecursive(
+        definition: ParseTree, parentStr: String = ""
+    ): List<Triple<ExprContext?, ExprContext?, String>> {
+
+        // Helper function to fetch the object and its arguments
+        fun makeParams(definition: ParseTree): Pair<Object, List<Param>> {
+            return when (definition) {
+                is FunconDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
+                is TypeDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
+                is DatatypeDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
+                is FunconExpressionContext -> globalObjects[definition.name.text]!! to argsToParams(definition)
+                is ListExpressionContext -> globalObjects["list"]!! to argsToParams(definition)
+                is SetExpressionContext -> globalObjects["set"]!! to argsToParams(definition)
+                else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
             }
         }
 
-        else -> throw DetailedException("Unexpected expression type: ${expr::class.simpleName}, ${expr.text}")
+        val (obj, params) = makeParams(definition)
+
+        return params.flatMapIndexed { argIndex, (arg, type) ->
+            val argIsArray = arg is SuffixExpressionContext
+            val newStr = makeParamStr(argIndex, params.size, obj, parentStr, argIsArray)
+
+            when (arg) {
+                is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext ->
+                    listOf(Triple(null, arg, newStr)) + extractArgsRecursive(arg, newStr)
+
+                else -> listOf(Triple(arg, type, newStr))
+            }
+        }
     }
+
+    return extractArgsRecursive(definition)
+}
+
+fun exprToParamStr(def: ParseTree, str: String): String {
+    val paramStrs = getParamStrs(def)
+    val exprMap = paramStrs.associate { (arg, type, paramStr) -> Pair(arg?.text, paramStr) }
+    return exprMap[str] ?: throw StringNotFoundException(str, exprMap.keys.toList())
 }

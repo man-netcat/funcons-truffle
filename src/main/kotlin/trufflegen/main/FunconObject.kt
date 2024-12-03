@@ -7,13 +7,13 @@ abstract class FunconObject(
     ctx: FunconDefinitionContext,
     params: List<Param>,
     val returns: Type,
-    aliases: List<AliasDefinitionContext>,
+    aliases: List<String>,
     val builtin: Boolean,
     metaVariables: Set<Pair<String, String>>
 ) : Object(name, ctx, params, aliases, metaVariables) {
     abstract fun makeContent(): String
 
-    val returnStr = buildTypeRewrite(returns)
+    val returnStr = buildTypeRewrite(returns, nullable = false)
 
     override fun generateCode(): String {
         val content = if (!builtin) makeContent() else todoExecute(returnStr)

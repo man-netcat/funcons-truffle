@@ -7,7 +7,7 @@ open class EntityObject(
     name: String,
     ctx: ParseTree,
     params: List<Param>,
-    aliases: List<AliasDefinitionContext>,
+    aliases: List<String>,
     metaVariables: Set<Pair<String, String>>
 ) : Object(name, ctx, params, aliases, metaVariables) {
     override fun generateCode(): String {
