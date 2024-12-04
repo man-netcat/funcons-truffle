@@ -5,6 +5,9 @@ import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import antlr.CBSLexer
 import antlr.CBSParser
+import main.exceptions.DetailedException
+import main.objects.Object
+import main.visitors.IndexVisitor
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path

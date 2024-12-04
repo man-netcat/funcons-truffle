@@ -3,6 +3,9 @@ package main
 import org.antlr.v4.runtime.tree.ParseTree
 import antlr.CBSBaseVisitor
 import antlr.CBSParser.*
+import main.exceptions.*
+import main.visitors.MetaVariableVisitor
+import main.objects.*
 
 class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() {
     internal val objects = mutableMapOf<String, Object?>()
@@ -149,11 +152,9 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val imports = listOf(
             "main.*",
             "com.oracle.truffle.api.frame.VirtualFrame",
-            "com.oracle.truffle.api.nodes.Node.Child",
-            "com.oracle.truffle.api.nodes.Node.Children"
         ).joinToString("\n") { "import $it" }
 
-        val code = objects.values.filterNotNull().joinToString("\n\n") { obj ->
+        val code = objects.values.distinct().filterNotNull().joinToString("\n\n") { obj ->
             println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $name)")
             try {
                 val code = obj.generateCode()

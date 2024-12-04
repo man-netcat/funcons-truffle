@@ -3,6 +3,9 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/../CBS-beta/Funcons-beta/Funcons-beta.iml" filepath="$PROJECT_DIR$/../CBS-beta/Funcons-beta/Funcons-beta.iml" />
+      <module fileurl="file://$PROJECT_DIR$/fctruffle/fctruffle.iml" filepath="$PROJECT_DIR$/fctruffle/fctruffle.iml" />
+      <module fileurl="file://$PROJECT_DIR$/funcons-truffle.iml" filepath="$PROJECT_DIR$/funcons-truffle.iml" />
+      <module fileurl="file://$PROJECT_DIR$/trufflegen/trufflegen.iml" filepath="$PROJECT_DIR$/trufflegen/trufflegen.iml" />
     </modules>
   </component>
 </project>

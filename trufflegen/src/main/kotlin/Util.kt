@@ -2,6 +2,9 @@ package main
 
 import org.antlr.v4.runtime.tree.ParseTree
 import antlr.CBSParser.*
+import main.exceptions.*
+import main.objects.Object
+import main.visitors.*
 
 fun toClassName(input: String): String {
     return (input.split("-").joinToString("") { word ->
@@ -176,7 +179,7 @@ fun makeFun(name: String, typeParams: Set<Pair<String, String>>, params: List<St
     return "$name$superclassTypeParamStr(${params.joinToString(", ")})"
 }
 
-fun entityMap(name: String) = "main.entityMap[\"${name}\"]"
+fun entityMap(name: String) = "entityMap[\"${name}\"]"
 
 fun todoExecute(returnStr: String) = makeExecuteFunction("TODO(\"Implement me\")", returnStr)
 
@@ -244,7 +247,7 @@ fun makeArgList(args: ArgsContext): List<ExprContext> = when (args) {
     else -> throw DetailedException("Unexpected args type: ${args::class.simpleName}, ${args.text}")
 }
 
-fun getParamStrs(definition: ParseTree): List<Triple<ExprContext?, ExprContext?, String>> {
+fun getParamStrs(definition: ParseTree, isParam: Boolean = false): List<Triple<ExprContext?, ExprContext?, String>> {
     fun makeParamStr(
         argIndex: Int, argsSize: Int, obj: Object, parentStr: String, argIsArray: Boolean = false
     ): String {
@@ -253,7 +256,7 @@ fun getParamStrs(definition: ParseTree): List<Triple<ExprContext?, ExprContext?,
         val argsAfterVararg = argsSize - (obj.varargParamIndex + nVarargArgs)
 
         // Prefix '*' if the argument is an array
-        val starPrefix = if (argIsArray) "*" else ""
+        val starPrefix = if (argIsArray && !isParam) "*" else ""
 
         // Utility function to build parameter string based on provided condition
         fun buildParamString(paramIndex: Int, suffix: String = ""): String {
@@ -318,8 +321,11 @@ fun getParamStrs(definition: ParseTree): List<Triple<ExprContext?, ExprContext?,
             val newStr = makeParamStr(argIndex, params.size, obj, parentStr, argIsArray)
 
             when (arg) {
-                is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext ->
-                    listOf(Triple(null, arg, newStr)) + extractArgsRecursive(arg, newStr)
+                is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext -> listOf(
+                    Triple(
+                        null, arg, newStr
+                    )
+                ) + extractArgsRecursive(arg, newStr)
 
                 else -> listOf(Triple(arg, type, newStr))
             }
@@ -331,6 +337,6 @@ fun getParamStrs(definition: ParseTree): List<Triple<ExprContext?, ExprContext?,
 
 fun exprToParamStr(def: ParseTree, str: String): String {
     val paramStrs = getParamStrs(def)
-    val exprMap = paramStrs.associate { (arg, type, paramStr) -> Pair(arg?.text, paramStr) }
+    val exprMap = paramStrs.associate { (arg, _, paramStr) -> Pair(arg?.text, paramStr) }
     return exprMap[str] ?: throw StringNotFoundException(str, exprMap.keys.toList())
 }
