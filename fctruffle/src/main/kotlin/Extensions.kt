@@ -18,5 +18,5 @@ fun String.toStringsNode(): StringsNode {
 @Funcon
 class EmptyListNode : ListsNode<ValuesNode>()
 
-//@Funcon
-//class EmptySequenceNode<T : ValuesNode> : TuplesNode<ListNode<ValuesNode>>()
+@Funcon
+class EmptySequenceNode : ValuesNode()

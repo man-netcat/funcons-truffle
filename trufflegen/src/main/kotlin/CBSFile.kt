@@ -152,6 +152,8 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val imports = listOf(
             "main.*",
             "com.oracle.truffle.api.frame.VirtualFrame",
+            "com.oracle.truffle.api.nodes.Node.Child",
+            "com.oracle.truffle.api.nodes.Node.Children"
         ).joinToString("\n") { "import $it" }
 
         val code = objects.values.distinct().filterNotNull().joinToString("\n\n") { obj ->

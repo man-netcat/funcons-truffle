@@ -249,7 +249,12 @@ fun makeArgList(args: ArgsContext): List<ExprContext> = when (args) {
 
 fun getParamStrs(definition: ParseTree, isParam: Boolean = false): List<Triple<ExprContext?, ExprContext?, String>> {
     fun makeParamStr(
-        argIndex: Int, argsSize: Int, obj: Object, parentStr: String, argIsArray: Boolean = false
+        argIndex: Int,
+        argsSize: Int,
+        obj: Object,
+        parentStr: String,
+        argIsArray: Boolean = false,
+        argIsTuple: Boolean = false
     ): String {
         // Calculate the number of arguments passed to the vararg
         val nVarargArgs = argsSize - (obj.paramsSize - 1)
@@ -274,7 +279,7 @@ fun getParamStrs(definition: ParseTree, isParam: Boolean = false): List<Triple<E
                 val varargParamIndexed = argIndex - obj.varargParamIndex
                 val paramIndex = obj.varargParamIndex
 
-                if (!argIsArray) {
+                if (!argIsArray && !argIsTuple) {
                     buildParamString(paramIndex, "[$varargParamIndexed]")
                 } else if (argsAfterVararg > 0) {
                     "slice(${buildParamString(paramIndex)}, $argIndex, $argsAfterVararg)"
@@ -301,37 +306,44 @@ fun getParamStrs(definition: ParseTree, isParam: Boolean = false): List<Triple<E
         definition: ParseTree, parentStr: String = ""
     ): List<Triple<ExprContext?, ExprContext?, String>> {
 
-        // Helper function to fetch the object and its arguments
-        fun makeParams(definition: ParseTree): Pair<Object, List<Param>> {
-            return when (definition) {
-                is FunconDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
-                is TypeDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
-                is DatatypeDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
-                is FunconExpressionContext -> globalObjects[definition.name.text]!! to argsToParams(definition)
-                is ListExpressionContext -> globalObjects["list"]!! to argsToParams(definition)
-                is SetExpressionContext -> globalObjects["set"]!! to argsToParams(definition)
-                else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
-            }
+        val (obj, params) = when (definition) {
+            is FunconDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
+            is TypeDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
+            is DatatypeDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
+            is FunconExpressionContext -> globalObjects[definition.name.text]!! to argsToParams(definition)
+            is ListExpressionContext -> globalObjects["list"]!! to argsToParams(definition)
+            is SetExpressionContext -> globalObjects["set"]!! to argsToParams(definition)
+            else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
         }
 
-        val (obj, params) = makeParams(definition)
-
         return params.flatMapIndexed { argIndex, (arg, type) ->
-            val argIsArray = arg is SuffixExpressionContext
-            val newStr = makeParamStr(argIndex, params.size, obj, parentStr, argIsArray)
-
             when (arg) {
-                is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext -> listOf(
-                    Triple(
-                        null, arg, newStr
-                    )
-                ) + extractArgsRecursive(arg, newStr)
+                null -> {
+                    // Argument is a type
+                    val newStr = makeParamStr(argIndex, params.size, obj, parentStr)
+                    listOf(Triple(type, null, newStr))
+                }
 
-                else -> listOf(Triple(arg, type, newStr))
+                is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext -> {
+                    val newStr = makeParamStr(argIndex, params.size, obj, parentStr)
+                    listOf(Triple(null, arg, newStr)) + extractArgsRecursive(arg, newStr)
+                }
+
+                is SuffixExpressionContext, is VariableContext, is NumberContext -> {
+                    val argIsArray = arg is SuffixExpressionContext
+                    val newStr = makeParamStr(argIndex, params.size, obj, parentStr, argIsArray = argIsArray)
+                    listOf(Triple(arg, type, newStr))
+                }
+
+                is TupleExpressionContext -> {
+                    val newStr = makeParamStr(argIndex, params.size, obj, parentStr, argIsTuple = true)
+                    listOf(Triple(arg, null, newStr))
+                }
+
+                else -> throw DetailedException("Unexpected arg type: ${arg::class.simpleName}, ${arg.text}")
             }
         }
     }
-
     return extractArgsRecursive(definition)
 }
 
