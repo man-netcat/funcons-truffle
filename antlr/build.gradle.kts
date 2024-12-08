@@ -34,7 +34,8 @@ fun registerAntlrGrammarTask(name: String, grammarFileName: String, outputDirPat
         classpath = configurations["antlr"]
         mainClass.set("org.antlr.v4.Tool")
         args = listOf(
-            grammarFile.absolutePath, "-visitor", // Generate visitor classes
+            grammarFile.absolutePath, // Absolute path for grammar file
+            "-visitor", // Generate visitor classes
             "-long-messages", // Use long messages for errors
             "-o", outputDir.absolutePath // Explicit absolute output directory
         )

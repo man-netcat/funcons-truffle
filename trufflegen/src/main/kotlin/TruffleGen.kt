@@ -1,10 +1,10 @@
 package main
 
-import cbs.CBSParser.RootContext
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import cbs.CBSLexer
 import cbs.CBSParser
+import cbs.CBSParser.RootContext
 import main.exceptions.DetailedException
 import main.objects.Object
 import main.visitors.IndexVisitor

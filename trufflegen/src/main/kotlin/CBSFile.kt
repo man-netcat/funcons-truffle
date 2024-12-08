@@ -151,7 +151,8 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
 
     fun generateCode(): String {
         val imports = listOf(
-            "main.*",
+            "generated.*",
+            "interpreter.*",
             "com.oracle.truffle.api.frame.VirtualFrame",
             "com.oracle.truffle.api.nodes.Node.Child",
             "com.oracle.truffle.api.nodes.Node.Children"
