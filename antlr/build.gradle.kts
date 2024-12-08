@@ -20,14 +20,6 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.3")
 }
 
-sourceSets {
-    main {
-        java {
-            srcDirs("src/main/java", "src/main/antlr") // Include both src dirs for compilation
-        }
-    }
-}
-
 // Define grammar generation tasks explicitly with fixed output paths
 tasks.register<JavaExec>("generateFCTGrammar") {
     group = "antlr"
@@ -84,4 +76,16 @@ tasks.compileJava {
 // Disable the default ANTLR source generation
 tasks.named("generateGrammarSource").configure {
     enabled = false
+}
+
+tasks.test {
+    useJUnitPlatform()
+    dependsOn("generateAllGrammars")
+    testLogging {
+        events("failed")
+    }
+}
+
+tasks.compileKotlin {
+    dependsOn("generateAllGrammars")
 }
