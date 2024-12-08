@@ -2,7 +2,6 @@ plugins {
     kotlin("jvm") version "2.0.21"
     java
     antlr
-    application
 }
 
 kotlin {
@@ -20,46 +19,30 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.3")
 }
 
-// Define grammar generation tasks explicitly with fixed output paths
-tasks.register<JavaExec>("generateFCTGrammar") {
-    group = "antlr"
-    description = "Generates ANTLR sources for FCT.g4"
+// Common configuration for generating ANTLR sources
+fun registerAntlrGrammarTask(name: String, grammarFileName: String, outputDirPath: String) {
+    tasks.register<JavaExec>(name) {
+        group = "antlr"
+        description = "Generates ANTLR sources for $grammarFileName"
 
-    val grammarFile = file("src/main/antlr/FCT.g4")
-    val outputDir = file("src/main/java/fct")
+        val grammarFile = file("src/main/antlr/$grammarFileName")
+        val outputDir = file("src/main/java/$outputDirPath")
 
-    inputs.file(grammarFile)
-    outputs.dir(outputDir)
+        inputs.file(grammarFile)
+        outputs.dir(outputDir)
 
-    classpath = configurations["antlr"]
-    mainClass.set("org.antlr.v4.Tool")
-    args = listOf(
-        grammarFile.absolutePath,
-        "-visitor", // Generate visitor classes
-        "-long-messages", // Use long messages for errors
-        "-o", outputDir.absolutePath // Explicit absolute output directory
-    )
+        classpath = configurations["antlr"]
+        mainClass.set("org.antlr.v4.Tool")
+        args = listOf(
+            grammarFile.absolutePath, "-visitor", // Generate visitor classes
+            "-long-messages", // Use long messages for errors
+            "-o", outputDir.absolutePath // Explicit absolute output directory
+        )
+    }
 }
 
-tasks.register<JavaExec>("generateCBSGrammar") {
-    group = "antlr"
-    description = "Generates ANTLR sources for CBS.g4"
-
-    val grammarFile = file("src/main/antlr/CBS.g4")
-    val outputDir = file("src/main/java/cbs")
-
-    inputs.file(grammarFile)
-    outputs.dir(outputDir)
-
-    classpath = configurations["antlr"]
-    mainClass.set("org.antlr.v4.Tool")
-    args = listOf(
-        grammarFile.absolutePath,
-        "-visitor", // Generate visitor classes
-        "-long-messages", // Use long messages for errors
-        "-o", outputDir.absolutePath // Explicit absolute output directory
-    )
-}
+registerAntlrGrammarTask("generateFCTGrammar", "FCT.g4", "fct")
+registerAntlrGrammarTask("generateCBSGrammar", "CBS.g4", "cbs")
 
 // Aggregate task to run both generation tasks
 tasks.register("generateAllGrammars") {
@@ -82,7 +65,7 @@ tasks.test {
     useJUnitPlatform()
     dependsOn("generateAllGrammars")
     testLogging {
-        events("failed")
+        events("passed", "skipped", "failed")
     }
 }
 
