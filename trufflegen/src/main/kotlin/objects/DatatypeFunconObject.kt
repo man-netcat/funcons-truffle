@@ -1,11 +1,12 @@
 package main.objects
 
-import antlr.CBSParser
+import cbs.CBSParser.*
 import main.*
+import main.dataclasses.Param
 
 class DatatypeFunconObject(
     name: String,
-    ctx: CBSParser.FunconExpressionContext,
+    ctx: FunconExpressionContext,
     params: List<Param>,
     private val superclass: AlgebraicDatatypeObject,
     metaVariables: Set<Pair<String, String>>

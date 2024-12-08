@@ -1,7 +1,9 @@
 package main.objects
 
-import antlr.CBSParser.*
+import cbs.CBSParser.*
 import main.*
+import main.dataclasses.Param
+import main.dataclasses.Type
 import main.exceptions.*
 
 class FunconObjectWithRules(
@@ -199,7 +201,7 @@ class FunconObjectWithRules(
             Pair(finalConditions, finalRewrite)
         }
 
-        if (pairs.any { it.first.isEmpty() }) throw EmptyConditionException(name)
+//        if (pairs.any { it.first.isEmpty() }) throw EmptyConditionException(name)
 
         val content = "return " + makeIfStatement(*pairs.toTypedArray(), elseBranch = "fail()")
 

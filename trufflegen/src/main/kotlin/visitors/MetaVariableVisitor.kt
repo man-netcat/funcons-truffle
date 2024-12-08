@@ -1,9 +1,10 @@
 package main.visitors
 
 import org.antlr.v4.runtime.tree.RuleNode
-import antlr.CBSBaseVisitor
-import antlr.CBSParser.*
+import cbs.CBSBaseVisitor
+import cbs.CBSParser.*
 import main.*
+import main.dataclasses.Type
 import main.exceptions.*
 
 class MetaVariableVisitor(private val fileMetaVariables: List<Pair<ExprContext, ExprContext>>) :

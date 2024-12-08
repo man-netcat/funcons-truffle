@@ -1,10 +1,10 @@
 package main
 
-import antlr.CBSParser.RootContext
+import cbs.CBSParser.RootContext
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
-import antlr.CBSLexer
-import antlr.CBSParser
+import cbs.CBSLexer
+import cbs.CBSParser
 import main.exceptions.DetailedException
 import main.objects.Object
 import main.visitors.IndexVisitor
@@ -15,7 +15,7 @@ import kotlin.io.path.pathString
 
 val globalObjects: MutableMap<String, Object?> = mutableMapOf()
 
-class TruffleGen(private val cbsDir: File) {
+class TruffleGen(private val cbsDir: File, private val outputDir: File) {
     private val files: MutableMap<String, CBSFile> = mutableMapOf()
     private var parseTrees: MutableMap<String, RootContext> = mutableMapOf()
 
@@ -71,9 +71,9 @@ class TruffleGen(private val cbsDir: File) {
     }
 
     private fun generateCode() {
-        val outputDir = Path.of("fctruffle/src/main/kotlin/generated")
-        if (!Files.exists(outputDir)) {
-            Files.createDirectories(outputDir)
+        val outputDirPath = Path.of(outputDir.path)
+        if (!Files.exists(outputDirPath)) {
+            Files.createDirectories(outputDirPath)
         }
 
         files.forEach { (name, file) ->
@@ -81,16 +81,16 @@ class TruffleGen(private val cbsDir: File) {
             val code = file.generateCode()
             println(code)
             val fileNameWithoutExtension = name.removeSuffix(".cbs")
-            val filePath = outputDir.resolve("$fileNameWithoutExtension.kt").pathString
-            File(filePath).writeText(code)
+            val filePath = File(outputDir, "$fileNameWithoutExtension.kt")
+            filePath.writeText(code)
         }
     }
 
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            if (args.isEmpty()) {
-                println("Usage: <program> <cbsDir>")
+            if (args.size != 2) {
+                println("Usage: <program> <cbsDir> <outputDir>")
                 return
             }
 
@@ -101,7 +101,14 @@ class TruffleGen(private val cbsDir: File) {
             }
             val cbsDir = cbsDirPath.toFile()
 
-            val truffleGen = TruffleGen(cbsDir)
+            val outputDirPath = Path.of(args[1])
+            if (!Files.exists(outputDirPath) || !Files.isDirectory(outputDirPath)) {
+                println("Invalid directory: ${outputDirPath.pathString}")
+                return
+            }
+            val outputDir = outputDirPath.toFile()
+
+            val truffleGen = TruffleGen(cbsDir, outputDir)
             truffleGen.process()
         }
     }

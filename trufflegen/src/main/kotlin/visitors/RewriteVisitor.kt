@@ -1,8 +1,8 @@
 package main.visitors
 
 import org.antlr.v4.runtime.tree.ParseTree
-import antlr.CBSBaseVisitor
-import antlr.CBSParser.*
+import cbs.CBSBaseVisitor
+import cbs.CBSParser.*
 import main.*
 import main.objects.FunconObject
 

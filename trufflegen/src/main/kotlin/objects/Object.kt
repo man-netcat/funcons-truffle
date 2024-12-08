@@ -1,6 +1,7 @@
 package main.objects
 
 import main.*
+import main.dataclasses.Param
 import org.antlr.v4.runtime.tree.ParseTree
 
 abstract class Object(

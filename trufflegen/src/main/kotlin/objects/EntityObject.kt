@@ -2,6 +2,7 @@ package main.objects
 
 import org.antlr.v4.runtime.tree.ParseTree
 import main.*
+import main.dataclasses.Param
 
 open class EntityObject(
     name: String,

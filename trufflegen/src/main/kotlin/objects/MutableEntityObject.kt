@@ -1,7 +1,7 @@
 package main.objects
 
-import antlr.CBSParser.*
-import main.*
+import cbs.CBSParser.*
+import main.dataclasses.Param
 
 class MutableEntityObject(
     name: String,

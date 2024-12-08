@@ -1,9 +1,10 @@
 package main.visitors
 
-import antlr.CBSBaseVisitor
-import antlr.CBSParser.*
+import cbs.CBSBaseVisitor
+import cbs.CBSParser.*
 import main.exceptions.*
 import main.*
+import main.dataclasses.Type
 
 class TypeRewriteVisitor(
     private val type: Type, private val nullable: Boolean

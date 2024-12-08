@@ -1,7 +1,7 @@
 package main.visitors
 
-import antlr.CBSBaseVisitor
-import antlr.CBSParser
+import cbs.CBSBaseVisitor
+import cbs.CBSParser
 
 class IndexVisitor : CBSBaseVisitor<Unit>() {
     val names: MutableSet<String> = mutableSetOf()

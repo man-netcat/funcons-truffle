@@ -1,7 +1,9 @@
 package main.objects
 
-import antlr.CBSParser.*
+import cbs.CBSParser.*
 import main.*
+import main.dataclasses.Param
+import main.dataclasses.Type
 
 abstract class FunconObject(
     name: String,

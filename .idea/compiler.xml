@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="CompilerConfiguration">
-    <annotationProcessing>
-      <profile name="Maven default annotation processors profile" enabled="true">
-        <sourceOutputDir name="target/generated-sources/annotations" />
-        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
-        <outputRelativeToContentRoot value="true" />
-        <module name="trufflegen" />
-        <module name="testsuite" />
-        <module name="fctruffle" />
-      </profile>
-    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="antlr" target="21" />
+      <module name="funcons-truffle.testsuite" target="21" />
+      <module name="funcons-truffle.testsuite.main" target="21" />
+      <module name="funcons-truffle.testsuite.test" target="21" />
+      <module name="trufflegen" target="23" />
+      <module name="trufflegen.main" target="23" />
+      <module name="trufflegen.test" target="23" />
+    </bytecodeTargetLevel>
   </component>
 </project>

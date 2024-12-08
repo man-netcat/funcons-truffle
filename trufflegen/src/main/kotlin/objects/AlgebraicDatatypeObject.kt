@@ -1,7 +1,8 @@
 package main.objects
 
-import antlr.CBSParser.*
+import cbs.CBSParser.*
 import main.*
+import main.dataclasses.Param
 
 class AlgebraicDatatypeObject(
     name: String,

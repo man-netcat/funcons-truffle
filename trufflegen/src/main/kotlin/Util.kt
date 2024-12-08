@@ -1,7 +1,9 @@
 package main
 
 import org.antlr.v4.runtime.tree.ParseTree
-import antlr.CBSParser.*
+import cbs.CBSParser.*
+import main.dataclasses.Param
+import main.dataclasses.Type
 import main.exceptions.*
 import main.objects.Object
 import main.visitors.*
@@ -108,7 +110,7 @@ fun makeClass(
     // Class header
     result.append("class $name")
 
-    // main.Type parameters
+    // main.dataclasses.Type parameters
     if (typeParams.isNotEmpty()) {
         result.append("<")
         result.append(typeParams.joinToString { (metavar, superClass) ->
@@ -240,25 +242,23 @@ fun argsToParams(expr: ParseTree): List<Param> {
     }
 }
 
-fun makeArgList(args: ArgsContext): List<ExprContext> = when (args) {
-    is NoArgsContext -> emptyList()
-    is SingleArgsContext -> listOf(args.expr())
-    is MultipleArgsContext -> args.exprs().expr()
-    else -> throw DetailedException("Unexpected args type: ${args::class.simpleName}, ${args.text}")
+fun makeArgList(args: ArgsContext): List<ExprContext> {
+    println("${args::class.simpleName}, ${args.text}")
+    return when (args) {
+        is NoArgsContext -> emptyList()
+        is SingleArgsContext -> listOf(args.expr())
+        is MultipleArgsContext -> args.exprs().expr()
+        else -> throw DetailedException("Unexpected args type: ${args::class.simpleName}, ${args.text}")
+    }
 }
 
 fun getParamStrs(definition: ParseTree, isParam: Boolean = false): List<Triple<ExprContext?, ExprContext?, String>> {
     fun makeParamStr(
-        argIndex: Int,
-        argsSize: Int,
-        obj: Object,
-        parentStr: String,
-        argIsArray: Boolean = false,
-        argIsTuple: Boolean = false
+        argIndex: Int, argsSize: Int, obj: Object, parentStr: String, argIsArray: Boolean = false
     ): String {
         // Calculate the number of arguments passed to the vararg
         val nVarargArgs = argsSize - (obj.paramsSize - 1)
-        val argsAfterVararg = argsSize - (obj.varargParamIndex + nVarargArgs)
+        val argsAfterVararg = if (obj.varargParamIndex >= 0) argsSize - (obj.varargParamIndex + nVarargArgs) else 0
 
         // Prefix '*' if the argument is an array
         val starPrefix = if (argIsArray && !isParam) "*" else ""
@@ -277,28 +277,43 @@ fun getParamStrs(definition: ParseTree, isParam: Boolean = false): List<Triple<E
             // Case for an actual vararg parameter range
             argIndex in obj.varargParamIndex until obj.varargParamIndex + nVarargArgs -> {
                 val varargParamIndexed = argIndex - obj.varargParamIndex
-                val paramIndex = obj.varargParamIndex
 
-                if (!argIsArray && !argIsTuple) {
-                    buildParamString(paramIndex, "[$varargParamIndexed]")
-                } else if (argsAfterVararg > 0) {
-                    "slice(${buildParamString(paramIndex)}, $argIndex, $argsAfterVararg)"
-                } else if (argIndex != 0) {
-                    "slice(${buildParamString(paramIndex)}, $argIndex)"
+                if (!argIsArray) {
+                    buildParamString(obj.varargParamIndex, "[$varargParamIndexed]")
+                } else if (varargParamIndexed != 0) {
+                    "slice(${buildParamString(obj.varargParamIndex)}, $varargParamIndexed)"
                 } else {
-                    buildParamString(paramIndex)
+                    buildParamString(obj.varargParamIndex)
                 }
             }
 
-            // Case for parameters after the vararg parameter
-            argIndex >= argsSize -> throw IndexOutOfBoundsException("argIndex $argIndex out of bounds.")
+            argIndex >= obj.varargParamIndex + nVarargArgs -> {
+                val varargParamIndexed = argIndex - obj.varargParamIndex
+                if (!argIsArray) {
+                    val paramIndex = argIndex - (nVarargArgs - 1)
+                    if (argIndex in obj.varargParamIndex until obj.varargParamIndex + nVarargArgs) {
+                        buildParamString(paramIndex)
+                    } else {
+                        buildParamString(paramIndex)
+                    }
+                } else {
+                    val reversedNamedArgs = (obj.paramsSize - argsAfterVararg until obj.paramsSize)
+                        .reversed()
+                        .map { index ->
+                            val paramIndex = obj.params.size - index
+                            "p$index=p${obj.varargParamIndex}[${paramIndex}]"
+                        }
 
-            else -> {
-                // Adjust argIndex based on the number of vararg arguments
-                val paramIndex = argIndex - (nVarargArgs - 1)
-                require(paramIndex >= 0) { "Calculated paramIndex is negative. Check nVarargArgs." }
-                buildParamString(paramIndex)
+                    val sliceString =
+                        "slice(${buildParamString(obj.varargParamIndex)}, $varargParamIndexed, $argsAfterVararg)"
+                    val combinedArgs = listOf(sliceString, *reversedNamedArgs.toTypedArray()).joinToString()
+
+                    combinedArgs
+
+                }
             }
+
+            else -> throw IndexOutOfBoundsException("argIndex $argIndex out of bounds.")
         }
     }
 
@@ -315,6 +330,7 @@ fun getParamStrs(definition: ParseTree, isParam: Boolean = false): List<Triple<E
             is SetExpressionContext -> globalObjects["set"]!! to argsToParams(definition)
             else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
         }
+        println(params.map { param -> param.valueExpr?.text })
 
         return params.flatMapIndexed { argIndex, (arg, type) ->
             when (arg) {
@@ -336,7 +352,7 @@ fun getParamStrs(definition: ParseTree, isParam: Boolean = false): List<Triple<E
                 }
 
                 is TupleExpressionContext -> {
-                    val newStr = makeParamStr(argIndex, params.size, obj, parentStr, argIsTuple = true)
+                    val newStr = makeParamStr(argIndex, params.size, obj, parentStr, argIsArray = true)
                     listOf(Triple(arg, null, newStr))
                 }
 

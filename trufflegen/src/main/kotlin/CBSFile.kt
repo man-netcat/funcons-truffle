@@ -1,8 +1,9 @@
 package main
 
 import org.antlr.v4.runtime.tree.ParseTree
-import antlr.CBSBaseVisitor
-import antlr.CBSParser.*
+import cbs.CBSBaseVisitor
+import cbs.CBSParser.*
+import main.dataclasses.Type
 import main.exceptions.*
 import main.visitors.MetaVariableVisitor
 import main.objects.*

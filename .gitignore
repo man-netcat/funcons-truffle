@@ -1,11 +1,24 @@
-target/
-!.mvn/wrapper/maven-wrapper.jar
+# General Gradle files
+.gradle/
+gradle*
+/build/
+
+# Kotlin-related
+.kotlin
+
+# Generated Files
+/target/
 !**/src/main/**/target/
 !**/src/test/**/target/
-fctruffle/src/main/java/antlr
-trufflegen/src/main/java/antlr
 fctruffle/src/main/kotlin/generated
+
+# ANTLR generated files
+/antlr/src/main/java/cbs/
+/antlr/src/main/java/fct/
+
+# IntelliJ IDEA
 ### IntelliJ IDEA ###
+.idea/
 .idea/modules.xml
 .idea/jarRepositories.xml
 .idea/compiler.xml
@@ -14,6 +27,7 @@ fctruffle/src/main/kotlin/generated
 *.iml
 *.ipr
 
+# Eclipse IDE
 ### Eclipse ###
 .apt_generated
 .classpath
@@ -23,20 +37,24 @@ fctruffle/src/main/kotlin/generated
 .springBeans
 .sts4-cache
 
+# NetBeans
 ### NetBeans ###
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
 
+# VS Code
 ### VS Code ###
 .vscode/
 
+# Mac OS
 ### Mac OS ###
 .DS_Store
 
+# Miscellaneous
 reference.cbs
+
+# Maven Wrapper
+!.mvn/wrapper/maven-wrapper.jar
