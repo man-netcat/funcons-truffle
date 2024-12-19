@@ -2,7 +2,7 @@ package main.dataclasses
 
 import cbs.CBSParser.*
 
-class Type(val expr: ExprContext?, val isParam: Boolean = false) {
+class Type(val expr: ExprContext?, val isParam: Boolean = false, val isOverride: Boolean = false) {
     val text = expr?.text ?: "null"
     var computes = false
     var complement = false
@@ -12,6 +12,12 @@ class Type(val expr: ExprContext?, val isParam: Boolean = false) {
     var isVararg = false
     var isArray = false
 
+    fun handleUnaryComputesExpression(expr: UnaryComputesExpressionContext) {
+        computes = true
+        val unaryComputesExpression = expr.operand
+        if (unaryComputesExpression is SuffixExpressionContext) isArray = true
+    }
+
     init {
         if (expr != null) {
             when (expr) {
@@ -19,12 +25,12 @@ class Type(val expr: ExprContext?, val isParam: Boolean = false) {
                     val op = expr.op.text
                     when (op) {
                         "*" -> {
-                            isVararg = true
+                            if (isParam) isVararg = true else isArray = true
                             starExpr = true
                         }
 
                         "+" -> {
-                            isVararg = true
+                            if (isParam) isVararg = true else isArray = true
                             plusExpr = true
                         }
 
@@ -33,20 +39,15 @@ class Type(val expr: ExprContext?, val isParam: Boolean = false) {
                     val operand = expr.operand
                     if (operand is NestedExpressionContext) {
                         val nestedExpr = operand.expr()
-                        if (nestedExpr is UnaryComputesExpressionContext) {
-                            computes = true
-                            val unaryComputesExpression = nestedExpr.operand
-                            if (unaryComputesExpression is SuffixExpressionContext) isArray = true
-                        }
+                        if (nestedExpr is UnaryComputesExpressionContext) handleUnaryComputesExpression(nestedExpr)
                     }
                 }
 
-                is UnaryComputesExpressionContext -> computes = true
+                is UnaryComputesExpressionContext -> handleUnaryComputesExpression(expr)
                 is ComplementExpressionContext -> complement = true
             }
+
+            if (isVararg && !isParam) throw IllegalStateException("A non-parameter type cannot be vararg")
         }
     }
-
-    val annotation: String
-        get() = if (isVararg) "@Children vararg val" else "@Child val"
 }

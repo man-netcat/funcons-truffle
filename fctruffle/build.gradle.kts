@@ -1,7 +1,6 @@
 plugins {
     kotlin("jvm") version "2.0.21"
     java
-    antlr
     application
 }
 
@@ -16,35 +15,26 @@ repositories {
 }
 
 dependencies {
-    antlr("org.antlr:antlr4-runtime:4.13.2")
-    antlr("org.antlr:antlr4:4.13.2")
+    implementation(project(":antlr"))
     implementation("org.graalvm.truffle:truffle-api:24.1.1")
-
-}
-
-sourceSets {
-    main {
-        java {
-            srcDirs("src/main/java", "src/main/java/antlr")
-        }
-    }
-}
-
-tasks.generateGrammarSource {
-    maxHeapSize = "64m"
-
-    outputDirectory = file("src/main/java/antlr")
-
-    arguments.add("-visitor")
-    arguments.add("-long-messages")
 }
 
 tasks.compileKotlin {
-    dependsOn(tasks.generateGrammarSource)
+    dependsOn(":antlr:generateGrammarSource")
 }
 
 tasks.test {
     useJUnitPlatform()
+}
+
+application {
+    mainClass.set("main.FCTInterpreter")
+}
+
+tasks.named<JavaExec>("run") {
+    args = listOf(
+        "/home/rick/workspace/thesis/CBS-beta/Funcons-beta/Values/Primitive/Booleans/tests/and.config"
+    )
 }
 
 

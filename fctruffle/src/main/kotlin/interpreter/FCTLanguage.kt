@@ -1,8 +1,8 @@
 package interpreter
 
 import com.oracle.truffle.api.CallTarget
-import com.oracle.truffle.api.Truffle
 import com.oracle.truffle.api.TruffleLanguage
+import com.oracle.truffle.api.nodes.Node
 import com.oracle.truffle.api.source.Source
 import fct.FCTParser
 import fct.FCTLexer
@@ -16,17 +16,27 @@ import java.lang.reflect.Constructor
     defaultMimeType = FCTLanguage.MIME_TYPE,
     characterMimeTypes = [FCTLanguage.MIME_TYPE]
 )
-class FCTLanguage : TruffleLanguage<Nothing>() {
+class FCTLanguage : TruffleLanguage<FCTContext>() {
     companion object {
         const val ID: String = "fctlang"
         const val MIME_TYPE: String = "application/x-fctlang"
+        private val LANGUAGE_REFERENCE: LanguageReference<FCTLanguage> =
+            LanguageReference.create(FCTLanguage::class.java)
+
+        fun get(node: Node?): FCTLanguage {
+            return if (node != null) {
+                LANGUAGE_REFERENCE.get(node)
+            } else {
+                throw IllegalStateException("Node cannot be null when calling get on the fast-path.")
+            }
+        }
     }
 
-    override fun createContext(env: Env?): Nothing {
-        TODO("Not yet implemented")
+    override fun createContext(env: Env): FCTContext {
+        return FCTContext(env)
     }
 
-    fun parse(source: Source): CallTarget {
+    fun parseSource(source: Source): CallTarget {
         val code = source.characters.toString()
 
         // Create a CharStream that reads from the code string
@@ -50,8 +60,8 @@ class FCTLanguage : TruffleLanguage<Nothing>() {
         // Create a custom FCTRootNode that wraps the root FCTNode
         val fctRootNode = FCTRootNode(this, rootNode)
 
-        // Create and return a CallTarget for the RootNode
-        return Truffle.getRuntime().createCallTarget(fctRootNode)
+        // Return a CallTarget for the RootNode
+        return fctRootNode.callTarget
     }
 
     private fun toClassName(funconName: String): String {

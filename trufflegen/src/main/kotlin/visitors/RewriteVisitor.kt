@@ -1,11 +1,12 @@
-package main.visitors
+package visitors
 
 import org.antlr.v4.runtime.tree.ParseTree
 import cbs.CBSBaseVisitor
 import cbs.CBSParser.*
 import main.*
-import main.objects.FunconObject
+import objects.FunconObject
 
+@Deprecated("Rewritten as recursive function")
 class RewriteVisitor(val definition: ParseTree) : CBSBaseVisitor<String>() {
     val callStack: ArrayDeque<String> = ArrayDeque()
 
@@ -28,7 +29,7 @@ class RewriteVisitor(val definition: ParseTree) : CBSBaseVisitor<String>() {
 
     override fun visitTupleExpression(tuple: TupleExpressionContext): String {
         val exprs = tuple.exprs()?.expr()
-        return if (exprs.isNullOrEmpty()) "EmptySequenceNode()" else "ListNode(${visit(tuple.exprs())})"
+        return if (exprs.isNullOrEmpty()) "null" else "ListNode(${visit(tuple.exprs())})"
     }
 
     override fun visitListExpression(list: ListExpressionContext): String {

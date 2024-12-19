@@ -17,7 +17,12 @@ open class EntityObject(
             constructorArgs = valueParams,
             typeParams = emptyList(), // TODO Fix
             body = false,
-            annotations = listOf("Entity")
+            annotations = listOf("Entity"),
+            superClass = makeFun(
+                ENTITY,
+                emptySet(),
+                listOf("p0")
+            ),
         )
     }
 }

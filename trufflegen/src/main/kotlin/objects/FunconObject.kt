@@ -1,9 +1,10 @@
-package main.objects
+package objects
 
-import cbs.CBSParser.*
+import cbs.CBSParser.FunconDefinitionContext
 import main.*
 import main.dataclasses.Param
 import main.dataclasses.Type
+import main.objects.Object
 
 abstract class FunconObject(
     name: String,
@@ -16,10 +17,16 @@ abstract class FunconObject(
 ) : Object(name, ctx, params, aliases, metaVariables) {
     abstract fun makeContent(): String
 
-    val returnStr = buildTypeRewrite(returns, nullable = false)
+    val returnStr = if (!returns.computes) {
+        buildTypeRewrite(returns, nullable = true)
+    } else COMPUTATION
 
     override fun generateCode(): String {
-        val content = if (!builtin) makeContent() else todoExecute(returnStr)
+        val skipCriteria = !listOf(
+            builtin,               // Builtins should be implemented manually
+            paramsAfterVararg > 0  // This behaviour is not yet implemented
+        ).any { it }
+        val content = if (skipCriteria) makeContent() else todoExecute(returnStr)
 
         return makeClass(
             nodeName,

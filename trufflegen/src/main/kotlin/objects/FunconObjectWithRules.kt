@@ -4,7 +4,8 @@ import cbs.CBSParser.*
 import main.*
 import main.dataclasses.Param
 import main.dataclasses.Type
-import main.exceptions.*
+import main.exceptions.DetailedException
+import objects.FunconObject
 
 class FunconObjectWithRules(
     name: String,
@@ -36,33 +37,53 @@ class FunconObjectWithRules(
     private fun processConclusion(
         conclusion: PremiseContext
     ): Triple<ExprContext, String, String> {
-        fun argsConditions(def: FunconExpressionContext): String {
-            val paramStrs = getParamStrs(def, isParam = true)
-            return paramStrs.mapNotNull { (argValue, argType, paramStr) ->
-                val valueCondition = if (argValue != null) {
-                    when (argValue) {
+        fun argsConditions(funconExpr: FunconExpressionContext): String {
+            // TODO: rewrite to take object and paramStrs instead (maybe not?)
+            val obj = globalObjects[funconExpr.name.text]!!
+            val args = extractArgs(funconExpr)
+            val conditions = if (obj.params.size == 1 && args.isEmpty()) {
+                if (obj.params[0].type.isVararg) "p0.isEmpty()" else "p0 == null"
+            } else {
+                val paramStrs = getParamStrs(funconExpr, isParam = true)
+                paramStrs.flatMap { (argValue, argType, paramStr) ->
+//                    println("argValue: ${argValue?.text}, argType: ${argType?.text}, paramStr: $paramStr")
+                    val valueCondition = when (argValue) {
                         //TODO: This needs to be improved
-                        is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext
-                            -> "$paramStr is ${buildTypeRewrite(Type(argValue))}"
+                        null -> null
+                        is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext -> {
+                            val argType = Type(argValue)
+                            val typeStr = buildTypeRewrite(argType)
+                            "$paramStr ${complementStr(argType.complement)}is $typeStr"
+                        }
 
                         is NumberContext -> "$paramStr == ${argValue.text}"
                         is TupleExpressionContext -> "${paramStr}.isEmpty()"
                         is VariableContext, is SuffixExpressionContext -> null
                         else -> throw IllegalArgumentException("Unexpected arg type: ${argValue::class.simpleName}, ${argValue.text}")
                     }
-                } else null
 
-                val typeCondition = if (argType != null) {
-                    val argType = Type(argType)
-                    val rewritten = buildTypeRewrite(argType)
-                    "$paramStr ${complementStr(argType.complement)}is $rewritten"
-                } else null
+                    val typeCondition = if (argType != null) {
+                        val argType = Type(argType)
+                        val typeStr = buildTypeRewrite(argType)
+                        "$paramStr ${complementStr(argType.complement)}is $typeStr"
+                    } else null
 
-                when {
-                    typeCondition != null && valueCondition != null -> "$valueCondition && $typeCondition"
-                    else -> typeCondition ?: valueCondition
+                    listOfNotNull(typeCondition, valueCondition)
+                }.joinToString(" && ")
+            }
+
+            return if (conditions.isNotEmpty()) {
+                conditions
+            } else if (obj.varargParamIndex >= 0) {
+                val (arrayArgs, nonArrayArgs) = args.partition { arg ->
+                    arg is SuffixExpressionContext || (arg is TypeExpressionContext && arg.value is SuffixExpressionContext)
                 }
-            }.joinToString(" && ")
+                if (arrayArgs.isNotEmpty()) {
+                    "p${obj.varargParamIndex}.size >= ${nonArrayArgs.size}"
+                } else {
+                    "p${obj.varargParamIndex}.size == ${nonArrayArgs.size}"
+                }
+            } else "panic"
         }
 
         return when (conclusion) {

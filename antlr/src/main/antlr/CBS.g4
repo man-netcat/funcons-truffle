@@ -32,9 +32,9 @@ object
    | (modifier = BUILTIN? DATATYPE name = IDENTIFIER ('(' params ')')? op = ('::=' | SUBTYPE) definition = expr (ALIAS aliasDefinition | ASSERT assertDefinition)*) # DatatypeDefinition
    | (modifier = BUILTIN? TYPE name = IDENTIFIER ('(' params ')')? (op = (REWRITE | SUBTYPE) definition = expr)? (ALIAS aliasDefinition)*) # TypeDefinition
    | METAVARIABLES metavarDef+ # MetavariablesDefinition
-   | ENTITY lhs = expr '--' (name = IDENTIFIER polarity = ('!' | '?')? ('(' params ')')?) '->' rhs = expr (ALIAS aliasDefinition)* # ControlEntityDefinition
-   | ENTITY def = '<' lhs = expr ',' (lhsName = IDENTIFIER ('(' lhsParams = params) ')')? '>' '--->' '<' rhs = expr ',' (rhsName = IDENTIFIER ('(' rhsParams = params ')')?) '>' (ALIAS aliasDefinition)* # MutableEntityDefinition
-   | ENTITY name = IDENTIFIER ('(' params ')')? '|-' lhs = expr '--->' rhs = expr (ALIAS aliasDefinition)* # ContextualEntityDefinition
+   | ENTITY VARIABLE '--' (name = IDENTIFIER polarity = ('!' | '?')? ('(' params ')')?) '->' VARIABLE (ALIAS aliasDefinition)* # ControlEntityDefinition
+   | ENTITY def = '<' VARIABLE ',' (name = IDENTIFIER ('(' lhs = params) ')')? '>' '--->' '<' VARIABLE ',' (IDENTIFIER ('(' rhs = params ')')?) '>' (ALIAS aliasDefinition)* # MutableEntityDefinition
+   | ENTITY name = IDENTIFIER ('(' params ')')? '|-' VARIABLE '--->' VARIABLE (ALIAS aliasDefinition)* # ContextualEntityDefinition
    ;
 
 assertDefinition
@@ -75,7 +75,7 @@ exprs
    ;
 
 args
-   : '(' exprs ')' # MultipleArgs
+   : '(' exprs? ')' # MultipleArgs
    | expr # SingleArgs
    | # NoArgs
    ;

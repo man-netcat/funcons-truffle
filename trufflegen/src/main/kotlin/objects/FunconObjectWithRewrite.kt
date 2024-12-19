@@ -4,6 +4,7 @@ import cbs.CBSParser.*
 import main.*
 import main.dataclasses.Param
 import main.dataclasses.Type
+import objects.FunconObject
 
 class FunconObjectWithRewrite(
     name: String,

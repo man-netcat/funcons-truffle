@@ -115,20 +115,16 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
     override fun visitControlEntityDefinition(controlEntity: ControlEntityDefinitionContext) {
         val name = controlEntity.name.text
         val params = extractParams(controlEntity)
-        val polarity = controlEntity.polarity?.text
         val aliases = processAliases(controlEntity.aliasDefinition())
         val metaVariables = identifyMetavariables(controlEntity)
 
-        val dataContainer = ControlEntityObject(name, controlEntity, params, polarity, aliases, metaVariables)
+        val dataContainer = ControlEntityObject(name, controlEntity, params, aliases, metaVariables)
 
         addObjectReference(dataContainer, name, aliases)
     }
 
     override fun visitMutableEntityDefinition(mutableEntity: MutableEntityDefinitionContext) {
-        if (mutableEntity.lhsName.text != mutableEntity.rhsName.text) throw DetailedException(
-            "mutableEntity lhsName ${mutableEntity.lhsName.text} is not equal to rhsName ${mutableEntity.rhsName.text}"
-        )
-        val name = mutableEntity.lhsName.text
+        val name = mutableEntity.name.text
         val params = extractParams(mutableEntity)
         val aliases = processAliases(mutableEntity.aliasDefinition())
         val metaVariables = identifyMetavariables(mutableEntity)

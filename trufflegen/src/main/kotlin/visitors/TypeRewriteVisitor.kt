@@ -12,10 +12,10 @@ class TypeRewriteVisitor(
     var nestedValue = 0
 
     override fun visitFunconExpression(ctx: FunconExpressionContext): String {
-        val funconName = toClassName(ctx.name.text)
-        val args = makeArgList(ctx.args())
-        val argStr = args.joinToString { arg -> if (arg.text == "_") "*" else visit(arg) }
-        return funconName + if (!argStr.isEmpty()) "<$argStr>" else ""
+        return toClassName(ctx.name.text)
+//        val args = makeArgList(ctx.args())
+//        val argStr = args.joinToString { arg -> if (arg.text == "_") "*" else visit(arg) }
+//        return funconName + if (!argStr.isEmpty()) "<$argStr>" else ""
     }
 
     override fun visitSuffixExpression(ctx: SuffixExpressionContext): String {
@@ -32,10 +32,9 @@ class TypeRewriteVisitor(
     }
 
     override fun visitTupleExpression(ctx: TupleExpressionContext): String {
-        if (ctx.exprs() == null) return "EmptySequenceNode"
+        if (ctx.exprs() == null) return "Unit"
 
         val clsName = when (val tupleLength = ctx.exprs().expr().size) {
-            0 -> "EmptySequenceNode"
             1 -> "Tuple1Node"
             2 -> "Tuple2Node"
             3 -> "TupleNode"
@@ -45,8 +44,9 @@ class TypeRewriteVisitor(
     }
 
     override fun visitListExpression(ctx: ListExpressionContext): String? {
-        if (ctx.exprs() == null) return "Unit"
-        return "ListNode<${ctx.exprs().expr().joinToString { visit(it) }}>"
+        return toClassName("list")
+//        if (ctx.exprs() == null) return "Unit"
+//        return "ListNode<${ctx.exprs().expr().joinToString { visit(it) }}>"
     }
 
     override fun visitBinaryComputesExpression(ctx: BinaryComputesExpressionContext): String =
