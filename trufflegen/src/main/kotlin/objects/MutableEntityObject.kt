@@ -1,6 +1,7 @@
 package main.objects
 
-import cbs.CBSParser.*
+import cbs.CBSParser.MutableEntityDefinitionContext
+import main.MUTABLEENTITY
 import main.dataclasses.Param
 
 class MutableEntityObject(
@@ -9,4 +10,4 @@ class MutableEntityObject(
     params: List<Param>,
     aliases: List<String>,
     metaVariables: MutableSet<Pair<String, String>>
-) : EntityObject(name, ctx, params, aliases, metaVariables)
+) : EntityObject(name, ctx, params, aliases, metaVariables, MUTABLEENTITY)

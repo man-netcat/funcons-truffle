@@ -1,15 +1,16 @@
 package main.objects
 
-import cbs.CBSParser
-import main.exceptions.*
-import main.*
+import cbs.CBSParser.*
+import main.buildRewrite
 import main.dataclasses.Param
+import main.exceptions.DetailedException
+import main.makeClass
 
 class TypeObject(
     name: String,
-    ctx: CBSParser.TypeDefinitionContext,
+    ctx: TypeDefinitionContext,
     params: List<Param>,
-    private val definitions: List<CBSParser.ExprContext>,
+    private val definitions: List<ExprContext>,
     aliases: List<String>,
     metaVariables: Set<Pair<String, String>>
 ) : Object(name, ctx, params, aliases, metaVariables) {
@@ -18,7 +19,7 @@ class TypeObject(
             0 -> ""
             1 -> {
                 val definition = definitions[0]
-                if (definition is CBSParser.FunconExpressionContext) {
+                if (definition is FunconExpressionContext) {
                     buildRewrite(ctx, definition)
                 } else throw DetailedException("Unexpected definition ${definition.text}")
             }

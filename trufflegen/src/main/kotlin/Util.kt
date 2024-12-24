@@ -51,6 +51,11 @@ fun makeFunction(
     return result.toString()
 }
 
+fun makeExecuteFunction(content: String, returns: String): String =
+    makeFunction("execute", returns, listOf(makeParam("", "frame", "VirtualFrame")), content, listOf("override"))
+
+fun todoExecute(returnStr: String) = makeExecuteFunction("TODO(\"Implement me\")", returnStr)
+
 fun makeIfStatement(vararg conditions: Pair<String, String>, elseBranch: String? = null): String {
     val result = StringBuilder()
 
@@ -68,10 +73,6 @@ fun makeIfStatement(vararg conditions: Pair<String, String>, elseBranch: String?
     }
 
     return result.toString()
-}
-
-fun makeExecuteFunction(content: String, returns: String): String {
-    return makeFunction("execute", returns, listOf(makeParam("", "frame", "VirtualFrame")), content, listOf("override"))
 }
 
 fun makeForLoop(variable: String, range: String, body: String): String {
@@ -178,14 +179,13 @@ fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<Pair<St
     return "typealias $aliasName$typeParamStr = $targetType$typeParamStr"
 }
 
-fun makeFun(name: String, typeParams: Set<Pair<String, String>>, params: List<String>): String {
+fun makeFunCall(name: String, typeParams: Set<Pair<String, String>>, params: List<String>): String {
     val superclassTypeParamStr = if (typeParams.isNotEmpty()) "<${typeParams.joinToString(", ") { it.first }}>" else ""
     return "$name$superclassTypeParamStr(${params.joinToString(", ")})"
 }
 
-fun entityMap(name: String) = "entityMap[\"${name}\"]"
-
-fun todoExecute(returnStr: String) = makeExecuteFunction("TODO(\"Implement me\")", returnStr)
+fun getGlobal(name: String): String = makeFunCall("getGlobal", emptySet(), listOf("\"${name}\""))
+fun putGlobal(name: String): String = makeFunCall("putGlobal", emptySet(), listOf("\"${name}\""))
 
 tailrec fun extractAndOrExprs(
     expr: ExprContext, definitions: List<ExprContext> = emptyList(),
@@ -197,7 +197,7 @@ tailrec fun extractAndOrExprs(
 
 fun processVariable(varStep: VariableContext): String = varStep.varname.text + "p".repeat(varStep.squote().size)
 
-fun emptySuperClass(name: String): String = makeFun(name, emptySet(), emptyList())
+fun emptySuperClass(name: String): String = makeFunCall(name, emptySet(), emptyList())
 
 fun buildTypeRewrite(type: Type, nullable: Boolean = true): String {
     val rewriteVisitor = TypeRewriteVisitor(type, nullable)
@@ -220,6 +220,14 @@ fun rewriteFunconExpr(name: String, context: ParseTree, definition: ParseTree): 
 }
 
 fun buildRewrite(definition: ParseTree, toRewrite: ParseTree): String {
+//    if (definition is FunconExpressionContext || definition is ListExpressionContext || definition is SetExpressionContext) {
+//        val args = extractArgs(definition)
+//        val (arrayArgs, _) = partitionArrayArgs(args)
+//        if (arrayArgs.size > 1) {
+//            return "p0.random()"
+//        }
+//    }
+
     return when (toRewrite) {
         is FunconExpressionContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite, definition)
         is ListExpressionContext -> rewriteFunconExpr("list", toRewrite, definition)
@@ -245,7 +253,11 @@ fun buildRewrite(definition: ParseTree, toRewrite: ParseTree): String {
             exprToParamStr(definition, toRewrite.text) + suffixStr
         }
 
-        is VariableContext -> exprToParamStr(definition, toRewrite.varname.text)
+        is VariableContext -> {
+            exprToParamStr(definition, toRewrite.varname.text) + if (toRewrite.squote().isNotEmpty())
+                ".execute(frame)" else ""
+        }
+
         is NumberContext -> "(${toRewrite.text}).toIntegersNode()"
         is StringContext -> "(${toRewrite.text}).toStringsNode()"
         is TypeExpressionContext -> buildRewrite(definition, toRewrite.value)
@@ -255,9 +267,7 @@ fun buildRewrite(definition: ParseTree, toRewrite: ParseTree): String {
     }
 }
 
-fun extractParams(obj: ParseTree)
-
-        : List<Param> {
+fun extractParams(obj: ParseTree): List<Param> {
     fun paramHelper(params: ParamsContext?): List<Param> =
         params?.param()?.mapIndexed { i, param -> Param(i, param.value, param.type) } ?: emptyList()
 
@@ -303,6 +313,12 @@ fun makeArgList(args: ArgsContext): List<ExprContext> {
 
         is MultipleArgsContext -> args.exprs()?.expr() ?: emptyList()
         else -> throw DetailedException("Unexpected args type: ${args::class.simpleName}, ${args.text}")
+    }
+}
+
+fun partitionArrayArgs(args: List<ExprContext?>): Pair<List<ExprContext>, List<ExprContext>> {
+    return args.filterNotNull().partition { arg ->
+        arg is SuffixExpressionContext || (arg is TypeExpressionContext && arg.value is SuffixExpressionContext)
     }
 }
 

@@ -1,10 +1,13 @@
 package visitors
 
-import org.antlr.v4.runtime.tree.ParseTree
 import cbs.CBSBaseVisitor
 import cbs.CBSParser.*
-import main.*
+import main.exprToParamStr
+import main.globalObjects
+import main.makeArgList
+import main.toClassName
 import objects.FunconObject
+import org.antlr.v4.runtime.tree.ParseTree
 
 @Deprecated("Rewritten as recursive function")
 class RewriteVisitor(val definition: ParseTree) : CBSBaseVisitor<String>() {

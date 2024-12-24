@@ -24,7 +24,7 @@ abstract class Object(
         val annotation = makeAnnotation(param.type.isVararg, isEntity)
         val paramTypeStr = if (!param.type.computes) {
             buildTypeRewrite(param.type, nullable = true)
-        } else COMPUTATION
+        } else FCTNODE
         makeParam(annotation, param.name, paramTypeStr)
     }
 

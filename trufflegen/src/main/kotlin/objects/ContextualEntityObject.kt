@@ -1,6 +1,7 @@
 package main.objects
 
-import cbs.CBSParser.*
+import cbs.CBSParser.ContextualEntityDefinitionContext
+import main.CONTEXTUALENTITY
 import main.dataclasses.Param
 
 class ContextualEntityObject(
@@ -9,4 +10,4 @@ class ContextualEntityObject(
     params: List<Param>,
     aliases: List<String>,
     metaVariables: Set<Pair<String, String>>
-) : EntityObject(name, ctx, params, aliases, metaVariables)
+) : EntityObject(name, ctx, params, aliases, metaVariables, CONTEXTUALENTITY)

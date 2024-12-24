@@ -1,6 +1,7 @@
 package main.debug
 
 import cbs.CBSBaseVisitor
+import org.antlr.v4.runtime.tree.ParseTree
 import org.antlr.v4.runtime.tree.RuleNode
 
 class DebugExprVisitor : CBSBaseVisitor<Unit>() {
@@ -13,3 +14,5 @@ class DebugExprVisitor : CBSBaseVisitor<Unit>() {
         indent--
     }
 }
+
+fun debugExpr(tree: ParseTree) = DebugExprVisitor().visit(tree)

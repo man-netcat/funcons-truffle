@@ -5,37 +5,22 @@ import com.oracle.truffle.api.frame.VirtualFrame
 abstract class FCTComputationNode : FCTNode() {
     abstract override fun execute(frame: VirtualFrame): Any?
 
-
-    /**
-     * Retrieves a value from the scoped map within the given frame.
-     */
     protected fun getInScope(frame: VirtualFrame, key: String): FCTEntity? {
-        val scopedMap = frame.getObject(FCTFrameSlots.SCOPED_MAP_SLOT) as? MutableMap<String, FCTEntity>
-        return scopedMap?.get(key) as? FCTEntity
+        val scopedMap = frame.getObject(0) as? MutableMap<String, FCTEntity>
+        return scopedMap?.get(key)
     }
 
-    /**
-     * Adds or updates a value in the scoped map within the given frame.
-     */
-    protected fun putInScope(frame: VirtualFrame, key: String, value: FCTEntity) {
-        val scopedMap = frame.getObject(FCTFrameSlots.SCOPED_MAP_SLOT) as? MutableMap<String, FCTEntity>
-        if (scopedMap != null) {
-            scopedMap[key] = value
-        } else throw IllegalStateException("Scoped map not initialized in the frame.")
+    protected fun putInScope(frame: VirtualFrame, value: FCTEntity) {
+        val scopedMap = frame.getObject(0) as? MutableMap<String, FCTEntity>
+        scopedMap?.put(value.name, value)
+            ?: throw IllegalStateException("Scoped map not initialized in the frame.")
     }
 
-    /**
-     * Retrieves a value from the global map.
-     */
     protected fun getGlobal(key: String): FCTEntity? {
-        return FCTGlobalContext.globalMap[key] as? FCTEntity
+        return getContext().getEntity(key) as? FCTEntity
     }
 
-    /**
-     * Adds or updates a value in the global map.
-     */
     protected fun putGlobal(key: String, value: FCTEntity) {
-        FCTGlobalContext.globalMap[key] = value
+        getContext().putEntity(value)
     }
 }
-

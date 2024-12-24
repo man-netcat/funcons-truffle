@@ -1,12 +1,15 @@
 package main
 
-import org.antlr.v4.runtime.tree.ParseTree
 import cbs.CBSBaseVisitor
 import cbs.CBSParser.*
 import main.dataclasses.Type
-import main.exceptions.*
-import main.visitors.MetaVariableVisitor
+import main.exceptions.DetailedException
+import main.exceptions.EmptyConditionException
+import main.exceptions.StringNotFoundException
 import main.objects.*
+import main.visitors.MetaVariableVisitor
+import objects.FunconObject
+import org.antlr.v4.runtime.tree.ParseTree
 
 class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() {
     internal val objects = mutableMapOf<String, Object?>()
@@ -41,15 +44,17 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         val builtin = funcon.modifier != null
         val metaVariables = identifyMetavariables(funcon)
 
-        val dataContainer = if (funcon.rewritesTo != null) {
-            val rewritesTo = funcon.rewritesTo
-            FunconObjectWithRewrite(name, funcon, params, rewritesTo, returns, aliases, builtin, metaVariables)
-        } else if (!funcon.ruleDefinition().isEmpty()) {
-            val rules: List<RuleDefinitionContext> = funcon.ruleDefinition()
-            FunconObjectWithRules(name, funcon, params, rules, returns, aliases, builtin, metaVariables)
-        } else {
-            FunconObjectWithoutRules(name, funcon, params, returns, aliases, builtin, metaVariables)
-        }
+        val dataContainer = FunconObject(
+            name,
+            funcon,
+            params,
+            returns,
+            aliases,
+            builtin,
+            metaVariables,
+            rewritesTo = funcon.rewritesTo,
+            rules = funcon.ruleDefinition()
+        )
 
         addObjectReference(dataContainer, name, aliases)
     }
@@ -101,7 +106,7 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
     override fun visitTypeDefinition(type: TypeDefinitionContext) {
         val name = type.name.text
         val params = extractParams(type)
-        val operator = type.op?.text ?: ""
+        val operator = type.op?.text
         val definitions = if (type.definition != null) extractAndOrExprs(type.definition) else emptyList()
         val aliases = processAliases(type.aliasDefinition())
         val builtin = type.modifier != null

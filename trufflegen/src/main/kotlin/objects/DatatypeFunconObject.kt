@@ -16,7 +16,7 @@ class DatatypeFunconObject(
             nodeName,
             constructorArgs = valueParams,
             typeParams = metaVariables.toList(),
-            superClass = makeFun(
+            superClass = makeFunCall(
                 superclass.nodeName,
                 superclass.metaVariables,
                 superclass.valueParams

@@ -4,8 +4,9 @@ import com.oracle.truffle.api.CallTarget
 import com.oracle.truffle.api.TruffleLanguage
 import com.oracle.truffle.api.nodes.Node
 import com.oracle.truffle.api.source.Source
-import fct.FCTParser
 import fct.FCTLexer
+import fct.FCTParser
+import fct.FCTParser.GeneralBlockContext
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import java.lang.reflect.Constructor
@@ -20,15 +21,12 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
     companion object {
         const val ID: String = "fctlang"
         const val MIME_TYPE: String = "application/x-fctlang"
-        private val LANGUAGE_REFERENCE: LanguageReference<FCTLanguage> =
+
+        private val REFERENCE: LanguageReference<FCTLanguage> =
             LanguageReference.create(FCTLanguage::class.java)
 
-        fun get(node: Node?): FCTLanguage {
-            return if (node != null) {
-                LANGUAGE_REFERENCE.get(node)
-            } else {
-                throw IllegalStateException("Node cannot be null when calling get on the fast-path.")
-            }
+        fun get(node: Node): FCTLanguage {
+            return REFERENCE.get(node)
         }
     }
 
@@ -80,7 +78,7 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
         return constructor.newInstance()
     }
 
-    private fun convertToFCTNode(context: FCTParser.GeneralBlockContext): FCTNode {
+    private fun convertToFCTNode(context: GeneralBlockContext): FCTNode {
         val expr = context.funconTerm()
 
         // Extract the funconName

@@ -1,9 +1,11 @@
 package main.objects
 
-import cbs.CBSParser.*
-import main.*
+import cbs.CBSParser.DatatypeDefinitionContext
+import cbs.CBSParser.ExprContext
+import main.buildRewrite
 import main.dataclasses.Param
 import main.exceptions.DetailedException
+import main.makeClass
 
 class SupertypeDatatypeObject(
     name: String,
@@ -14,8 +16,6 @@ class SupertypeDatatypeObject(
     metaVariables: Set<Pair<String, String>>
 ) : Object(name, ctx, params, aliases, metaVariables) {
     override fun generateCode(): String {
-        println("processing type $name")
-
         val superClass = if (definitions.size == 1) {
             buildRewrite(ctx, definitions[0])
         } else throw DetailedException("Has more than one superclass")
