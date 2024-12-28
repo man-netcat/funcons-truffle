@@ -33,8 +33,8 @@ object
    | (modifier = BUILTIN? TYPE name = IDENTIFIER ('(' params ')')? (op = (REWRITE | SUBTYPE) definition = expr)? (ALIAS aliasDefinition)*) # TypeDefinition
    | METAVARIABLES metavarDef+ # MetavariablesDefinition
    | ENTITY VARIABLE '--' (name = IDENTIFIER polarity = ('!' | '?')? ('(' params ')')?) '->' VARIABLE (ALIAS aliasDefinition)* # ControlEntityDefinition
-   | ENTITY def = '<' VARIABLE ',' (name = IDENTIFIER ('(' lhs = params) ')')? '>' '--->' '<' VARIABLE ',' (IDENTIFIER ('(' rhs = params ')')?) '>' (ALIAS aliasDefinition)* # MutableEntityDefinition
-   | ENTITY name = IDENTIFIER ('(' params ')')? '|-' VARIABLE '--->' VARIABLE (ALIAS aliasDefinition)* # ContextualEntityDefinition
+   | ENTITY def = '<' VARIABLE ',' (name = IDENTIFIER ('(' lhs = params) ')')? '>' TRANSITION '<' VARIABLE ',' (IDENTIFIER ('(' rhs = params ')')?) '>' (ALIAS aliasDefinition)* # MutableEntityDefinition
+   | ENTITY name = IDENTIFIER ('(' params ')')? HASCONTEXT VARIABLE TRANSITION VARIABLE (ALIAS aliasDefinition)* # ContextualEntityDefinition
    ;
 
 assertDefinition
@@ -97,36 +97,29 @@ labels
    ;
 
 step
-   : '--->' sequenceNumber = NUMBER?
-   | '--' labels '->' sequenceNumber = NUMBER?
+   : '--' labels '->' sequenceNumber = NUMBER?
    ;
 
 steps
    : step (';' step)*
    ;
 
-mutableExpr
-   : '<' lhs = expr ',' entityLhs = label '>' '--->' '<' rhs = expr ',' entityRhs = label '>'
-   ;
-
-stepExpr
-   : (context_ = label '|-')? lhs = expr steps rhs = expr
-   ;
-
-premise
-   : stepExpr # StepPremise
-   | mutableExpr # MutableEntityPremise
+premiseExpr
+   : context_ = label HASCONTEXT lhs = expr TRANSITION rhs = expr # TransitionPremiseWithContextualEntity
+   | '<' lhs = expr ',' entityLhs = label '>' TRANSITION '<' rhs = expr ',' entityRhs = label '>' # TransitionPremiseWithMutableEntity
+   | lhs = expr steps rhs = expr # TransitionPremiseWithControlEntity
+   | lhs = expr TRANSITION rhs = expr # TransitionPremise
    | lhs = expr REWRITE rhs = expr # RewritePremise
    | lhs = expr op = (EQUALS | NOTEQUALS) rhs = expr # BooleanPremise
    | value = expr COLON type = expr # TypePremise
    ;
 
 premises
-   : premise+
+   : premiseExpr+
    ;
 
 ruleDefinition
-   : (premises BAR)? conclusion = premise
+   : (premises BAR)? conclusion = premiseExpr
    ;
 
 pair
@@ -180,6 +173,10 @@ NOTEQUALS
 EQUALS
    : '=='
    ;
+
+HASCONTEXT
+    : '|-'
+    ;
 
 WS
    : [ \t\r\n]+ -> skip
@@ -251,6 +248,10 @@ BAR
 
 REWRITE
    : '~>'
+   ;
+
+TRANSITION
+   : '--->'
    ;
 
 SUBTYPE

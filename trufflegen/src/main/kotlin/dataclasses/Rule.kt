@@ -4,32 +4,8 @@ import cbs.CBSParser.*
 import main.*
 import main.exceptions.DetailedException
 
-class Rule(premises: List<PremiseContext>, conclusion: PremiseContext) {
-    val ruleDef: Any
-    val conclusionConditions: String
-    val conclusionRewrite: String
-    val premiseConditions: String
-    val premiseRewrite: String
-    val completeConditions: String
-    val completeRewrite: String
-
+class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext) {
     private fun complementStr(bool: Boolean): String = if (bool) "!" else ""
-
-    private fun isInputOutputEntity(stepExpr: StepExprContext): Boolean {
-        val steps = stepExpr.steps().step()
-        val labels = steps.firstOrNull()?.labels()?.label()
-        return steps.size == 1 && labels?.size == 1 && labels.firstOrNull()?.polarity != null
-    }
-
-    private fun gatherLabels(stepExpr: StepExprContext): List<LabelContext> {
-        return if (stepExpr.context_?.name != null) {
-            listOf(stepExpr.context_)
-        } else {
-            stepExpr.steps()?.step()?.sortedBy { step -> step.sequenceNumber?.text?.toInt() }?.flatMap { step ->
-                step.labels()?.label()?.filter { label -> label.value != null }.orEmpty()
-            }.orEmpty()
-        }
-    }
 
     fun argsConditions(funconExpr: FunconExpressionContext): String {
         val obj = globalObjects[funconExpr.name.text]!!
@@ -77,82 +53,60 @@ class Rule(premises: List<PremiseContext>, conclusion: PremiseContext) {
         } else "true"
     }
 
+    val conditions: String
+    val rewrite: String
+
     init {
-        when (conclusion) {
-            is RewritePremiseContext -> {
-                ruleDef = conclusion.lhs
-                conclusionRewrite = buildRewrite(ruleDef, conclusion.rhs)
-                conclusionConditions = if (ruleDef is FunconExpressionContext) {
-                    argsConditions(ruleDef)
-                } else ""
-            }
-
-            is StepPremiseContext -> {
-                val stepExpr = conclusion.stepExpr()
-                ruleDef = stepExpr.lhs
-                if (isInputOutputEntity(stepExpr)) Triple(
-                    ruleDef, "TODO(\"Condition\")", "TODO(\"Content\")"
-                )
-                val entityStr = gatherLabels(stepExpr).joinToString("\n") { label ->
-                    putGlobal(label.name.text) + " = " + if (label.value != null) {
-                        buildRewrite(ruleDef, label.value)
-                    } else "null"
-                }
-                val entityStrPrefix = if (entityStr.isNotEmpty()) {
-                    "$entityStr\n"
-                } else ""
-                conclusionRewrite = entityStrPrefix + buildRewrite(ruleDef, stepExpr.rhs)
-                conclusionConditions = if (ruleDef is FunconExpressionContext) {
-                    argsConditions(ruleDef)
-                } else ""
-            }
-
-            is MutableEntityPremiseContext -> {
-                val mutableExpr = conclusion.mutableExpr()
-                ruleDef = mutableExpr.lhs
-                conclusionRewrite = buildRewrite(ruleDef, mutableExpr.rhs)
-                conclusionConditions = if (ruleDef is FunconExpressionContext) {
-                    argsConditions(ruleDef)
-                } else ""
-            }
-
+        val (ruleDef, toRewrite) = when (conclusion) {
+            // TODO: There has to be a better way to do this
+            is RewritePremiseContext -> conclusion.lhs to conclusion.rhs
+            is TransitionPremiseContext -> conclusion.lhs to conclusion.rhs
+            is TransitionPremiseWithContextualEntityContext -> conclusion.lhs to conclusion.rhs
+            is TransitionPremiseWithControlEntityContext -> conclusion.lhs to conclusion.rhs
+            is TransitionPremiseWithMutableEntityContext -> conclusion.lhs to conclusion.rhs
             else -> throw DetailedException("Unexpected conclusion type: ${conclusion::class.simpleName}")
         }
 
-        val result = premises.map { premise ->
+        val premisePair = premises.map { premise ->
             when (premise) {
-                is StepPremiseContext -> {
-                    val stepExpr = premise.stepExpr()
-                    val labelConditions = gatherLabels(stepExpr).joinToString(" && ") { label ->
-                        val entity = getGlobal(label.name.text)
-                        "$entity == " + if (label.value != null) {
-                            buildRewrite(ruleDef, label.value)
-                        } else "null"
-                    }
-                    val rewriteLhs = buildRewrite(ruleDef, stepExpr.lhs)
-                    val rewriteRhs = buildRewrite(ruleDef, stepExpr.rhs)
-                    val condition = "$rewriteLhs is $COMPUTATION"
-                    val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
-
-                    if (labelConditions.isNotBlank()) Pair("$condition && $labelConditions", rewrite)
-                    else Pair(condition, rewrite)
+                is RewritePremiseContext -> {
+                    val rewriteLhs = buildRewrite(ruleDef, premise.lhs)
+                    val rewriteRhs = buildRewrite(ruleDef, premise.rhs)
+                    val rewrite = "val $rewriteRhs = $rewriteLhs"
+                    Pair(null, rewrite)
                 }
 
-                is MutableEntityPremiseContext -> {
-                    val mutableExpr = premise.mutableExpr()
-                    val rewriteLhs = buildRewrite(ruleDef, mutableExpr.lhs)
-                    val rewriteRhs = buildRewrite(ruleDef, mutableExpr.rhs)
+                is TransitionPremiseContext -> {
+                    val rewriteLhs = buildRewrite(ruleDef, premise.lhs)
+                    val rewriteRhs = buildRewrite(ruleDef, premise.rhs)
+                    val condition = "$rewriteLhs is $COMPUTATION"
+                    val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
+                    Pair(condition, rewrite)
+                }
+
+                is TransitionPremiseWithControlEntityContext -> {
+                    val rewriteLhs = buildRewrite(ruleDef, premise.lhs)
+                    val rewriteRhs = buildRewrite(ruleDef, premise.rhs)
                     val condition = "$rewriteLhs is $COMPUTATION"
                     val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
 
                     Pair(condition, rewrite)
                 }
 
-                is RewritePremiseContext -> {
+                is TransitionPremiseWithMutableEntityContext -> {
                     val rewriteLhs = buildRewrite(ruleDef, premise.lhs)
                     val rewriteRhs = buildRewrite(ruleDef, premise.rhs)
-                    val rewrite = "val $rewriteRhs = $rewriteLhs"
-                    Pair(null, rewrite)
+                    val condition = "$rewriteLhs is $COMPUTATION"
+                    val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
+                    Pair(condition, rewrite)
+                }
+
+                is TransitionPremiseWithContextualEntityContext -> {
+                    val rewriteLhs = buildRewrite(ruleDef, premise.lhs)
+                    val rewriteRhs = buildRewrite(ruleDef, premise.rhs)
+                    val condition = "$rewriteLhs is $COMPUTATION"
+                    val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
+                    Pair(condition, rewrite)
                 }
 
                 is BooleanPremiseContext -> {
@@ -184,17 +138,51 @@ class Rule(premises: List<PremiseContext>, conclusion: PremiseContext) {
                     Pair(condition, null)
                 }
 
-                else -> throw DetailedException("Unexpected premise type: ${premise::class.simpleName}")
+                else -> Pair(null, null)
             }
         }
 
-        premiseConditions = result.mapNotNull { it.first }.joinToString(" && ")
-        premiseRewrite = result.mapNotNull { it.second }.joinToString("\n")
+        val premiseConditions = premisePair.mapNotNull { it.first }.joinToString(" && ")
+        val premiseRewrite = premisePair.mapNotNull { it.second }.joinToString("\n")
 
-        completeConditions =
-            listOf(premiseConditions, conclusionConditions).filter { it.isNotEmpty() }.joinToString(" && ")
+        val conclusionEntityStr = when (conclusion) {
+            is TransitionPremiseWithControlEntityContext -> {
+                val steps = conclusion.steps().step()
+                steps.joinToString("\n") { step ->
+                    val labels = step.labels().label()
+                    labels.joinToString("\n") { label ->
+                        putGlobal(label.name.text, buildRewrite(ruleDef, label))
+                    }
+                }
+            }
 
-        completeRewrite = listOf(premiseRewrite, conclusionRewrite).filter { it.isNotEmpty() }.joinToString("\n")
+            is TransitionPremiseWithMutableEntityContext -> {
+                val label = conclusion.entityLhs
+                putGlobal(label.name.text, buildRewrite(ruleDef, label))
+            }
+
+            is TransitionPremiseWithContextualEntityContext -> {
+                val label = conclusion.context_
+                putInScope(label.name.text, buildRewrite(ruleDef, label))
+            }
+
+            else -> ""
+        }
+
+        val conclusionConditions = if (ruleDef is FunconExpressionContext) {
+            argsConditions(ruleDef)
+        } else ""
+
+        val conclusionRewrite = buildString {
+            if (conclusionEntityStr.isNotEmpty()) {
+                append("$conclusionEntityStr\n")
+            }
+            append(buildRewrite(ruleDef, toRewrite))
+        }
+
+        conditions = listOf(premiseConditions, conclusionConditions).filter { it.isNotEmpty() }.joinToString(" && ")
+
+        rewrite = listOf(premiseRewrite, conclusionRewrite).filter { it.isNotEmpty() }.joinToString("\n")
 
     }
 }

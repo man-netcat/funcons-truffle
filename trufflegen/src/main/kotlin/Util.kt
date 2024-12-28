@@ -185,7 +185,11 @@ fun makeFunCall(name: String, typeParams: Set<Pair<String, String>>, params: Lis
 }
 
 fun getGlobal(name: String): String = makeFunCall("getGlobal", emptySet(), listOf("\"${name}\""))
-fun putGlobal(name: String): String = makeFunCall("putGlobal", emptySet(), listOf("\"${name}\""))
+fun putGlobal(name: String, value: String): String = makeFunCall("putGlobal", emptySet(), listOf("\"${name}\"", value))
+fun getInScope(name: String): String = makeFunCall("getInScope", emptySet(), listOf("\"${name}\""))
+fun putInScope(name: String, value: String): String =
+    makeFunCall("putInScope", emptySet(), listOf("\"${name}\"", value))
+
 
 tailrec fun extractAndOrExprs(
     expr: ExprContext, definitions: List<ExprContext> = emptyList(),
@@ -222,7 +226,7 @@ fun rewriteFunconExpr(name: String, context: ParseTree, definition: ParseTree): 
 fun buildRewrite(definition: ParseTree, toRewrite: ParseTree): String {
 //    if (definition is FunconExpressionContext || definition is ListExpressionContext || definition is SetExpressionContext) {
 //        val args = extractArgs(definition)
-//        val (arrayArgs, _) = partitionArrayArgs(args)
+//        val (arrayArgs, _) = partitionArrayArgs(args)if there's a God, and he meets her in the afterlife, he'll be like "
 //        if (arrayArgs.size > 1) {
 //            return "p0.random()"
 //        }
@@ -232,13 +236,10 @@ fun buildRewrite(definition: ParseTree, toRewrite: ParseTree): String {
         is FunconExpressionContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite, definition)
         is ListExpressionContext -> rewriteFunconExpr("list", toRewrite, definition)
         is SetExpressionContext -> rewriteFunconExpr("set", toRewrite, definition)
+        is LabelContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite, definition)
         is MapExpressionContext -> {
-            val pairStr = toRewrite.pairs().pair().joinToString(", ") { pair ->
-                val key = buildRewrite(definition, pair.key)
-                val value = buildRewrite(definition, pair.value)
-                "$key to $value"
-            }
-            "MapsNode(${pairStr})"
+            val pairStr = toRewrite.pairs().pair().joinToString { pair -> buildRewrite(definition, pair) }
+            "Map($pairStr)"
         }
 
         is TupleExpressionContext -> {
@@ -254,14 +255,18 @@ fun buildRewrite(definition: ParseTree, toRewrite: ParseTree): String {
         }
 
         is VariableContext -> {
-            exprToParamStr(definition, toRewrite.varname.text) + if (toRewrite.squote().isNotEmpty())
-                ".execute(frame)" else ""
+            exprToParamStr(definition, toRewrite.varname.text) + "p".repeat(toRewrite.squote().size)
         }
 
         is NumberContext -> "(${toRewrite.text}).toIntegersNode()"
         is StringContext -> "(${toRewrite.text}).toStringsNode()"
         is TypeExpressionContext -> buildRewrite(definition, toRewrite.value)
         is NestedExpressionContext -> buildRewrite(definition, toRewrite.expr())
+        is PairContext -> {
+            val key = buildRewrite(definition, toRewrite.key)
+            val value = buildRewrite(definition, toRewrite.value)
+            "Tuple($key, $value)"
+        }
 
         else -> throw IllegalArgumentException("Unsupported context type: ${toRewrite::class.simpleName}, ${toRewrite.text}")
     }
@@ -288,6 +293,7 @@ fun extractArgs(expr: ParseTree): List<ExprContext> {
         is FunconExpressionContext -> makeArgList(expr.args())
         is ListExpressionContext -> expr.elements?.expr() ?: emptyList()
         is SetExpressionContext -> expr.elements?.expr() ?: emptyList()
+        is LabelContext -> if (expr.value != null) listOf(expr.value) else emptyList()
         else -> throw DetailedException("Unexpected expression type: ${expr::class.simpleName}, ${expr.text}")
     }
 }

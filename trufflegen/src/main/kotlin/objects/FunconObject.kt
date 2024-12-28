@@ -5,6 +5,7 @@ import main.*
 import main.dataclasses.Param
 import main.dataclasses.Rule
 import main.dataclasses.Type
+import main.exceptions.EmptyConditionException
 import main.objects.Object
 
 class FunconObject(
@@ -15,25 +16,25 @@ class FunconObject(
     aliases: List<String>,
     val builtin: Boolean,
     metaVariables: Set<Pair<String, String>>,
-    private val rules: List<RuleDefinitionContext>? = null,
+    private val rules: List<RuleDefinitionContext> = emptyList(),
     private val rewritesTo: ExprContext? = null
 ) : Object(name, ctx, params, aliases, metaVariables) {
     fun makeContent(): String {
-        val content = "return " + if (rules != null) {
+        val content = "return " + if (rewritesTo != null) {
+            buildRewrite(ctx, rewritesTo)
+        } else if (rules.isNotEmpty()) {
             val pairs = rules.map { rule ->
-                val premises = rule.premises()?.premise()?.toList() ?: emptyList()
+                val premises = rule.premises()?.premiseExpr()?.toList() ?: emptyList()
                 val conclusion = rule.conclusion
 
                 val ruleObj = Rule(premises, conclusion)
-                Pair(ruleObj.completeConditions, ruleObj.completeRewrite)
+                Pair(ruleObj.conditions, ruleObj.rewrite)
             }
 
-//        if (pairs.any { it.first.isEmpty() }) throw EmptyConditionException(name)
+            if (pairs.isEmpty() || pairs.any { it.first.isEmpty() }) throw EmptyConditionException(name)
 
             makeIfStatement(*pairs.toTypedArray(), elseBranch = "fail()")
 
-        } else if (rewritesTo != null) {
-            buildRewrite(ctx, rewritesTo)
         } else {
             // TODO Fix
             "${buildTypeRewrite(returns)}()"

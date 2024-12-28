@@ -12,15 +12,14 @@ abstract class FCTComputationNode : FCTNode() {
 
     protected fun putInScope(frame: VirtualFrame, value: FCTEntity) {
         val scopedMap = frame.getObject(0) as? MutableMap<String, FCTEntity>
-        scopedMap?.put(value.name, value)
-            ?: throw IllegalStateException("Scoped map not initialized in the frame.")
+        scopedMap?.put(value.name, value) ?: throw IllegalStateException("Scoped map not initialized in the frame.")
     }
 
     protected fun getGlobal(key: String): FCTEntity? {
-        return getContext().getEntity(key) as? FCTEntity
+        return getContext().getEntity(key)
     }
 
-    protected fun putGlobal(key: String, value: FCTEntity) {
-        getContext().putEntity(value)
+    protected fun putGlobal(key: String, value: FCTEntity): Boolean {
+        return getContext().putEntity(key, value)
     }
 }
