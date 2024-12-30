@@ -21,7 +21,7 @@ class FunconObject(
 ) : Object(name, ctx, params, aliases, metaVariables) {
     fun makeContent(): String {
         val content = "return " + if (rewritesTo != null) {
-            buildRewrite(ctx, rewritesTo)
+            rewrite(ctx, rewritesTo)
         } else if (rules.isNotEmpty()) {
             val pairs = rules.map { rule ->
                 val premises = rule.premises()?.premiseExpr()?.toList() ?: emptyList()
@@ -37,15 +37,13 @@ class FunconObject(
 
         } else {
             // TODO Fix
-            "${buildTypeRewrite(returns)}()"
+            "${rewriteType(returns)}()"
         }
 
         return makeExecuteFunction(content, returnStr)
     }
 
-    val returnStr = if (!returns.computes) {
-        buildTypeRewrite(returns, nullable = true)
-    } else FCTNODE
+    val returnStr = rewriteType(returns, nullable = true)
 
     override fun generateCode(): String {
         val skipCriteria = !listOf(

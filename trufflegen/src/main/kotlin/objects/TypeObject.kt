@@ -1,7 +1,7 @@
 package main.objects
 
 import cbs.CBSParser.*
-import main.buildRewrite
+import main.rewrite
 import main.dataclasses.Param
 import main.exceptions.DetailedException
 import main.makeClass
@@ -20,7 +20,7 @@ class TypeObject(
             1 -> {
                 val definition = definitions[0]
                 if (definition is FunconExpressionContext) {
-                    buildRewrite(ctx, definition)
+                    rewrite(ctx, definition)
                 } else throw DetailedException("Unexpected definition ${definition.text}")
             }
 

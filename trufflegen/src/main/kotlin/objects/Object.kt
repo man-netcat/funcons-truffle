@@ -19,12 +19,11 @@ abstract class Object(
 
     val isFuncon = this is FunconObject || this is DatatypeFunconObject
     val isEntity = this is ControlEntityObject || this is MutableEntityObject || this is ContextualEntityObject
+    val hasNullable = params.size == 1 && params[0].type.isQmarkExpr
 
     val valueParams = params.filter { it.value != null }.map { param ->
         val annotation = makeAnnotation(param.type.isVararg, isEntity)
-        val paramTypeStr = if (!param.type.computes) {
-            buildTypeRewrite(param.type, nullable = true)
-        } else FCTNODE
+        val paramTypeStr = rewriteType(param.type, nullable = true)
         makeParam(annotation, param.name, paramTypeStr)
     }
 

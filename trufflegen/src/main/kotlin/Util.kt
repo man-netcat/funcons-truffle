@@ -203,7 +203,8 @@ fun processVariable(varStep: VariableContext): String = varStep.varname.text + "
 
 fun emptySuperClass(name: String): String = makeFunCall(name, emptySet(), emptyList())
 
-fun buildTypeRewrite(type: Type, nullable: Boolean = true): String {
+fun rewriteType(type: Type, nullable: Boolean = true): String {
+    if (type.computes) return FCTNODE
     val rewriteVisitor = TypeRewriteVisitor(type, nullable)
     val rewritten = rewriteVisitor.visit(type.expr)
     return rewritten
@@ -213,38 +214,32 @@ fun rewriteFunconExpr(name: String, context: ParseTree, definition: ParseTree): 
     val obj = globalObjects[name]!!
     val className = toClassName(name)
     val args = extractArgs(context)
-    val argStr = args.mapIndexed { i, arg ->
-        if (obj.paramsAfterVararg > 0 && i in args.size - obj.paramsAfterVararg until args.size) {
-            val paramIndex = obj.params.size - (args.size - i)
-            "p$paramIndex=${buildRewrite(definition, arg)}"
-        } else buildRewrite(definition, arg)
-    }.joinToString()
+    val argStr = if (!(obj.hasNullable && args.isEmpty())) {
+        args.mapIndexed { i, arg ->
+            if (obj.paramsAfterVararg > 0 && i in args.size - obj.paramsAfterVararg until args.size) {
+                val paramIndex = obj.params.size - (args.size - i)
+                "p$paramIndex=${rewrite(definition, arg)}"
+            } else rewrite(definition, arg)
+        }.joinToString()
+    } else "null"
     val suffix = if (obj is FunconObject) ".execute(frame)" else ""
     return "$className($argStr)$suffix"
 }
 
-fun buildRewrite(definition: ParseTree, toRewrite: ParseTree): String {
-//    if (definition is FunconExpressionContext || definition is ListExpressionContext || definition is SetExpressionContext) {
-//        val args = extractArgs(definition)
-//        val (arrayArgs, _) = partitionArrayArgs(args)if there's a God, and he meets her in the afterlife, he'll be like "
-//        if (arrayArgs.size > 1) {
-//            return "p0.random()"
-//        }
-//    }
-
+fun rewrite(definition: ParseTree, toRewrite: ParseTree): String {
     return when (toRewrite) {
         is FunconExpressionContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite, definition)
         is ListExpressionContext -> rewriteFunconExpr("list", toRewrite, definition)
         is SetExpressionContext -> rewriteFunconExpr("set", toRewrite, definition)
         is LabelContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite, definition)
         is MapExpressionContext -> {
-            val pairStr = toRewrite.pairs().pair().joinToString { pair -> buildRewrite(definition, pair) }
-            "Map($pairStr)"
+            val pairStr = toRewrite.pairs().pair().joinToString { pair -> rewrite(definition, pair) }
+            "MapNode($pairStr)"
         }
 
         is TupleExpressionContext -> {
             val pairStr = toRewrite.exprs()?.expr()?.joinToString(", ") { expr ->
-                buildRewrite(definition, expr)
+                rewrite(definition, expr)
             }
             if (pairStr != null) "arrayOf(${pairStr})" else "emptyArray()"
         }
@@ -255,17 +250,18 @@ fun buildRewrite(definition: ParseTree, toRewrite: ParseTree): String {
         }
 
         is VariableContext -> {
+            // TODO: Fix
             exprToParamStr(definition, toRewrite.varname.text) + "p".repeat(toRewrite.squote().size)
         }
 
         is NumberContext -> "(${toRewrite.text}).toIntegersNode()"
         is StringContext -> "(${toRewrite.text}).toStringsNode()"
-        is TypeExpressionContext -> buildRewrite(definition, toRewrite.value)
-        is NestedExpressionContext -> buildRewrite(definition, toRewrite.expr())
+        is TypeExpressionContext -> rewrite(definition, toRewrite.value)
+        is NestedExpressionContext -> rewrite(definition, toRewrite.expr())
         is PairContext -> {
-            val key = buildRewrite(definition, toRewrite.key)
-            val value = buildRewrite(definition, toRewrite.value)
-            "Tuple($key, $value)"
+            val key = rewrite(definition, toRewrite.key)
+            val value = rewrite(definition, toRewrite.value)
+            "TupleNode($key, $value)"
         }
 
         else -> throw IllegalArgumentException("Unsupported context type: ${toRewrite::class.simpleName}, ${toRewrite.text}")

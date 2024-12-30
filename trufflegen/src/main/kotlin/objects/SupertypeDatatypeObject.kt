@@ -2,10 +2,10 @@ package main.objects
 
 import cbs.CBSParser.DatatypeDefinitionContext
 import cbs.CBSParser.ExprContext
-import main.buildRewrite
 import main.dataclasses.Param
 import main.exceptions.DetailedException
 import main.makeClass
+import main.rewrite
 
 class SupertypeDatatypeObject(
     name: String,
@@ -17,7 +17,7 @@ class SupertypeDatatypeObject(
 ) : Object(name, ctx, params, aliases, metaVariables) {
     override fun generateCode(): String {
         val superClass = if (definitions.size == 1) {
-            buildRewrite(ctx, definitions[0])
+            rewrite(ctx, definitions[0])
         } else throw DetailedException("Has more than one superclass")
 
         return makeClass(
