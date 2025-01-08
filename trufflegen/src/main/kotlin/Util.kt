@@ -2,6 +2,7 @@ package main
 
 import cbs.CBSParser.*
 import main.dataclasses.Param
+import main.dataclasses.RewriteData
 import main.dataclasses.Type
 import main.exceptions.DetailedException
 import main.exceptions.StringNotFoundException
@@ -81,8 +82,8 @@ fun makeForLoop(variable: String, range: String, body: String): String {
     return "$loopHeader\n$content\n}"
 }
 
-fun makeVariable(name: String, type: String, value: String): String {
-    return "val $name: $type = $value"
+fun makeVariable(name: String, value: String, type: String? = null): String {
+    return if (type != null) "val $name: $type = $value" else "val $name = $value"
 }
 
 fun makeClass(
@@ -179,16 +180,16 @@ fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<Pair<St
     return "typealias $aliasName$typeParamStr = $targetType$typeParamStr"
 }
 
-fun makeFunCall(name: String, typeParams: Set<Pair<String, String>>, params: List<String>): String {
+fun makeFunCall(name: String, typeParams: Set<Pair<String, String?>>, params: List<String>): String {
     val superclassTypeParamStr = if (typeParams.isNotEmpty()) "<${typeParams.joinToString(", ") { it.first }}>" else ""
     return "$name$superclassTypeParamStr(${params.joinToString(", ")})"
 }
 
 fun getGlobal(name: String): String = makeFunCall("getGlobal", emptySet(), listOf("\"${name}\""))
 fun putGlobal(name: String, value: String): String = makeFunCall("putGlobal", emptySet(), listOf("\"${name}\"", value))
-fun getInScope(name: String): String = makeFunCall("getInScope", emptySet(), listOf("\"${name}\""))
+fun getInScope(name: String): String = makeFunCall("getInScope", emptySet(), listOf("frame", "\"${name}\""))
 fun putInScope(name: String, value: String): String =
-    makeFunCall("putInScope", emptySet(), listOf("\"${name}\"", value))
+    makeFunCall("putInScope", emptySet(), listOf("frame", "\"${name}\"", value))
 
 
 tailrec fun extractAndOrExprs(
@@ -199,73 +200,75 @@ tailrec fun extractAndOrExprs(
     else -> definitions + expr
 }
 
-fun processVariable(varStep: VariableContext): String = varStep.varname.text + "p".repeat(varStep.squote().size)
-
 fun emptySuperClass(name: String): String = makeFunCall(name, emptySet(), emptyList())
 
 fun rewriteType(type: Type, nullable: Boolean = true): String {
-    if (type.computes) return FCTNODE
     val rewriteVisitor = TypeRewriteVisitor(type, nullable)
     val rewritten = rewriteVisitor.visit(type.expr)
     return rewritten
 }
 
-fun rewriteFunconExpr(name: String, context: ParseTree, definition: ParseTree): String {
-    val obj = globalObjects[name]!!
-    val className = toClassName(name)
-    val args = extractArgs(context)
-    val argStr = if (!(obj.hasNullable && args.isEmpty())) {
-        args.mapIndexed { i, arg ->
-            if (obj.paramsAfterVararg > 0 && i in args.size - obj.paramsAfterVararg until args.size) {
-                val paramIndex = obj.params.size - (args.size - i)
-                "p$paramIndex=${rewrite(definition, arg)}"
-            } else rewrite(definition, arg)
-        }.joinToString()
-    } else "null"
-    val suffix = if (obj is FunconObject) ".execute(frame)" else ""
-    return "$className($argStr)$suffix"
-}
-
-fun rewrite(definition: ParseTree, toRewrite: ParseTree): String {
-    return when (toRewrite) {
-        is FunconExpressionContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite, definition)
-        is ListExpressionContext -> rewriteFunconExpr("list", toRewrite, definition)
-        is SetExpressionContext -> rewriteFunconExpr("set", toRewrite, definition)
-        is LabelContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite, definition)
-        is MapExpressionContext -> {
-            val pairStr = toRewrite.pairs().pair().joinToString { pair -> rewrite(definition, pair) }
-            "MapNode($pairStr)"
+fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<RewriteData> = emptyList()): String {
+    fun rewriteRecursive(toRewrite: ParseTree): String {
+        fun mapParamString(def: ParseTree, str: String): String {
+            val paramStrs = getParamStrs(def)
+            val exprMap = (paramStrs + rewriteData).associate { (arg, _, paramStr) -> Pair(arg?.text, paramStr) }
+            return exprMap[str] ?: throw StringNotFoundException(str, exprMap.keys.toList())
         }
 
-        is TupleExpressionContext -> {
-            val pairStr = toRewrite.exprs()?.expr()?.joinToString(", ") { expr ->
-                rewrite(definition, expr)
+        fun rewriteFunconExpr(name: String, context: ParseTree, definition: ParseTree): String {
+            val obj = globalObjects[name]!!
+            val className = toClassName(name)
+            val args = extractArgs(context)
+            val argStr = if (!(obj.hasNullable && args.isEmpty())) {
+                args.mapIndexed { i, arg ->
+                    if (obj.paramsAfterVararg > 0 && i in args.size - obj.paramsAfterVararg until args.size) {
+                        val paramIndex = obj.params.size - (args.size - i)
+                        "p$paramIndex=${rewriteRecursive(arg)}"
+                    } else rewriteRecursive(arg)
+                }.joinToString()
+            } else "null"
+            val suffix = if (obj is FunconObject) ".execute(frame)" else ""
+            return "$className($argStr)$suffix"
+        }
+
+        return when (toRewrite) {
+            is FunconExpressionContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite, definition)
+            is ListExpressionContext -> rewriteFunconExpr("list", toRewrite, definition)
+            is SetExpressionContext -> rewriteFunconExpr("set", toRewrite, definition)
+            is LabelContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite, definition)
+            is MapExpressionContext -> {
+                val pairStr = toRewrite.pairs().pair().joinToString { pair -> rewriteRecursive(pair) }
+                "MapNode($pairStr)"
             }
-            if (pairStr != null) "arrayOf(${pairStr})" else "emptyArray()"
-        }
 
-        is SuffixExpressionContext -> {
-            val suffixStr = if (toRewrite.op.text == "?") "?" else ""
-            exprToParamStr(definition, toRewrite.text) + suffixStr
-        }
+            is TupleExpressionContext -> {
+                val pairStr = toRewrite.exprs()?.expr()?.joinToString(", ") { expr ->
+                    rewriteRecursive(expr)
+                }
+                if (pairStr != null) "arrayOf(${pairStr})" else "emptyArray()"
+            }
 
-        is VariableContext -> {
-            // TODO: Fix
-            exprToParamStr(definition, toRewrite.varname.text) + "p".repeat(toRewrite.squote().size)
-        }
+            is SuffixExpressionContext -> {
+                val suffixStr = if (toRewrite.op.text == "?") "?" else ""
+                mapParamString(definition, toRewrite.text) + suffixStr
+            }
 
-        is NumberContext -> "(${toRewrite.text}).toIntegersNode()"
-        is StringContext -> "(${toRewrite.text}).toStringsNode()"
-        is TypeExpressionContext -> rewrite(definition, toRewrite.value)
-        is NestedExpressionContext -> rewrite(definition, toRewrite.expr())
-        is PairContext -> {
-            val key = rewrite(definition, toRewrite.key)
-            val value = rewrite(definition, toRewrite.value)
-            "TupleNode($key, $value)"
-        }
+            is VariableContext -> mapParamString(definition, toRewrite.text)
+            is NumberContext -> "(${toRewrite.text}).toIntegersNode()"
+            is StringContext -> "(${toRewrite.text}).toStringsNode()"
+            is TypeExpressionContext -> rewriteRecursive(toRewrite.value)
+            is NestedExpressionContext -> rewriteRecursive(toRewrite.expr())
+            is PairContext -> {
+                val key = rewriteRecursive(toRewrite.key)
+                val value = rewriteRecursive(toRewrite.value)
+                "TupleNode($key, $value)"
+            }
 
-        else -> throw IllegalArgumentException("Unsupported context type: ${toRewrite::class.simpleName}, ${toRewrite.text}")
+            else -> throw IllegalArgumentException("Unsupported context type: ${toRewrite::class.simpleName}, ${toRewrite.text}")
+        }
     }
+    return rewriteRecursive(toRewrite)
 }
 
 fun extractParams(obj: ParseTree): List<Param> {
@@ -324,7 +327,7 @@ fun partitionArrayArgs(args: List<ExprContext?>): Pair<List<ExprContext>, List<E
     }
 }
 
-fun getParamStrs(definition: ParseTree, isParam: Boolean = false): List<Triple<ExprContext?, ExprContext?, String>> {
+fun getParamStrs(definition: ParseTree, isParam: Boolean = false, prefix: String = ""): List<RewriteData> {
     fun makeParamStr(
         argIndex: Int, argsSize: Int, obj: Object, parentStr: String, argIsArray: Boolean = false
     ): String {
@@ -368,10 +371,7 @@ fun getParamStrs(definition: ParseTree, isParam: Boolean = false): List<Triple<E
         }
     }
 
-    fun extractArgsRecursive(
-        definition: ParseTree, parentStr: String = ""
-    ): List<Triple<ExprContext?, ExprContext?, String>> {
-
+    fun extractArgsRecursive(definition: ParseTree, parentStr: String = prefix): List<RewriteData> {
         val (obj, args) = when (definition) {
             is FunconDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
             is TypeDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
@@ -379,6 +379,7 @@ fun getParamStrs(definition: ParseTree, isParam: Boolean = false): List<Triple<E
             is FunconExpressionContext -> globalObjects[definition.name.text]!! to argsToParams(definition)
             is ListExpressionContext -> globalObjects["list"]!! to argsToParams(definition)
             is SetExpressionContext -> globalObjects["set"]!! to argsToParams(definition)
+            is LabelContext -> globalObjects[definition.name.text]!! to argsToParams(definition)
             else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
         }
 
@@ -387,23 +388,23 @@ fun getParamStrs(definition: ParseTree, isParam: Boolean = false): List<Triple<E
                 null -> {
                     // Argument is a type
                     val newStr = makeParamStr(argIndex, args.size, obj, parentStr)
-                    listOf(Triple(type, null, newStr))
+                    listOf(RewriteData(type, null, newStr))
                 }
 
                 is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext -> {
                     val newStr = makeParamStr(argIndex, args.size, obj, parentStr)
-                    listOf(Triple(null, arg, newStr)) + extractArgsRecursive(arg, newStr)
+                    listOf(RewriteData(null, arg, newStr)) + extractArgsRecursive(arg, newStr)
                 }
 
                 is SuffixExpressionContext, is VariableContext, is NumberContext -> {
                     val argIsArray = (arg is SuffixExpressionContext && arg.op.text in listOf("+", "*"))
                     val newStr = makeParamStr(argIndex, args.size, obj, parentStr, argIsArray = argIsArray)
-                    listOf(Triple(arg, type, newStr))
+                    listOf(RewriteData(arg, type, newStr))
                 }
 
                 is TupleExpressionContext -> {
                     val newStr = makeParamStr(argIndex, args.size, obj, parentStr, argIsArray = true)
-                    listOf(Triple(arg, null, newStr))
+                    listOf(RewriteData(arg, null, newStr))
                 }
 
                 else -> throw DetailedException("Unexpected arg type: ${arg::class.simpleName}, ${arg.text}")
@@ -413,17 +414,7 @@ fun getParamStrs(definition: ParseTree, isParam: Boolean = false): List<Triple<E
     return extractArgsRecursive(definition)
 }
 
-fun exprToParamStr(def: ParseTree, str: String): String {
-    val paramStrs = getParamStrs(def)
-    val exprMap = paramStrs.associate { (arg, _, paramStr) -> Pair(arg?.text, paramStr) }
-    return exprMap[str] ?: throw StringNotFoundException(str, exprMap.keys.toList())
-}
-
-fun makeAnnotation(
-    isVararg: Boolean =
-
-        false, isOverride: Boolean = false
-): String {
+fun makeAnnotation(isVararg: Boolean = false, isOverride: Boolean = false): String {
     val annotationBuilder = StringBuilder()
 
     annotationBuilder.append(if (isVararg) "@Children " else "@Child ")
@@ -435,4 +426,7 @@ fun makeAnnotation(
     annotationBuilder.append("val")
 
     return annotationBuilder.toString()
+}
+
+fun main() {
 }

@@ -66,7 +66,7 @@ class TypeRewriteVisitor(
         } else "Array<${visit(ctx.operand)}>"
     }
 
-    override fun visitVariable(ctx: VariableContext): String = processVariable(ctx)
+    override fun visitVariable(ctx: VariableContext): String = ctx.varname.text + "p".repeat(ctx.squote().size)
     override fun visitNestedExpression(ctx: NestedExpressionContext): String = visit(ctx.expr())
     override fun visitUnaryComputesExpression(ctx: UnaryComputesExpressionContext): String = visit(ctx.expr())
     override fun visitNumber(ctx: NumberContext): String = ctx.text

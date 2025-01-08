@@ -21,8 +21,10 @@ class FunconObject(
 ) : Object(name, ctx, params, aliases, metaVariables) {
     fun makeContent(): String {
         val content = "return " + if (rewritesTo != null) {
+            // Has single context-insensitive rewrite
             rewrite(ctx, rewritesTo)
         } else if (rules.isNotEmpty()) {
+            // Has one or more rewrite rules
             val pairs = rules.map { rule ->
                 val premises = rule.premises()?.premiseExpr()?.toList() ?: emptyList()
                 val conclusion = rule.conclusion
@@ -36,7 +38,8 @@ class FunconObject(
             makeIfStatement(*pairs.toTypedArray(), elseBranch = "fail()")
 
         } else {
-            // TODO Fix
+            // Has no rules
+            // TODO This is definitely wrong, fix
             "${rewriteType(returns)}()"
         }
 

@@ -12,10 +12,7 @@ open class FCTEntity(open val p0: FCTNode?) {
         get() = p0
 
     override fun equals(other: Any?): Boolean {
-        if (other == null) return false
-        if (other !is FCTEntity) return false
-        if (this::class != other::class) return false
-        return this.p0 == other.p0
+        return super.equals(other)
     }
 
     override fun hashCode(): Int {
