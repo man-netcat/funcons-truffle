@@ -33,7 +33,7 @@ application {
 
 tasks.named<JavaExec>("run") {
     args = listOf(
-        "/home/rick/workspace/thesis/CBS-beta/Funcons-beta/Values/Primitive/Booleans/tests/and.config"
+        "../CBS-beta/Funcons-beta/Values/Primitive/Booleans/tests/and.config"
     )
 }
 

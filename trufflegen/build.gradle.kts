@@ -1,3 +1,6 @@
+import java.nio.file.Files
+import java.nio.file.Paths
+
 plugins {
     kotlin("jvm") version "2.0.21"
     java
@@ -31,8 +34,13 @@ application {
 }
 
 tasks.named<JavaExec>("run") {
+    val generated = "/fctruffle/src/main/kotlin/generated"
+    val path = Paths.get(generated)
+    if (Files.notExists(path)) {
+        Files.createDirectories(path)
+    }
     args = listOf(
-        "/home/rick/workspace/thesis/CBS-beta/Funcons-beta/",
-        "/home/rick/workspace/thesis/funcons-truffle/fctruffle/src/main/kotlin/generated"
+        "../../CBS-beta/Funcons-beta/",
+        "/fctruffle/src/main/kotlin/generated"
     )
 }

@@ -61,7 +61,7 @@ class GrammarTest {
         }
 
         private fun getFilesStream(fileExtension: String): Stream<File> {
-            val directory = File("/home/rick/workspace/thesis/CBS-beta/Funcons-beta")
+            val directory = File("../CBS-beta/Funcons-beta")
 
             return directory.walk().filter { it.isFile && it.extension == fileExtension }.toList().stream()
         }
