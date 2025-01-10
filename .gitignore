@@ -10,7 +10,7 @@ build
 /target/
 !**/src/main/**/target/
 !**/src/test/**/target/
-fctruffle/src/main/kotlin/generated
+fctruffle/src/main/kotlin/generated/*.kt
 
 # ANTLR generated files
 /antlr/src/main/java/cbs/
