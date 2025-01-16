@@ -1,6 +1,6 @@
 package main.dataclasses
 
-import cbs.CBSParser.*
+import cbs.CBSParser.ExprContext
 
 class Param(index: Int, val valueExpr: ExprContext?, val typeExpr: ExprContext?) {
     val name = "p$index"
@@ -11,6 +11,6 @@ class Param(index: Int, val valueExpr: ExprContext?, val typeExpr: ExprContext?)
     operator fun component2(): ExprContext? = typeExpr
 
     override fun toString(): String {
-        return "$value: ${type.text}"
+        return "$value: $type"
     }
 }

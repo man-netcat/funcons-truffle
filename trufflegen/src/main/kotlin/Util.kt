@@ -57,7 +57,7 @@ fun makeExecuteFunction(content: String, returns: String): String =
 
 fun todoExecute(returnStr: String) = makeExecuteFunction("TODO(\"Implement me\")", returnStr)
 
-fun makeIfStatement(vararg conditions: Pair<String, String>, elseBranch: String? = null): String {
+fun makeIfStatement(conditions: List<Pair<String, String>>, elseBranch: String? = null): String {
     val result = StringBuilder()
 
     conditions.forEachIndexed { index, (condition, block) ->
@@ -180,9 +180,9 @@ fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<Pair<St
     return "typealias $aliasName$typeParamStr = $targetType$typeParamStr"
 }
 
-fun makeFunCall(name: String, typeParams: Set<Pair<String, String?>>, params: List<String>): String {
+fun makeFunCall(name: String, typeParams: Set<Pair<String, String?>>, args: List<String>): String {
     val superclassTypeParamStr = if (typeParams.isNotEmpty()) "<${typeParams.joinToString(", ") { it.first }}>" else ""
-    return "$name$superclassTypeParamStr(${params.joinToString(", ")})"
+    return "$name$superclassTypeParamStr(${args.joinToString(", ")})"
 }
 
 fun getGlobal(name: String): String = makeFunCall("getGlobal", emptySet(), listOf("\"${name}\""))
@@ -216,7 +216,7 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
             return exprMap[str] ?: throw StringNotFoundException(str, exprMap.keys.toList())
         }
 
-        fun rewriteFunconExpr(name: String, context: ParseTree, definition: ParseTree): String {
+        fun rewriteFunconExpr(name: String, context: ParseTree): String {
             val obj = globalObjects[name]!!
             val className = toClassName(name)
             val args = extractArgs(context)
@@ -228,15 +228,16 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
                     } else rewriteRecursive(arg)
                 }.joinToString()
             } else "null"
+            val prefix = if (obj is FunconObject && obj.returns.isArray) "*" else ""
             val suffix = if (obj is FunconObject) ".execute(frame)" else ""
-            return "$className($argStr)$suffix"
+            return "$prefix$className($argStr)$suffix"
         }
 
         return when (toRewrite) {
-            is FunconExpressionContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite, definition)
-            is ListExpressionContext -> rewriteFunconExpr("list", toRewrite, definition)
-            is SetExpressionContext -> rewriteFunconExpr("set", toRewrite, definition)
-            is LabelContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite, definition)
+            is FunconExpressionContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite)
+            is ListExpressionContext -> rewriteFunconExpr("list", toRewrite)
+            is SetExpressionContext -> rewriteFunconExpr("set", toRewrite)
+            is LabelContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite)
             is MapExpressionContext -> {
                 val pairStr = toRewrite.pairs().pair().joinToString { pair -> rewriteRecursive(pair) }
                 "MapNode($pairStr)"
@@ -255,8 +256,15 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
             }
 
             is VariableContext -> mapParamString(definition, toRewrite.text)
-            is NumberContext -> "(${toRewrite.text}).toIntegersNode()"
-            is StringContext -> "(${toRewrite.text}).toStringsNode()"
+            is NumberContext -> {
+                if ('-' in toRewrite.text) {
+                    "(${toRewrite.text}).toIntegerNode()"
+                } else {
+                    "(${toRewrite.text}).toNaturalNumberNode()"
+                }
+            }
+
+            is StringContext -> "(${toRewrite.text}).toStringNode()"
             is TypeExpressionContext -> rewriteRecursive(toRewrite.value)
             is NestedExpressionContext -> rewriteRecursive(toRewrite.expr())
             is PairContext -> {

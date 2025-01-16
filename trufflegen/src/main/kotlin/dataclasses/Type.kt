@@ -2,8 +2,7 @@ package main.dataclasses
 
 import cbs.CBSParser.*
 
-class Type(val expr: ExprContext?, val isParam: Boolean = false, val isOverride: Boolean = false) {
-    val text = expr?.text ?: "null"
+class Type(val expr: ExprContext?, val isParam: Boolean = false) {
     var computes = false
     var isComplement = false
     var isStarExpr = false
@@ -50,4 +49,6 @@ class Type(val expr: ExprContext?, val isParam: Boolean = false, val isOverride:
             if (isVararg && !isParam) throw IllegalStateException("A non-parameter type cannot be vararg")
         }
     }
+
+    override fun toString(): String = expr?.text ?: "null"
 }

@@ -40,6 +40,6 @@ tasks.named<JavaExec>("run") {
     }
     args = listOf(
         "../../CBS-beta/Funcons-beta/",
-        "./fctruffle/src/main/kotlin/generated"
+        "../fctruffle/src/main/kotlin/generated"
     )
 }

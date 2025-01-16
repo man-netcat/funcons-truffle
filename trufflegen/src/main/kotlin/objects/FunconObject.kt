@@ -20,22 +20,34 @@ class FunconObject(
     private val rewritesTo: ExprContext? = null
 ) : Object(name, ctx, params, aliases, metaVariables) {
     fun makeContent(): String {
+        val paramStrs = getParamStrs(ctx, isParam = false)
+        paramStrs.map { (valueExpr, typeExpr, paramStr) ->
+            val type = Type(typeExpr, isParam = false)
+            if (!type.computes) {
+                println("valueExpr: ${valueExpr?.text}, type: $type, paramStr: $paramStr")
+            }
+        }
+
         val content = "return " + if (rewritesTo != null) {
             // Has single context-insensitive rewrite
             rewrite(ctx, rewritesTo)
         } else if (rules.isNotEmpty()) {
             // Has one or more rewrite rules
-            val pairs = rules.map { rule ->
+            val ruleObjs = rules.map { rule ->
                 val premises = rule.premises()?.premiseExpr()?.toList() ?: emptyList()
                 val conclusion = rule.conclusion
 
-                val ruleObj = Rule(premises, conclusion)
-                Pair(ruleObj.conditions, ruleObj.rewrite)
+                Rule(premises, conclusion)
             }
 
-            if (pairs.isEmpty() || pairs.any { it.first.isEmpty() }) throw EmptyConditionException(name)
+            if (ruleObjs.isEmpty() || ruleObjs.any { ruleObj ->
+                    ruleObj.conditions.isEmpty()
+                }) throw EmptyConditionException(name)
 
-            makeIfStatement(*pairs.toTypedArray(), elseBranch = "fail()")
+            val pairs = ruleObjs.map { rule ->
+                rule.conditionStr to rule.bodyStr
+            }
+            makeIfStatement(pairs, elseBranch = "fail()")
 
         } else {
             // Has no rules

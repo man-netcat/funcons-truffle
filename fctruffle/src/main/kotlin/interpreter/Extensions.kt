@@ -2,17 +2,44 @@ package interpreter
 
 import generated.*
 
+open class NaturalNumberNode(val value: Int) : NaturalNumbersNode()
 
-open class FCTIntegerNode(val value: Int) : IntegersNode()
-
-fun Int.toIntegersNode(): IntegersNode {
-    return FCTIntegerNode(this)
+fun Int.toNaturalNumberNode(): NaturalNumbersNode {
+    if (this < 0) throw IllegalArgumentException("Natural numbers cannot be negative.")
+    return NaturalNumberNode(this)
 }
 
-open class FCTStringNode(val value: String) : StringsNode()
+fun NaturalNumbersNode.toInt(): Int {
+    return when (this) {
+        is NaturalNumberNode -> this.value
+        else -> throw IllegalArgumentException("Unsupported NaturalNumbersNode type")
+    }
+}
 
-fun String.toStringsNode(): StringsNode {
-    return FCTStringNode(this)
+open class IntegerNode(val value: Int) : IntegersNode()
+
+fun Int.toIntegerNode(): IntegersNode {
+    return IntegerNode(this)
+}
+
+fun IntegersNode.toInt(): Int {
+    return when (this) {
+        is IntegerNode -> this.value
+        else -> throw IllegalArgumentException("Unsupported IntegersNode type")
+    }
+}
+
+open class StringNode(val value: String) : StringsNode()
+
+fun String.toStringNode(): StringsNode {
+    return StringNode(this)
+}
+
+fun StringsNode.toString(): String {
+    return when (this) {
+        is StringNode -> this.value
+        else -> throw IllegalArgumentException("Unsupported StringsNode type")
+    }
 }
 
 @Funcon

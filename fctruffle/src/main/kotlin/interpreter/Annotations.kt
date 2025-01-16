@@ -10,8 +10,8 @@ annotation class Type
 
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class Datatype
+annotation class DataType
 
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class Entity()
+annotation class Entity
