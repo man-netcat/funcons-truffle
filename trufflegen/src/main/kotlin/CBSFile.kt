@@ -13,7 +13,7 @@ import org.antlr.v4.runtime.tree.ParseTree
 
 class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() {
     internal val objects = mutableMapOf<String, Object?>()
-    internal var fileMetavariables: List<Pair<ExprContext, ExprContext>> = emptyList()
+    internal var fileMetavariables: Set<Pair<ExprContext, ExprContext>> = emptySet()
 
     fun identifyMetavariables(ctx: ParseTree): MutableSet<Pair<String, String>> {
         val visitor = MetaVariableVisitor(fileMetavariables)
@@ -33,7 +33,7 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
     override fun visitMetavariablesDefinition(metavarDefs: MetavariablesDefinitionContext) {
         fileMetavariables = metavarDefs.metavarDef().flatMap { def ->
             def.variables.expr().mapNotNull { metaVar -> metaVar to def.supertype }
-        }
+        }.filter { (varName, _) -> varName is VariableContext }.toSet()
     }
 
     override fun visitFunconDefinition(funcon: FunconDefinitionContext) {
@@ -151,29 +151,46 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
     }
 
     fun generateCode(): String {
+        val stringBuilder = StringBuilder()
+
+        stringBuilder.appendLine("package generated")
+        stringBuilder.appendLine()
+
         val imports = listOf(
             "generated.*",
             "interpreter.*",
             "com.oracle.truffle.api.frame.VirtualFrame",
             "com.oracle.truffle.api.nodes.Node.Child",
             "com.oracle.truffle.api.nodes.Node.Children"
-        ).joinToString("\n") { "import $it" }
+        )
+        imports.forEach { stringBuilder.appendLine("import $it") }
+        stringBuilder.appendLine()
 
-        val code = objects.values.distinct().filterNotNull().joinToString("\n\n") { obj ->
+        fileMetavariables.forEach { (varName, superType) ->
+            val varStr = rewriteType(Type(varName), nullable = false)
+            val superTypeStr = rewriteType(Type(superType), nullable = false)
+            stringBuilder.appendLine("private typealias $varStr = $superTypeStr")
+        }
+        stringBuilder.appendLine()
+
+        objects.values.distinct().filterNotNull().forEach { obj ->
             println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $name)")
             try {
                 val code = obj.generateCode()
                 val aliasStr = obj.aliasStr()
-                if (aliasStr.isNotBlank()) "$code\n\n$aliasStr" else code
+                stringBuilder.appendLine()
+                stringBuilder.appendLine(code)
+                if (aliasStr.isNotBlank()) {
+                    stringBuilder.appendLine()
+                    stringBuilder.appendLine(aliasStr)
+                }
             } catch (e: StringNotFoundException) {
                 println(e)
-                ""
             } catch (e: EmptyConditionException) {
                 println(e)
-                ""
             }
-        }.trim()
+        }
 
-        return "package generated\n\n$imports\n\n$code".trim()
+        return stringBuilder.toString().trim()
     }
 }

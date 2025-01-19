@@ -22,7 +22,6 @@ open class EntityObject(
             annotations = listOf("Entity"),
             superClass = makeFunCall(
                 entityClassName,
-                emptySet(),
                 listOf("p0")
             ),
         )

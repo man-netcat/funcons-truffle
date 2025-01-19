@@ -1,14 +1,15 @@
 package main.visitors
 
-import org.antlr.v4.runtime.tree.RuleNode
 import cbs.CBSBaseVisitor
 import cbs.CBSParser.*
-import main.*
 import main.dataclasses.Type
-import main.exceptions.*
+import main.exceptions.DetailedException
+import main.rewriteType
+import org.antlr.v4.runtime.tree.RuleNode
 
-class MetaVariableVisitor(private val fileMetaVariables: List<Pair<ExprContext, ExprContext>>) :
-    CBSBaseVisitor<Unit>() {
+class MetaVariableVisitor(
+    private val fileMetaVariables: Set<Pair<ExprContext, ExprContext>>
+) : CBSBaseVisitor<Unit>() {
 
     val objectMetaVariables: MutableSet<Pair<String, String>> = mutableSetOf()
 

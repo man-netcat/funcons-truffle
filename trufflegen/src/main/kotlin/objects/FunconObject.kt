@@ -24,7 +24,8 @@ class FunconObject(
         paramStrs.map { (valueExpr, typeExpr, paramStr) ->
             val type = Type(typeExpr, isParam = false)
             if (!type.computes) {
-                println("valueExpr: ${valueExpr?.text}, type: $type, paramStr: $paramStr")
+                // TODO
+//                println("valueExpr: ${valueExpr?.text}, type: $type, paramStr: $paramStr")
             }
         }
 
@@ -71,7 +72,6 @@ class FunconObject(
             nodeName,
             content = content,
             constructorArgs = valueParams,
-            typeParams = metaVariables.toList(),
             superClass = emptySuperClass(COMPUTATION),
             annotations = listOf("Funcon")
         )

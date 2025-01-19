@@ -1,8 +1,10 @@
 package main.objects
 
-import cbs.CBSParser.*
-import main.*
+import cbs.CBSParser.DatatypeDefinitionContext
+import main.TERMINAL
 import main.dataclasses.Param
+import main.emptySuperClass
+import main.makeClass
 
 class AlgebraicDatatypeObject(
     name: String,
@@ -17,9 +19,8 @@ class AlgebraicDatatypeObject(
             body = false,
             constructorArgs = valueParams,
             keywords = listOf("open"),
-            typeParams = metaVariables.toList(),
             superClass = emptySuperClass(TERMINAL),
-            annotations = listOf("Datatype")
+            annotations = listOf("DataType")
         )
     }
 }

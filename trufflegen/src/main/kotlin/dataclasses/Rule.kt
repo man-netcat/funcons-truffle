@@ -33,6 +33,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext) {
         } else {
             val paramStrs = getParamStrs(funconExpr, isParam = true)
             (paramStrs + rewriteData).forEach { (argValue, argType, paramStr) ->
+                println("argValue: ${argValue?.text}")
                 val valueCondition = when (argValue) {
                     null -> null
                     is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext -> makeTypeCondition(
@@ -41,7 +42,8 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext) {
 
                     is NumberContext -> "$paramStr == ${argValue.text}"
                     is TupleExpressionContext -> "${paramStr}.isEmpty()"
-                    is VariableContext, is SuffixExpressionContext -> null
+                    is VariableContext -> if (argValue.text == "_") "$paramStr != null" else null
+                    is SuffixExpressionContext -> null
                     else -> throw IllegalArgumentException("Unexpected arg type: ${argValue::class.simpleName}, ${argValue.text}")
                 }
 
@@ -191,9 +193,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext) {
     }
 
     private fun processConclusion(
-        ruleDef: ExprContext,
-        conclusion: PremiseExprContext,
-        rewriteData: List<RewriteData>
+        ruleDef: ExprContext, conclusion: PremiseExprContext, rewriteData: List<RewriteData>
     ) {
         when (conclusion) {
             is TransitionPremiseWithControlEntityContext -> {

@@ -1,10 +1,10 @@
 package main.objects
 
 import cbs.CBSParser.*
-import main.rewrite
 import main.dataclasses.Param
 import main.exceptions.DetailedException
 import main.makeClass
+import main.rewrite
 
 class TypeObject(
     name: String,
@@ -33,7 +33,6 @@ class TypeObject(
             keywords = listOf("open"),
             constructorArgs = valueParams,
             superClass = superClass,
-            typeParams = metaVariables.toList(),
             body = false,
             annotations = listOf("Type")
         )

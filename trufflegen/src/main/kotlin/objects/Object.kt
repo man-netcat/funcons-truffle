@@ -29,7 +29,7 @@ abstract class Object(
 
     fun aliasStr(): String {
         return aliases.joinToString("\n") { alias ->
-            makeTypeAlias(toClassName(alias), nodeName, metaVariables)
+            makeTypeAlias(toClassName(alias), nodeName)
         }
     }
 

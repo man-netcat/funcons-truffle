@@ -1,8 +1,9 @@
 package main.objects
 
-import cbs.CBSParser.*
-import main.*
+import cbs.CBSParser.FunconExpressionContext
 import main.dataclasses.Param
+import main.makeClass
+import main.makeFunCall
 
 class DatatypeFunconObject(
     name: String,
@@ -15,10 +16,8 @@ class DatatypeFunconObject(
         return makeClass(
             nodeName,
             constructorArgs = valueParams,
-            typeParams = metaVariables.toList(),
             superClass = makeFunCall(
                 superclass.nodeName,
-                superclass.metaVariables,
                 superclass.valueParams
             ),
             body = false,
