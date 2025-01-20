@@ -19,6 +19,13 @@ class FunconObject(
     private val rules: List<RuleDefinitionContext> = emptyList(),
     private val rewritesTo: ExprContext? = null
 ) : Object(name, ctx, params, aliases, metaVariables) {
+    fun getRuleObj(rule: RuleDefinitionContext): Rule {
+        val premises = rule.premises()?.premiseExpr()?.toList() ?: emptyList()
+        val conclusion = rule.conclusion
+
+        return Rule(premises, conclusion, returns)
+    }
+
     fun makeContent(): String {
         val paramStrs = getParamStrs(ctx, isParam = false)
         paramStrs.map { (valueExpr, typeExpr, paramStr) ->
@@ -34,12 +41,7 @@ class FunconObject(
             rewrite(ctx, rewritesTo)
         } else if (rules.isNotEmpty()) {
             // Has one or more rewrite rules
-            val ruleObjs = rules.map { rule ->
-                val premises = rule.premises()?.premiseExpr()?.toList() ?: emptyList()
-                val conclusion = rule.conclusion
-
-                Rule(premises, conclusion)
-            }
+            val ruleObjs = rules.map { rule -> getRuleObj(rule) }
 
             if (ruleObjs.isEmpty() || ruleObjs.any { ruleObj ->
                     ruleObj.conditions.isEmpty()

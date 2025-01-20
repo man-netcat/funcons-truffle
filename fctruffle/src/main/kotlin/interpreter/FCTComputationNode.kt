@@ -6,21 +6,31 @@ import com.oracle.truffle.api.frame.VirtualFrame
 abstract class FCTComputationNode : FCTNode() {
     abstract override fun execute(frame: VirtualFrame): Any?
 
-    protected fun getInScope(frame: VirtualFrame, key: String): FCTEntity? {
-        val localContext = frame.getObject(FrameSlots.LOCAL_CONTEXT.ordinal) as MutableMap<String, FCTEntity>
-        return localContext[key]
+    protected fun getLocalContext(frame: VirtualFrame): MutableMap<String, FCTEntity?> {
+        return frame.getObject(FrameSlots.LOCAL_CONTEXT.ordinal) as MutableMap<String, FCTEntity?>
     }
 
-    protected fun putInScope(frame: VirtualFrame, value: FCTEntity) {
-        val localContext = frame.getObject(FrameSlots.LOCAL_CONTEXT.ordinal) as MutableMap<String, FCTEntity>
-        localContext.put(value.name, value) ?: throw IllegalStateException("Scoped map not initialized in the frame.")
+    protected fun getInScope(frame: VirtualFrame, key: String): FCTEntity? {
+        return getLocalContext(frame)[key]
+    }
+
+    protected fun putInScope(frame: VirtualFrame, key: String, value: FCTEntity?) {
+        getLocalContext(frame).put(key, value)
+    }
+
+    protected fun isInScope(frame: VirtualFrame, key: String): Boolean {
+        return key in getLocalContext(frame).keys
     }
 
     protected fun getGlobal(key: String): FCTEntity? {
         return getContext().getEntity(key)
     }
 
-    protected fun putGlobal(key: String, value: FCTEntity): Boolean {
-        return getContext().putEntity(key, value)
+    protected fun putGlobal(key: String, value: FCTEntity) {
+        getContext().putEntity(key, value)
+    }
+
+    protected fun isGlobal(key: String): Boolean {
+        return key in getContext().entities.keys
     }
 }

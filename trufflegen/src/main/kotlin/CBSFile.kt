@@ -169,7 +169,7 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         fileMetavariables.forEach { (varName, superType) ->
             val varStr = rewriteType(Type(varName), nullable = false)
             val superTypeStr = rewriteType(Type(superType), nullable = false)
-            stringBuilder.appendLine("private typealias $varStr = $superTypeStr")
+            stringBuilder.appendLine("typealias $varStr = $superTypeStr")
         }
         stringBuilder.appendLine()
 

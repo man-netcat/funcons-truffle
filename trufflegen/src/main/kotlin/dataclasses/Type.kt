@@ -7,14 +7,19 @@ class Type(val expr: ExprContext?, val isParam: Boolean = false) {
     var isComplement = false
     var isStarExpr = false
     var isPlusExpr = false
-    var isQmarkExpr = false
+    var isNullable = false
     var isVararg = false
     var isArray = false
 
     fun handleUnaryComputesExpression(expr: UnaryComputesExpressionContext) {
         computes = true
         val unaryComputesExpression = expr.operand
-        if (unaryComputesExpression is SuffixExpressionContext) isArray = true
+        if (unaryComputesExpression is SuffixExpressionContext) {
+            if (unaryComputesExpression.op.text == "?") {
+                isNullable = true
+            }
+            isArray = true
+        }
     }
 
     init {
@@ -33,7 +38,7 @@ class Type(val expr: ExprContext?, val isParam: Boolean = false) {
                             isPlusExpr = true
                         }
 
-                        "?" -> isQmarkExpr = true
+                        "?" -> isNullable = true
                     }
                     val operand = expr.operand
                     if (operand is NestedExpressionContext) {
@@ -44,6 +49,7 @@ class Type(val expr: ExprContext?, val isParam: Boolean = false) {
 
                 is UnaryComputesExpressionContext -> handleUnaryComputesExpression(expr)
                 is ComplementExpressionContext -> isComplement = true
+                is OrExpressionContext -> isNullable = true
             }
 
             if (isVararg && !isParam) throw IllegalStateException("A non-parameter type cannot be vararg")

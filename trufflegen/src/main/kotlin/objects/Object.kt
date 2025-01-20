@@ -19,7 +19,7 @@ abstract class Object(
 
     val isFuncon = this is FunconObject || this is DatatypeFunconObject
     val isEntity = this is ControlEntityObject || this is MutableEntityObject || this is ContextualEntityObject
-    val hasNullable = params.size == 1 && params[0].type.isQmarkExpr
+    val hasNullable = params.size == 1 && params[0].type.isNullable
 
     val valueParams = params.filter { it.value != null }.map { param ->
         val annotation = makeAnnotation(param.type.isVararg, isEntity)

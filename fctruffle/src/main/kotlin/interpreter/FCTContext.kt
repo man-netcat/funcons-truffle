@@ -5,7 +5,7 @@ import com.oracle.truffle.api.TruffleLanguage.Env
 import com.oracle.truffle.api.nodes.Node
 
 class FCTContext(env: Env) {
-    private val entities: MutableMap<String, FCTEntity> = mutableMapOf()
+    val entities: MutableMap<String, FCTEntity> = mutableMapOf()
 
     companion object {
         private val REFERENCE: ContextReference<FCTContext> = ContextReference.create(FCTLanguage::class.java)

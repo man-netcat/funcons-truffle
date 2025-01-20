@@ -1,6 +1,6 @@
 package main
 
-import cbs.CBSParser
+import cbs.CBSParser.*
 import main.dataclasses.Param
 import main.dataclasses.RewriteData
 import main.dataclasses.Type
@@ -12,35 +12,35 @@ import org.antlr.v4.runtime.tree.ParseTree
 
 fun rewriteType(type: Type, nullable: Boolean = true): String {
     var nestedValue = 0
-    fun rewriteTypeRecursive(toRewrite: CBSParser.ExprContext?, nullable: Boolean): String {
+    fun rewriteTypeRecursive(toRewrite: ExprContext?, isNullable: Boolean): String {
         return when (toRewrite) {
-            is CBSParser.FunconExpressionContext -> toClassName(toRewrite.name.text)
-            is CBSParser.ListExpressionContext -> toClassName("ListNode")
-            is CBSParser.SetExpressionContext -> toClassName("SetNode")
+            is FunconExpressionContext -> toClassName(toRewrite.name.text)
+            is ListExpressionContext -> toClassName("list")
+            is SetExpressionContext -> toClassName("set")
 
-            is CBSParser.SuffixExpressionContext -> {
-                val baseType = rewriteTypeRecursive(toRewrite.expr(), nullable)
+            is SuffixExpressionContext -> {
+                val baseType = rewriteTypeRecursive(toRewrite.expr(), isNullable)
                 when (val op = toRewrite.op.text) {
-                    "?" -> if (nullable) "$baseType?" else baseType
+                    "?" -> if (isNullable) "$baseType?" else baseType
                     "*", "+" -> if (type.isParam && nestedValue == 0) {
                         nestedValue++
-                        rewriteTypeRecursive(toRewrite.expr(), nullable)
+                        rewriteTypeRecursive(toRewrite.expr(), isNullable)
                     } else "Array<$baseType>"
 
                     else -> throw DetailedException("Unexpected operator: $op, full context: ${toRewrite.text}")
                 }
             }
 
-            is CBSParser.PowerExpressionContext -> {
+            is PowerExpressionContext -> {
                 if (type.isParam && nestedValue == 0) {
                     nestedValue++
-                    rewriteTypeRecursive(toRewrite.operand, nullable)
+                    rewriteTypeRecursive(toRewrite.operand, isNullable)
                 } else {
-                    "Array<${rewriteTypeRecursive(toRewrite.operand, nullable)}>"
+                    "Array<${rewriteTypeRecursive(toRewrite.operand, isNullable)}>"
                 }
             }
 
-            is CBSParser.TupleExpressionContext -> {
+            is TupleExpressionContext -> {
                 if (toRewrite.exprs() == null) return "Unit"
 
                 val tupleLength = toRewrite.exprs().expr().size
@@ -50,30 +50,30 @@ fun rewriteType(type: Type, nullable: Boolean = true): String {
                     3 -> "TupleNode"
                     else -> throw DetailedException("Unexpected tuple length: $tupleLength")
                 }
-                val clsParams = toRewrite.exprs().expr().joinToString { rewriteTypeRecursive(it, nullable) }
+                val clsParams = toRewrite.exprs().expr().joinToString { rewriteTypeRecursive(it, isNullable) }
                 "$clsName<$clsParams>"
             }
 
-            is CBSParser.BinaryComputesExpressionContext -> {
-                "(" + rewriteTypeRecursive(toRewrite.lhs, nullable) + ") -> " + rewriteTypeRecursive(
-                    toRewrite.rhs, nullable
+            is BinaryComputesExpressionContext -> {
+                "(" + rewriteTypeRecursive(toRewrite.lhs, isNullable) + ") -> " + rewriteTypeRecursive(
+                    toRewrite.rhs, isNullable
                 )
             }
 
-            is CBSParser.OrExpressionContext -> {
+            is OrExpressionContext -> {
                 if (toRewrite.rhs.text == toRewrite.rhs.text) {
-                    rewriteTypeRecursive(toRewrite.lhs, nullable) + "?"
+                    rewriteTypeRecursive(toRewrite.lhs, isNullable) + "?"
                 } else {
                     throw DetailedException("Unexpected return type: ${toRewrite.text}")
                 }
             }
 
-            is CBSParser.VariableContext -> toRewrite.varname.text + "p".repeat(toRewrite.squote().size)
-            is CBSParser.NestedExpressionContext -> rewriteTypeRecursive(toRewrite.expr(), nullable)
-            is CBSParser.UnaryComputesExpressionContext -> rewriteTypeRecursive(toRewrite.expr(), nullable)
-            is CBSParser.NumberContext -> toRewrite.text
-            is CBSParser.TypeExpressionContext -> rewriteTypeRecursive(toRewrite.type, nullable)
-            is CBSParser.ComplementExpressionContext -> rewriteTypeRecursive(toRewrite.expr(), nullable)
+            is VariableContext -> toRewrite.varname.text + "p".repeat(toRewrite.squote().size)
+            is NestedExpressionContext -> rewriteTypeRecursive(toRewrite.expr(), isNullable)
+            is UnaryComputesExpressionContext -> rewriteTypeRecursive(toRewrite.expr(), isNullable)
+            is NumberContext -> toRewrite.text
+            is TypeExpressionContext -> rewriteTypeRecursive(toRewrite.type, isNullable)
+            is ComplementExpressionContext -> rewriteTypeRecursive(toRewrite.expr(), isNullable)
             else -> throw DetailedException("Unsupported context type: ${toRewrite?.javaClass?.simpleName}")
         }
     }
@@ -107,29 +107,29 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
         }
 
         return when (toRewrite) {
-            is CBSParser.FunconExpressionContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite)
-            is CBSParser.ListExpressionContext -> rewriteFunconExpr("list", toRewrite)
-            is CBSParser.SetExpressionContext -> rewriteFunconExpr("set", toRewrite)
-            is CBSParser.LabelContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite)
-            is CBSParser.MapExpressionContext -> {
+            is FunconExpressionContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite)
+            is ListExpressionContext -> rewriteFunconExpr("list", toRewrite)
+            is SetExpressionContext -> rewriteFunconExpr("set", toRewrite)
+            is LabelContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite)
+            is MapExpressionContext -> {
                 val pairStr = toRewrite.pairs().pair().joinToString { pair -> rewriteRecursive(pair) }
                 "MapNode($pairStr)"
             }
 
-            is CBSParser.TupleExpressionContext -> {
+            is TupleExpressionContext -> {
                 val pairStr = toRewrite.exprs()?.expr()?.joinToString(", ") { expr ->
                     rewriteRecursive(expr)
                 }
                 if (pairStr != null) "arrayOf(${pairStr})" else "emptyArray()"
             }
 
-            is CBSParser.SuffixExpressionContext -> {
+            is SuffixExpressionContext -> {
                 val suffixStr = if (toRewrite.op.text == "?") "?" else ""
                 mapParamString(definition, toRewrite.text) + suffixStr
             }
 
-            is CBSParser.VariableContext -> mapParamString(definition, toRewrite.text)
-            is CBSParser.NumberContext -> {
+            is VariableContext -> mapParamString(definition, toRewrite.text)
+            is NumberContext -> {
                 if ('-' in toRewrite.text) {
                     "(${toRewrite.text}).toIntegerNode()"
                 } else {
@@ -137,10 +137,10 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
                 }
             }
 
-            is CBSParser.StringContext -> "(${toRewrite.text}).toStringNode()"
-            is CBSParser.TypeExpressionContext -> rewriteRecursive(toRewrite.value)
-            is CBSParser.NestedExpressionContext -> rewriteRecursive(toRewrite.expr())
-            is CBSParser.PairContext -> {
+            is StringContext -> "(${toRewrite.text}).toStringNode()"
+            is TypeExpressionContext -> rewriteRecursive(toRewrite.value)
+            is NestedExpressionContext -> rewriteRecursive(toRewrite.expr())
+            is PairContext -> {
                 val key = rewriteRecursive(toRewrite.key)
                 val value = rewriteRecursive(toRewrite.value)
                 "TupleNode($key, $value)"
@@ -153,27 +153,27 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
 }
 
 fun extractParams(obj: ParseTree): List<Param> {
-    fun paramHelper(params: CBSParser.ParamsContext?): List<Param> =
+    fun paramHelper(params: ParamsContext?): List<Param> =
         params?.param()?.mapIndexed { i, param -> Param(i, param.value, param.type) } ?: emptyList()
 
     return when (obj) {
-        is CBSParser.FunconDefinitionContext -> paramHelper(obj.params())
-        is CBSParser.TypeDefinitionContext -> paramHelper(obj.params())
-        is CBSParser.DatatypeDefinitionContext -> paramHelper(obj.params())
-        is CBSParser.ControlEntityDefinitionContext -> paramHelper(obj.params())
-        is CBSParser.ContextualEntityDefinitionContext -> paramHelper(obj.params())
-        is CBSParser.MutableEntityDefinitionContext -> paramHelper(obj.lhs)
+        is FunconDefinitionContext -> paramHelper(obj.params())
+        is TypeDefinitionContext -> paramHelper(obj.params())
+        is DatatypeDefinitionContext -> paramHelper(obj.params())
+        is ControlEntityDefinitionContext -> paramHelper(obj.params())
+        is ContextualEntityDefinitionContext -> paramHelper(obj.params())
+        is MutableEntityDefinitionContext -> paramHelper(obj.lhs)
 
         else -> throw DetailedException("Unexpected funcon type: ${obj::class.simpleName}, ${obj.text}")
     }
 }
 
-fun extractArgs(expr: ParseTree): List<CBSParser.ExprContext> {
+fun extractArgs(expr: ParseTree): List<ExprContext> {
     return when (expr) {
-        is CBSParser.FunconExpressionContext -> makeArgList(expr.args())
-        is CBSParser.ListExpressionContext -> expr.elements?.expr() ?: emptyList()
-        is CBSParser.SetExpressionContext -> expr.elements?.expr() ?: emptyList()
-        is CBSParser.LabelContext -> if (expr.value != null) listOf(expr.value) else emptyList()
+        is FunconExpressionContext -> makeArgList(expr.args())
+        is ListExpressionContext -> expr.elements?.expr() ?: emptyList()
+        is SetExpressionContext -> expr.elements?.expr() ?: emptyList()
+        is LabelContext -> if (expr.value != null) listOf(expr.value) else emptyList()
         else -> throw DetailedException("Unexpected expression type: ${expr::class.simpleName}, ${expr.text}")
     }
 }
@@ -182,29 +182,29 @@ fun argsToParams(expr: ParseTree): List<Param> {
     val args = extractArgs(expr)
     return args.mapIndexed { i, arg ->
         when (arg) {
-            is CBSParser.TypeExpressionContext -> Param(i, arg.value, arg.type)
+            is TypeExpressionContext -> Param(i, arg.value, arg.type)
             else -> Param(i, arg, null)
         }
     }
 }
 
-fun makeArgList(args: CBSParser.ArgsContext): List<CBSParser.ExprContext> {
+fun makeArgList(args: ArgsContext): List<ExprContext> {
     return when (args) {
-        is CBSParser.NoArgsContext -> emptyList()
-        is CBSParser.SingleArgsContext -> {
-            if (args.expr() !is CBSParser.TupleExpressionContext) {
+        is NoArgsContext -> emptyList()
+        is SingleArgsContext -> {
+            if (args.expr() !is TupleExpressionContext) {
                 listOf(args.expr())
             } else emptyList()
         }
 
-        is CBSParser.MultipleArgsContext -> args.exprs()?.expr() ?: emptyList()
+        is MultipleArgsContext -> args.exprs()?.expr() ?: emptyList()
         else -> throw DetailedException("Unexpected args type: ${args::class.simpleName}, ${args.text}")
     }
 }
 
-fun partitionArrayArgs(args: List<CBSParser.ExprContext?>): Pair<List<CBSParser.ExprContext>, List<CBSParser.ExprContext>> {
+fun partitionArrayArgs(args: List<ExprContext?>): Pair<List<ExprContext>, List<ExprContext>> {
     return args.filterNotNull().partition { arg ->
-        arg is CBSParser.SuffixExpressionContext || (arg is CBSParser.TypeExpressionContext && arg.value is CBSParser.SuffixExpressionContext)
+        arg is SuffixExpressionContext || (arg is TypeExpressionContext && arg.value is SuffixExpressionContext)
     }
 }
 
@@ -254,13 +254,13 @@ fun getParamStrs(definition: ParseTree, isParam: Boolean = false, prefix: String
 
     fun extractArgsRecursive(definition: ParseTree, parentStr: String = prefix): List<RewriteData> {
         val (obj, args) = when (definition) {
-            is CBSParser.FunconDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
-            is CBSParser.TypeDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
-            is CBSParser.DatatypeDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
-            is CBSParser.FunconExpressionContext -> globalObjects[definition.name.text]!! to argsToParams(definition)
-            is CBSParser.ListExpressionContext -> globalObjects["list"]!! to argsToParams(definition)
-            is CBSParser.SetExpressionContext -> globalObjects["set"]!! to argsToParams(definition)
-            is CBSParser.LabelContext -> globalObjects[definition.name.text]!! to argsToParams(definition)
+            is FunconDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
+            is TypeDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
+            is DatatypeDefinitionContext -> globalObjects[definition.name.text]!! to extractParams(definition)
+            is FunconExpressionContext -> globalObjects[definition.name.text]!! to argsToParams(definition)
+            is ListExpressionContext -> globalObjects["list"]!! to argsToParams(definition)
+            is SetExpressionContext -> globalObjects["set"]!! to argsToParams(definition)
+            is LabelContext -> globalObjects[definition.name.text]!! to argsToParams(definition)
             else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
         }
 
@@ -272,18 +272,18 @@ fun getParamStrs(definition: ParseTree, isParam: Boolean = false, prefix: String
                     listOf(RewriteData(type, null, newStr))
                 }
 
-                is CBSParser.FunconExpressionContext, is CBSParser.ListExpressionContext, is CBSParser.SetExpressionContext -> {
+                is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext -> {
                     val newStr = makeParamStr(argIndex, args.size, obj, parentStr)
                     listOf(RewriteData(null, arg, newStr)) + extractArgsRecursive(arg, newStr)
                 }
 
-                is CBSParser.SuffixExpressionContext, is CBSParser.VariableContext, is CBSParser.NumberContext -> {
-                    val argIsArray = (arg is CBSParser.SuffixExpressionContext && arg.op.text in listOf("+", "*"))
+                is SuffixExpressionContext, is VariableContext, is NumberContext -> {
+                    val argIsArray = (arg is SuffixExpressionContext && arg.op.text in listOf("+", "*"))
                     val newStr = makeParamStr(argIndex, args.size, obj, parentStr, argIsArray = argIsArray)
                     listOf(RewriteData(arg, type, newStr))
                 }
 
-                is CBSParser.TupleExpressionContext -> {
+                is TupleExpressionContext -> {
                     val newStr = makeParamStr(argIndex, args.size, obj, parentStr, argIsArray = true)
                     listOf(RewriteData(arg, null, newStr))
                 }

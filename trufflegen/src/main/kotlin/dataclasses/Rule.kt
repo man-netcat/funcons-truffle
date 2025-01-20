@@ -4,7 +4,7 @@ import cbs.CBSParser.*
 import main.*
 import main.exceptions.DetailedException
 
-class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext) {
+class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, returns: Type) {
     val conditions: MutableList<String> = mutableListOf()
     val assignments: MutableList<String> = mutableListOf()
     val rewrite: String
@@ -33,7 +33,6 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext) {
         } else {
             val paramStrs = getParamStrs(funconExpr, isParam = true)
             (paramStrs + rewriteData).forEach { (argValue, argType, paramStr) ->
-                println("argValue: ${argValue?.text}")
                 val valueCondition = when (argValue) {
                     null -> null
                     is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext -> makeTypeCondition(
@@ -288,6 +287,8 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext) {
 
         processConclusion(ruleDef, conclusion, rewriteData)
 
-        rewrite = rewrite(ruleDef, toRewrite, rewriteData)
+        rewrite = if (toRewrite is TupleExpressionContext && toRewrite.exprs() == null) {
+            if (returns.isNullable) "null" else "emptyArray()"
+        } else rewrite(ruleDef, toRewrite, rewriteData)
     }
 }
