@@ -34,12 +34,14 @@ application {
 }
 
 tasks.named<JavaExec>("run") {
-    val generated = Paths.get(project.projectDir.toString(), "fctruffle", "src", "main", "kotlin", "generated")
+    val cbsPathStr = "../../CBS-beta/Funcons-beta/"
+    val generatedPathStr = "../fctruffle/src/main/kotlin/generated"
+    val generated = Paths.get(generatedPathStr)
     if (Files.notExists(generated)) {
         Files.createDirectories(generated)
     }
     args = listOf(
-        "../../CBS-beta/Funcons-beta/",
-        "../fctruffle/src/main/kotlin/generated"
+        cbsPathStr,
+        generatedPathStr
     )
 }
