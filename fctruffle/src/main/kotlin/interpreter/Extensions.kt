@@ -42,6 +42,11 @@ fun StringsNode.toString(): String {
     }
 }
 
+fun ValueTypesNode.isInstance(other: ValuesNode): Boolean {
+    // TODO: Fix
+    return false
+}
+
 @Funcon
 class EmptyListNode : ListsNode<ValuesNode>()
 

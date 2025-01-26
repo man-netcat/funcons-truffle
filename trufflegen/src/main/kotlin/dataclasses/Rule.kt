@@ -35,9 +35,9 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
             (paramStrs + rewriteData).forEach { (argValue, argType, paramStr) ->
                 val valueCondition = when (argValue) {
                     null -> null
-                    is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext -> makeTypeCondition(
-                        paramStr, argValue
-                    )
+                    is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext -> {
+                        makeTypeCondition(paramStr, argValue)
+                    }
 
                     is NumberContext -> "$paramStr == ${argValue.text}"
                     is TupleExpressionContext -> "${paramStr}.isEmpty()"
@@ -185,7 +185,12 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
             is TypePremiseContext -> {
                 val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
-                val condition = makeTypeCondition(rewriteLhs, premise.type)
+                val condition = if (rhs is VariableContext) {
+                    val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
+                    "${rewriteRhs}.isInstance($rewriteLhs)"
+                } else {
+                    makeTypeCondition(rewriteLhs, premise.type)
+                }
                 conditions.add(condition)
             }
         }

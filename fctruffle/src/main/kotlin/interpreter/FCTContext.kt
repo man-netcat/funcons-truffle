@@ -17,7 +17,7 @@ class FCTContext(env: Env) {
 
     fun putEntity(key: String, entity: FCTEntity): Boolean {
         val existingValue = entities.put(key, entity)
-        if (existingValue != null && !existingValue.isMutable) {
+        if (existingValue != null && existingValue !is FCTMutableEntity) {
             throw IllegalStateException("Trying to modify immutable entity")
         }
         return existingValue == null

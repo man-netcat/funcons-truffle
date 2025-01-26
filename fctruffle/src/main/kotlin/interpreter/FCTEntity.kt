@@ -4,10 +4,6 @@ open class FCTEntity(open val p0: FCTNode?) {
     val name: String
         get() = this::class.simpleName!!
 
-    val isContextual = this is FCTContextualEntity
-    val isControl = this is FCTControlEntity
-    val isMutable = this is FCTMutableEntity
-
     val value: Any?
         get() = p0
 

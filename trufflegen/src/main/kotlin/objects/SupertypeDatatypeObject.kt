@@ -25,9 +25,9 @@ class SupertypeDatatypeObject(
             keywords = listOf("open"),
             constructorArgs = valueParams,
             superClass = superClass,
-            typeParams = emptyList(), // TODO Fix
             body = false,
-            annotations = listOf("DataType")
+            annotations = listOf("DataType"),
+            typeParams = emptySet()
         )
     }
 }

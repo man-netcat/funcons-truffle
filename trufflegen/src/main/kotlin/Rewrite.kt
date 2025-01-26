@@ -83,8 +83,8 @@ fun rewriteType(type: Type, nullable: Boolean = true): String {
 
 fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<RewriteData> = emptyList()): String {
     fun rewriteRecursive(toRewrite: ParseTree): String {
-        fun mapParamString(def: ParseTree, str: String): String {
-            val paramStrs = getParamStrs(def)
+        fun mapParamString(str: String): String {
+            val paramStrs = getParamStrs(definition)
             val exprMap = (paramStrs + rewriteData).associate { (arg, _, paramStr) -> Pair(arg?.text, paramStr) }
             return exprMap[str] ?: throw StringNotFoundException(str, exprMap.keys.toList())
         }
@@ -125,10 +125,10 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
 
             is SuffixExpressionContext -> {
                 val suffixStr = if (toRewrite.op.text == "?") "?" else ""
-                mapParamString(definition, toRewrite.text) + suffixStr
+                mapParamString(toRewrite.text) + suffixStr
             }
 
-            is VariableContext -> mapParamString(definition, toRewrite.text)
+            is VariableContext -> mapParamString(toRewrite.text)
             is NumberContext -> {
                 if ('-' in toRewrite.text) {
                     "(${toRewrite.text}).toIntegerNode()"

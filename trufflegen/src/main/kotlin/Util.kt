@@ -85,7 +85,7 @@ fun makeClass(
     annotations: List<String> = emptyList(),
     constructorArgs: List<String> = emptyList(),
     properties: List<Pair<String, String>> = emptyList(),
-    typeParams: List<Pair<String, String?>> = emptyList(),
+    typeParams: Set<Pair<String, String?>> = emptySet(),
     superClass: String = "",
     interfaces: List<String> = emptyList(),
 ): String {

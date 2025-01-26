@@ -17,13 +17,13 @@ open class EntityObject(
         return makeClass(
             name = nodeName,
             constructorArgs = valueParams,
-            typeParams = emptyList(), // TODO Fix
             body = false,
             annotations = listOf("Entity"),
             superClass = makeFunCall(
                 entityClassName,
                 listOf("p0")
             ),
+            typeParams = emptySet(),
         )
     }
 }

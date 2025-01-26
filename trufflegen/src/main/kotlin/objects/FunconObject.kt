@@ -75,7 +75,8 @@ class FunconObject(
             content = content,
             constructorArgs = valueParams,
             superClass = emptySuperClass(COMPUTATION),
-            annotations = listOf("Funcon")
+            annotations = listOf("Funcon"),
+            typeParams = emptySet()
         )
     }
 }

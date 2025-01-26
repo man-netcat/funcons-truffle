@@ -166,12 +166,12 @@ class CBSFile(val name: String, val root: RootContext) : CBSBaseVisitor<Unit>() 
         imports.forEach { stringBuilder.appendLine("import $it") }
         stringBuilder.appendLine()
 
-        fileMetavariables.forEach { (varName, superType) ->
-            val varStr = rewriteType(Type(varName), nullable = false)
-            val superTypeStr = rewriteType(Type(superType), nullable = false)
-            stringBuilder.appendLine("typealias $varStr = $superTypeStr")
-        }
-        stringBuilder.appendLine()
+//        fileMetavariables.forEach { (varName, superType) ->
+//            val varStr = rewriteType(Type(varName), nullable = false)
+//            val superTypeStr = rewriteType(Type(superType), nullable = false)
+//            stringBuilder.appendLine("typealias $varStr = $superTypeStr")
+//        }
+//        stringBuilder.appendLine()
 
         objects.values.distinct().filterNotNull().forEach { obj ->
             println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $name)")
