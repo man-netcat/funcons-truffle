@@ -5,3 +5,5 @@ rootProject.name = "funcons-truffle"
 include("antlr")
 include("trufflegen")
 include("fctruffle")
+include("sandbox:untitled")
+findProject(":sandbox:untitled")?.name = "untitled"

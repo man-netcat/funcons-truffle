@@ -21,22 +21,20 @@ inputsBlock
    ;
 
 funconTerm
-   : 'funcon-term' ':' funcon ';'
+   : 'funcon-term' ':' IDENTIFIER args ';'
    ;
 
-funcon
-   : funconName '(' exprs ')'
-   | funconName expr
-   ; // Single param funcons can omit parentheses (e.g. 'print')
-   
-funconName
-   : IDENTIFIER
+args
+   : '(' exprs ')' # MultipleArgs
+   | expr # SingleArgs
+   | # NoArgs
    ;
+
 
 expr
    : unOp expr # UnopExpression
    | lhs = expr binOp rhs = expr # BinOpExpression
-   | funcon # FunconExpression
+   | name = IDENTIFIER args # FunconExpression
    | listExpr # ListExpression
    | mapExpr # MapExpression
    | setExpr # SetExpression

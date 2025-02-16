@@ -36,7 +36,7 @@ fun makeFunction(
         result.append(" ")
     }
 
-    result.append("fun $name(${parameters.joinToString(", ")}): $returnType {\n")
+    result.append("fun $name(${parameters.joinToString()}): $returnType {\n")
     result.append(makeBody(body))
     result.append("\n}")
 
@@ -73,14 +73,18 @@ fun makeForLoop(variable: String, range: String, body: String): String {
     return "$loopHeader\n$content\n}"
 }
 
-fun makeVariable(name: String, value: String, type: String? = null): String {
-    return if (type != null) "val $name: $type = $value" else "val $name = $value"
+fun makeVariable(name: String, value: String, type: String? = null, override: Boolean = false): String {
+    return buildString {
+        if (override) append("override ")
+        append("val $name")
+        if (type != null) append(": $type")
+        append(" = $value")
+    }
 }
 
 fun makeClass(
     name: String,
     content: String = "",
-    body: Boolean = true,
     keywords: List<String> = emptyList(),
     annotations: List<String> = emptyList(),
     constructorArgs: List<String> = emptyList(),
@@ -117,7 +121,7 @@ fun makeClass(
     // Constructor arguments
     if (constructorArgs.isNotEmpty()) {
         result.append("(")
-        result.append(constructorArgs.joinToString(", "))
+        result.append(constructorArgs.joinToString())
         result.append(")")
     }
 
@@ -131,11 +135,12 @@ fun makeClass(
         result.append(inheritance.joinToString(" : "))
     }
 
-    // Body
-    if (body) {
+    if (properties.isNotEmpty() || content.isNotBlank()) {
         result.append(" {\n")
         if (properties.isNotEmpty()) {
-            properties.forEach { result.append("    val ${it.first}: ${it.second}\n") }
+            properties.forEach {
+                result.append("    val ${it.first}: ${it.second}\n")
+            }
             if (content.isNotBlank()) result.append("\n")
         }
         if (content.isNotBlank()) result.append(makeBody(content))
@@ -145,37 +150,62 @@ fun makeClass(
     return result.toString()
 }
 
-fun makeWhenExpression(
-    expression: String,
-    branches: List<Pair<String, String>>,
-    elseBranch: String? = null,
-): String {
-    val result = StringBuilder()
+fun makeWhenStatement(cases: List<Pair<String, String>>, elseBranch: String? = null): String {
+    val result = StringBuilder("when {\n")
 
-    result.append("when ($expression) {\n")
-    branches.forEach { (condition, action) ->
-        result.append("    $condition -> $action\n")
+    cases.forEach { (condition, block) ->
+        val formattedBlock = makeBody(block, indentLevel = 0)
+        if ('\n' in formattedBlock) {
+            result.append("    $condition -> {\n")
+            result.append(formattedBlock.prependIndent("        "))
+            result.append("\n    }\n\n")
+        } else {
+            result.append("    $condition -> $formattedBlock\n")
+        }
     }
+
     if (elseBranch != null) {
-        result.append("    else -> $elseBranch\n")
+        val formattedElse = makeBody(elseBranch, indentLevel = 0)
+        if ('\n' in formattedElse) {
+            result.append("    else -> {\n")
+            result.append(formattedElse.prependIndent("        "))
+            result.append("\n    }\n\n")
+        } else {
+            result.append("    else -> $formattedElse\n")
+        }
     }
+
     result.append("}")
 
     return result.toString()
 }
 
-fun makeTypeAlias(aliasName: String, targetType: String): String {
-    return "typealias $aliasName = $targetType"
+
+
+fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<Pair<String, String>> = emptySet()): String {
+    val typeParamStr = if (typeParams.isNotEmpty()) {
+        "<" + typeParams.joinToString(", ") { it.first } + ">"
+    } else ""
+    return "typealias $aliasName$typeParamStr = $targetType$typeParamStr"
 }
 
-fun makeFunCall(name: String, args: List<String>): String {
-    return "$name(${args.joinToString(", ")})"
+fun makeFunCall(
+    name: String,
+    args: List<String> = emptyList(),
+    typeParams: Set<String> = emptySet()
+): String {
+    val typeParamStr = if (typeParams.isNotEmpty()) {
+        "<" + typeParams.joinToString(", ") + ">"
+    } else ""
+    return "$name$typeParamStr(${args.joinToString()})"
 }
 
-fun getGlobal(name: String): String = makeFunCall("getGlobal", listOf("\"${name}\""))
-fun putGlobal(name: String, value: String): String = makeFunCall("putGlobal", listOf("\"${name}\"", value))
-fun getInScope(name: String): String = makeFunCall("getInScope", listOf("frame", "\"${name}\""))
-fun putInScope(name: String, value: String): String = makeFunCall("putInScope", listOf("frame", "\"${name}\"", value))
+fun strStr(str: String): String = "\"${str}\""
+
+fun getGlobalStr(name: String): String = makeFunCall("getGlobal", listOf(strStr(name)))
+fun putGlobalStr(name: String, value: String): String = makeFunCall("putGlobal", listOf(strStr(name), value))
+fun getInScopeStr(name: String): String = makeFunCall("getInScope", listOf("frame", strStr(name)))
+fun putInScopeStr(name: String, value: String): String = makeFunCall("putInScope", listOf("frame", strStr(name), value))
 
 tailrec fun extractAndOrExprs(
     expr: ExprContext, definitions: List<ExprContext> = emptyList(),

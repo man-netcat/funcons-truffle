@@ -4,7 +4,6 @@ import cbs.CBSBaseVisitor
 import cbs.CBSParser.*
 import main.dataclasses.Type
 import main.exceptions.DetailedException
-import main.rewriteType
 import org.antlr.v4.runtime.tree.RuleNode
 
 class MetaVariableVisitor(
@@ -22,14 +21,14 @@ class MetaVariableVisitor(
                             "Expected SuffixExpressionContext for superType, found ${superType::class.simpleName}"
                         )
                         Pair(
-                            rewriteType(Type(metaVariable.operand), nullable = false),
-                            rewriteType(Type(castSuperType), nullable = false)
+                            Type(metaVariable.operand).rewrite(),
+                            Type(castSuperType).rewrite()
                         )
                     }
 
                     is VariableContext -> Pair(
-                        rewriteType(Type(metaVariable), nullable = false),
-                        rewriteType(Type(superType), nullable = false)
+                        Type(metaVariable).rewrite(),
+                        Type(superType).rewrite()
                     )
 
                     else -> throw DetailedException("Unexpected metaVariable type: ${metaVariable::class.simpleName}, ${metaVariable.text}")

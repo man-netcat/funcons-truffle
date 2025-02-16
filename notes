@@ -1,0 +1,13 @@
+what exactly are value constructors?
+
+which values are ground values? are `value-types` instances of `values` or are `values` instances of `value-types`?
+
+why is `maps` not an algebraic datatype consisting of `map`? same applies to `sets` and `set`
+
+find fix for BoundedIntegersNode
+
+types need complete overhaul, current implementation does not work (determine type parameters vs value parameters)
+
+values need an execute function, maybe let user implement it or hardcode it
+
+entities that don't actually change should not explicitly be assigned the same value, but this technically isn't an issue

@@ -58,3 +58,5 @@ reference.cbs
 
 # Maven Wrapper
 !.mvn/wrapper/maven-wrapper.jar
+
+/sandbox/

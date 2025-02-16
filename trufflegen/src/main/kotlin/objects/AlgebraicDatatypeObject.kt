@@ -2,8 +2,7 @@ package main.objects
 
 import cbs.CBSParser.DatatypeDefinitionContext
 import main.dataclasses.Param
-import main.emptySuperClass
-import main.makeClass
+import main.makeFunCall
 import main.toClassName
 
 class AlgebraicDatatypeObject(
@@ -13,15 +12,12 @@ class AlgebraicDatatypeObject(
     aliases: List<String>,
     metaVariables: Set<Pair<String, String>>
 ) : Object(name, ctx, params, aliases, metaVariables) {
-    override fun generateCode(): String {
-        return makeClass(
-            nodeName,
-            body = false,
-            constructorArgs = valueParams,
-            keywords = listOf("open"),
-            superClass = emptySuperClass(toClassName("values")),
-            annotations = listOf("DataType")
-        )
-    }
+    val definitions = mutableListOf<DatatypeFunconObject>()
+    override val annotations: List<String>
+        get() = listOf("DataType")
+    override val keyWords: List<String>
+        get() = listOf("abstract")
+    override val superClassStr: String
+        get() = makeFunCall(toClassName("datatype-values"))
 }
 

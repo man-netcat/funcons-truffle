@@ -4,9 +4,6 @@
     <bytecodeTargetLevel>
       <module name="antlr" target="21" />
       <module name="funcons-truffle.main" target="22" />
-      <module name="funcons-truffle.sandbox" target="21" />
-      <module name="funcons-truffle.sandbox.main" target="21" />
-      <module name="funcons-truffle.sandbox.test" target="21" />
       <module name="funcons-truffle.test" target="22" />
       <module name="funcons-truffle.testsuite" target="21" />
       <module name="funcons-truffle.testsuite.main" target="21" />

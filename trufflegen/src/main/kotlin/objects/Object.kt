@@ -10,29 +10,48 @@ abstract class Object(
     val ctx: ParseTree,
     val params: List<Param>,
     private val aliases: List<String>,
-    val metaVariables: Set<Pair<String, String>>,
+    private val metaVariables: Set<Pair<String, String>>,
 ) {
-    abstract fun generateCode(): String
+    val dependencies = mutableSetOf<Object>()
+    open val contentStr: String = ""
+    open val annotations: List<String> = emptyList()
+    open val superClassStr: String = emptySuperClass(FCTNODE)
+    open val keyWords: List<String> = listOf("open")
 
-    val varargParamIndex: Int = params.indexOfFirst { it.type.isVararg }
-    val paramsAfterVararg: Int = if (varargParamIndex >= 0) params.size - (varargParamIndex + 1) else 0
+    private val nameStr = makeVariable("typeName", strStr(name), override = true)
 
-    val isFuncon = this is FunconObject || this is DatatypeFunconObject
-    val isEntity = this is ControlEntityObject || this is MutableEntityObject || this is ContextualEntityObject
-    val hasNullable = params.size == 1 && params[0].type.isNullable
+    val varargParamIndex: Int get() = params.indexOfFirst { it.type.isVararg }
+    val hasVararg: Boolean get() = varargParamIndex >= 0
+    val paramsAfterVararg: Int get() = if (varargParamIndex >= 0) params.size - (varargParamIndex + 1) else 0
 
-    val valueParams = params.filter { it.value != null }.map { param ->
-        val annotation = makeAnnotation(param.type.isVararg, isEntity)
-        val paramTypeStr = rewriteType(param.type, nullable = true)
-        makeParam(annotation, param.name, paramTypeStr)
-    }
+    private val isFuncon get() = this is FunconObject || this is DatatypeFunconObject
+    private val isEntity get() = this is EntityObject
+    val hasNullable get() = params.size == 1 && params[0].type.isNullable
 
-    fun aliasStr(): String {
-        return aliases.joinToString("\n") { alias ->
-            makeTypeAlias(toClassName(alias), nodeName)
+    open val valueParams: List<String>
+        get() {
+            return params.map { param ->
+                val annotation = makeAnnotation(param.type.isVararg, isEntity)
+                val paramTypeStr = param.type.rewrite(inNullableExpr = true, full = false)
+                makeParam(annotation, param.name, paramTypeStr)
+            }
         }
-    }
 
-    internal val nodeName: String
-        get() = toClassName(name)
+    val aliasStr
+        get() = aliases.joinToString("\n") { alias ->
+            makeTypeAlias(toClassName(alias), nodeName, typeParams = metaVariables)
+        }
+
+    val nodeName = toClassName(name)
+
+    val code
+        get() = makeClass(
+            nodeName,
+            content = "${nameStr}\n$contentStr",
+            constructorArgs = valueParams,
+            superClass = superClassStr,
+            annotations = annotations,
+            typeParams = metaVariables,
+            keywords = keyWords,
+        )
 }

@@ -1,8 +1,7 @@
 package main.objects
 
+import main.*
 import main.dataclasses.Param
-import main.makeClass
-import main.makeFunCall
 import org.antlr.v4.runtime.tree.ParseTree
 
 open class EntityObject(
@@ -11,19 +10,18 @@ open class EntityObject(
     params: List<Param>,
     aliases: List<String>,
     metaVariables: Set<Pair<String, String>>,
-    val entityClassName: String
+    private val entityType: EntityType
 ) : Object(name, ctx, params, aliases, metaVariables) {
-    override fun generateCode(): String {
-        return makeClass(
-            name = nodeName,
-            constructorArgs = valueParams,
-            body = false,
-            annotations = listOf("Entity"),
-            superClass = makeFunCall(
-                entityClassName,
-                listOf("p0")
-            ),
-            typeParams = emptySet(),
-        )
-    }
+    private val entityClassName
+        get() = when (entityType) {
+            EntityType.CONTEXTUAL -> CONTEXTUALENTITY
+            EntityType.CONTROL -> CONTROLENTITY
+            EntityType.MUTABLE -> MUTABLEENTITY
+        }
+
+    override val annotations: List<String>
+        get() = listOf("Entity")
+
+    override val superClassStr: String
+        get() = makeFunCall(entityClassName, listOf("p0"))
 }

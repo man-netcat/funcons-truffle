@@ -1,5 +1,6 @@
 package interpreter
 
+import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
 
 open class NaturalNumberNode(val value: Int) : NaturalNumbersNode()
@@ -35,7 +36,7 @@ fun String.toStringNode(): StringsNode {
     return StringNode(this)
 }
 
-fun StringsNode.toString(): String {
+fun StringsNode.toStringLiteral(): String {
     return when (this) {
         is StringNode -> this.value
         else -> throw IllegalArgumentException("Unsupported StringsNode type")
@@ -43,12 +44,15 @@ fun StringsNode.toString(): String {
 }
 
 fun ValueTypesNode.isInstance(other: ValuesNode): Boolean {
-    // TODO: Fix
-    return false
+    TODO("Not yet implemented")
 }
 
-@Funcon
-class EmptyListNode : ListsNode<ValuesNode>()
+class SequenceNode(vararg val p0: FCTNode) : FCTNode() {
+    override val typeName: String = "sequence"
 
-@Funcon
-class EmptySequenceNode : ValuesNode()
+    override fun execute(frame: VirtualFrame): FCTNode? {
+        TODO("Not yet implemented")
+    }
+
+    fun toTypedArray(): Array<out FCTNode> = p0
+}

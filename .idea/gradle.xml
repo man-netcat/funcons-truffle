@@ -14,6 +14,8 @@
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/antlr" />
             <option value="$PROJECT_DIR$/fctruffle" />
+            <option value="$PROJECT_DIR$/sandbox" />
+            <option value="$PROJECT_DIR$/sandbox/untitled" />
             <option value="$PROJECT_DIR$/trufflegen" />
           </set>
         </option>
