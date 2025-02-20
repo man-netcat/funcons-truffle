@@ -3,6 +3,7 @@ package main.dataclasses
 import cbs.CBSParser.*
 import main.*
 import main.exceptions.DetailedException
+import main.objects.EntityObject
 
 class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, returns: Type) {
     private val conditions: MutableList<String> = mutableListOf()
@@ -26,7 +27,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
     }
 
     private fun argsConditions(funconExpr: FunconExpressionContext, rewriteData: List<RewriteData>) {
-        val obj = globalObjects[funconExpr.name.text]!!
+        val obj = getObject(funconExpr)
         val args = extractArgs(funconExpr)
         if (obj.params.size == 1 && args.isEmpty()) {
             val condition = if (obj.params[0].type.isVararg) "p0.isEmpty()" else "p0 == null"
@@ -47,7 +48,10 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                         conditions.add(typeCondition)
                     }
 
-                    is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext, is ComplementExpressionContext -> {
+                    is FunconExpressionContext,
+                    is ListExpressionContext,
+                    is SetExpressionContext,
+                    is ComplementExpressionContext -> {
                         val typeCondition = makeTypeCondition(paramStr, argType)
                         conditions.add(typeCondition)
                     }
@@ -107,7 +111,9 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 } else throw DetailedException("Unexpected expression of type ${rhs::class.simpleName}, ${rhs.text}")
             }
 
-            is TransitionPremiseContext, is TransitionPremiseWithControlEntityContext, is TransitionPremiseWithContextualEntityContext -> {
+            is TransitionPremiseContext,
+            is TransitionPremiseWithControlEntityContext,
+            is TransitionPremiseWithContextualEntityContext -> {
                 val rewriteRhs = newVar()
                 listOf(RewriteData(rhs, null, rewriteRhs))
             }
@@ -143,7 +149,10 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 }
             }
 
-            is TransitionPremiseContext, is TransitionPremiseWithControlEntityContext, is TransitionPremiseWithContextualEntityContext, is TransitionPremiseWithMutableEntityContext -> {
+            is TransitionPremiseContext,
+            is TransitionPremiseWithControlEntityContext,
+            is TransitionPremiseWithContextualEntityContext,
+            is TransitionPremiseWithMutableEntityContext -> {
                 val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
                 val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
 
@@ -222,6 +231,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
     ) {
         fun addAssignment(label: LabelContext, putStrFunc: (String, String) -> String) {
             val valueStr = if (label.value != null) {
+                println("rewriting: ${label.text}")
                 rewrite(ruleDef, label.value, rewriteData)
             } else "null"
             val assignment = putStrFunc(label.name.text, valueStr)
@@ -255,7 +265,11 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         }
     }
 
-    private fun processEntities(premiseExpr: PremiseExprContext): List<RewriteData> {
+    private fun processEntities(
+        ruleDef: ExprContext,
+        premiseExpr: PremiseExprContext,
+        isConclusion: Boolean = false
+    ): List<RewriteData> {
         val labels = when (premiseExpr) {
             is TransitionPremiseWithControlEntityContext -> {
                 val steps = premiseExpr.steps().step().sortedBy { it.sequenceNumber.text.toInt() }
@@ -269,15 +283,28 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
         if (labels.isEmpty()) return emptyList()
 
-        val getFunc = when (premiseExpr) {
-            is TransitionPremiseWithControlEntityContext, is TransitionPremiseWithMutableEntityContext -> ::getGlobalStr
-            is TransitionPremiseWithContextualEntityContext -> ::getInScopeStr
-            else -> throw DetailedException("Unexpected premise type: ${premiseExpr::class.simpleName}")
-        }
-
         return labels.flatMap { label ->
-            val getStr = getFunc(label.name.text)
-            getParamStrs(label, prefix = getStr)
+            if (isConclusion) {
+                val labelObj = getObject(label) as EntityObject
+                println("labelObjName: ${labelObj.name}, type: ${labelObj::class.simpleName}")
+                val valueStr = if (label.value != null) {
+                    rewrite(ruleDef, label.value)
+                } else ""
+                val star = if (labelObj.isIOEntity) "*" else ""
+                val newEntityStr = "${labelObj.nodeName}($star$valueStr)"
+
+                listOf(RewriteData(label.value, null, newEntityStr))
+            } else {
+                val getFunc = when (premiseExpr) {
+                    is TransitionPremiseWithControlEntityContext,
+                    is TransitionPremiseWithMutableEntityContext -> ::getGlobalStr
+
+                    is TransitionPremiseWithContextualEntityContext -> ::getInScopeStr
+                    else -> throw DetailedException("Unexpected premise type: ${premiseExpr::class.simpleName}")
+                }
+                val getStr = getFunc(label.name.text)
+                getParamStrs(label, prefix = getStr)
+            }
         }
     }
 
@@ -289,7 +316,8 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
             val rewriteData = mutableListOf<RewriteData>()
 
             // Add values for entities
-            rewriteData.addAll((premises + conclusion).flatMap { premise -> processEntities(premise) })
+            rewriteData.addAll((premises).flatMap { premise -> processEntities(ruleDef, premise) })
+            rewriteData.addAll(processEntities(ruleDef, conclusion, isConclusion = true))
 
             // Process all intermediate values
             // TODO: Identify common intermediates, maybe outside the scope of a single Rule

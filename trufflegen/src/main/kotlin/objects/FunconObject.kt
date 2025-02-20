@@ -2,22 +2,19 @@ package objects
 
 import cbs.CBSParser.*
 import main.*
-import main.dataclasses.Param
 import main.dataclasses.Rule
 import main.dataclasses.Type
+import main.exceptions.EmptyConditionException
 import main.objects.Object
 
 class FunconObject(
-    name: String,
     ctx: FunconDefinitionContext,
-    params: List<Param>,
-    aliases: List<String>,
     metaVariables: Set<Pair<String, String>>,
     val returns: Type,
     private val builtin: Boolean,
     val rules: List<RuleDefinitionContext> = emptyList(),
     val rewritesTo: ExprContext? = null
-) : Object(name, ctx, params, aliases, metaVariables) {
+) : Object(ctx, metaVariables) {
     private val skipCriteria: Boolean
         get() = listOf(
             builtin,               // Builtins should be implemented manually
@@ -50,9 +47,9 @@ class FunconObject(
                     Rule(premises, conclusion, returns)
                 }
 
-//                if (ruleObjs.isEmpty() || ruleObjs.any { ruleObj ->
-//                        ruleObj.conditionStr.isBlank()
-//                    }) throw EmptyConditionException(name)
+                if (ruleObjs.isEmpty() || ruleObjs.any { ruleObj ->
+                        ruleObj.conditionStr.isBlank()
+                    }) throw EmptyConditionException(name)
 
                 val pairs = ruleObjs.map { rule ->
                     rule.conditionStr to rule.bodyStr
@@ -69,7 +66,7 @@ class FunconObject(
         } else todoExecute(returnStr)
 
     override val annotations: List<String>
-        get() = listOf("Funcon")
+        get() = listOf("CBSFuncon")
 
     override val keyWords: List<String> = emptyList()
 }

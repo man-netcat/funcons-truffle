@@ -1,17 +1,17 @@
 package main.objects
 
 import main.*
-import main.dataclasses.Param
 import objects.FunconObject
 import org.antlr.v4.runtime.tree.ParseTree
 
 abstract class Object(
-    val name: String,
     val ctx: ParseTree,
-    val params: List<Param>,
-    private val aliases: List<String>,
     private val metaVariables: Set<Pair<String, String>>,
 ) {
+    val name get() = getObjectName(ctx)
+    val aliases get() = getObjectAliases(ctx)
+    val params get() = getParams(ctx)
+
     val dependencies = mutableSetOf<Object>()
     open val contentStr: String = ""
     open val annotations: List<String> = emptyList()
@@ -28,10 +28,10 @@ abstract class Object(
     private val isEntity get() = this is EntityObject
     val hasNullable get() = params.size == 1 && params[0].type.isNullable
 
-    open val valueParams: List<String>
+    private val valueParamStrs: List<String>
         get() {
             return params.map { param ->
-                val annotation = makeAnnotation(param.type.isVararg, isEntity)
+                val annotation = makeAnnotation(param.type.isVararg)
                 val paramTypeStr = param.type.rewrite(inNullableExpr = true, full = false)
                 makeParam(annotation, param.name, paramTypeStr)
             }
@@ -48,7 +48,7 @@ abstract class Object(
         get() = makeClass(
             nodeName,
             content = "${nameStr}\n$contentStr",
-            constructorArgs = valueParams,
+            constructorArgs = valueParamStrs,
             superClass = superClassStr,
             annotations = annotations,
             typeParams = metaVariables,

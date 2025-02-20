@@ -49,7 +49,7 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
                 val pairStr = toRewrite.exprs()?.expr()?.joinToString(", ") { expr ->
                     rewriteRecursive(expr)
                 }
-                if (pairStr != null) "arrayOf(${pairStr})" else "emptyArray()"
+                if (pairStr != null) "sequenceOf(${pairStr})" else "emptySequence()"
             }
 
             is SuffixExpressionContext -> {
@@ -138,11 +138,22 @@ fun partitionArrayArgs(args: List<ExprContext?>): Pair<List<ExprContext>, List<E
     }
 }
 
+fun partitionParams(params: List<Param>): Pair<List<Param>, List<Param>> {
+    return params.partition { param -> param.value != null }
+}
+
 fun getParams(definition: ParseTree) = when (definition) {
-    is FunconDefinitionContext, is TypeDefinitionContext, is DatatypeDefinitionContext -> extractParams(definition)
-    is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext, is LabelContext -> argsToParams(
-        definition
-    )
+    is FunconDefinitionContext,
+    is TypeDefinitionContext,
+    is ControlEntityDefinitionContext,
+    is ContextualEntityDefinitionContext,
+    is MutableEntityDefinitionContext,
+    is DatatypeDefinitionContext -> extractParams(definition)
+
+    is FunconExpressionContext,
+    is ListExpressionContext,
+    is SetExpressionContext,
+    is LabelContext -> argsToParams(definition)
 
     else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
 }

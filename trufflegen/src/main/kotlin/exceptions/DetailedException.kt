@@ -1,8 +1,6 @@
 package main.exceptions
 
-open class DetailedException(
-    message: String, cause: Throwable? = null
-) : Exception(message, cause) {
+open class DetailedException(message: String, cause: Throwable? = null) : Exception(message, cause) {
     private val red = "\u001B[31m"
     private val reset = "\u001B[0m"
 

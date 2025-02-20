@@ -6,10 +6,10 @@ import com.oracle.truffle.api.nodes.Node
 import com.oracle.truffle.api.source.Source
 import fct.FCTLexer
 import fct.FCTParser
-import fct.FCTParser.GeneralBlockContext
+import fct.FCTParser.*
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
-import java.lang.reflect.Constructor
+import org.antlr.v4.runtime.tree.ParseTree
 
 @TruffleLanguage.Registration(
     id = FCTLanguage.ID,
@@ -62,34 +62,69 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
         return fctRootNode.callTarget
     }
 
-    private fun toClassName(funconName: String): String {
-        return "generated." + funconName.split('-').joinToString("") { it.replaceFirstChar(Char::titlecase) } + "Node"
-    }
-
-    // Function to instantiate the class from its name
-    private fun instantiateClass(className: String): Any? {
-        // Load the class by name
-        val clazz = Class.forName(className)
-
-        // Get the default constructor
-        val constructor: Constructor<*> = clazz.getConstructor()
-
-        // Create an instance using the constructor
-        return constructor.newInstance()
-    }
-
     private fun convertToFCTNode(context: GeneralBlockContext): FCTNode {
         val expr = context.funconTerm()
+        return buildTree(expr)
+    }
 
-        // Extract the funconName
-        val funconName = expr.funcon().funconName().text
 
-        // Convert the funconName to a class name
-        val className = toClassName(funconName)
+    private fun buildTree(parseTree: ParseTree): FCTNode {
+        return when (parseTree) {
+            is FunconExpressionContext -> {
+                val functionName = parseTree.name.text
+                val children = when (val args = parseTree.args()) {
+                    is MultipleArgsContext -> args.exprs().expr().map { buildTree(it) }
+                    is SingleArgsContext -> listOf(buildTree(args.expr()))
+                    is NoArgsContext -> emptyList()
+                    else -> throw IllegalArgumentException("Unknown arg type: ${args::class.simpleName}, ${args.text}")
+                }
 
-        // Instantiate the class
-        val fctNode = instantiateClass(className) as? FCTNode
+                FCTNodeFactory.createNode(functionName, children)
+            }
 
-        return fctNode ?: throw IllegalArgumentException("Class $className could not be instantiated")
+            is ListExpressionContext -> {
+                val elements = parseTree.listExpr().exprs()?.expr()?.map { buildTree(it) } ?: emptyList()
+                FCTNodeFactory.createNode("list", elements)
+            }
+
+            is SetExpressionContext -> {
+                val elements = parseTree.setExpr().exprs()?.expr()?.map { buildTree(it) } ?: emptyList()
+                FCTNodeFactory.createNode("set", elements)
+            }
+
+            is MapExpressionContext -> {
+                val pairs = parseTree.mapExpr().pairs()?.pair()?.map {
+                    val key = buildTree(it.key)
+                    val value = buildTree(it.value)
+                    key to value
+                } ?: emptyList()
+                val elements = pairs.map { pair -> FCTNodeFactory.createNode("tuple", pair.toList()) }
+                FCTNodeFactory.createNode("map", elements)
+            }
+
+            is TupleExpressionContext -> {
+                val elements = parseTree.tupleExpr().exprs()?.expr()?.map { buildTree(it) } ?: emptyList()
+                FCTNodeFactory.createNode("tuple", elements)
+            }
+
+            is TerminalExpressionContext -> {
+                when (val terminal = parseTree.terminalValue()) {
+                    is StringContext -> {
+                        val str = terminal.STRING().text.removeSurrounding("\"").toStringNode()
+                        FCTNodeFactory.createNode("string", listOf(str))
+                    }
+
+                    is NumberContext -> {
+                        val num = terminal.NUMBER().text.toInt().toIntegerNode()
+                        FCTNodeFactory.createNode("integer", listOf(num))
+                    }
+
+                    is EmptyContext -> FCTNodeFactory.createNode("null-value", emptyList())
+                    else -> throw IllegalArgumentException("Unknown terminal value: $terminal")
+                }
+            }
+
+            else -> throw IllegalArgumentException("Unsupported expression type: ${parseTree::class.simpleName}")
+        }
     }
 }

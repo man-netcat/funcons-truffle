@@ -30,7 +30,7 @@ fun main(args: Array<String>) {
     val language = FCTLanguage()
 
     // Parse the source code to create a CallTarget
-    val callTarget = language.parse(source)
+    val callTarget = language.parseSource(source)
 
     val result = callTarget.call()
     println("Execution result: $result")

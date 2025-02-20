@@ -1,27 +1,33 @@
 package main.objects
 
 import main.*
-import main.dataclasses.Param
 import org.antlr.v4.runtime.tree.ParseTree
 
 open class EntityObject(
-    name: String,
     ctx: ParseTree,
-    params: List<Param>,
-    aliases: List<String>,
     metaVariables: Set<Pair<String, String>>,
     private val entityType: EntityType
-) : Object(name, ctx, params, aliases, metaVariables) {
+) : Object(ctx, metaVariables) {
+    private val entityClassMap = mapOf(
+        EntityType.CONTEXTUAL to CONTEXTUALENTITY,
+        EntityType.CONTROL to CONTROLENTITY,
+        EntityType.MUTABLE to MUTABLEENTITY,
+        EntityType.INPUT to INPUTENTITY,
+        EntityType.OUTPUT to OUTPUTENTITY
+    )
+
     private val entityClassName
-        get() = when (entityType) {
-            EntityType.CONTEXTUAL -> CONTEXTUALENTITY
-            EntityType.CONTROL -> CONTROLENTITY
-            EntityType.MUTABLE -> MUTABLEENTITY
-        }
+        get() = entityClassMap[entityType]!!
+
+
+    val isIOEntity get() = entityType in listOf(EntityType.INPUT, EntityType.OUTPUT)
 
     override val annotations: List<String>
-        get() = listOf("Entity")
+        get() = listOf("CBSEntity")
 
     override val superClassStr: String
-        get() = makeFunCall(entityClassName, listOf("p0"))
+        get() {
+            val value = if (isIOEntity) "*p0" else "p0"
+            return makeFunCall(entityClassName, listOf(value))
+        }
 }

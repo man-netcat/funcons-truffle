@@ -1,13 +1,17 @@
 package main
 
-const val ENTITY = "FCTEntity"
-const val CONTEXTUALENTITY = "FCTContextualEntity"
-const val MUTABLEENTITY = "FCTMutableEntity"
-const val CONTROLENTITY = "FCTControlEntity"
+const val ENTITY = "Entity"
+const val CONTEXTUALENTITY = "ContextualEntity"
+const val MUTABLEENTITY = "MutableEntity"
+const val CONTROLENTITY = "ControlEntity"
+const val INPUTENTITY = "InputEntity"
+const val OUTPUTENTITY = "OutputEntity"
 const val FCTNODE = "FCTNode"
 
 enum class EntityType {
     CONTEXTUAL,
     CONTROL,
-    MUTABLE
+    MUTABLE,
+    INPUT,
+    OUTPUT
 }

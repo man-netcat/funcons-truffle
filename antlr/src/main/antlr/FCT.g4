@@ -21,7 +21,7 @@ inputsBlock
    ;
 
 funconTerm
-   : 'funcon-term' ':' IDENTIFIER args ';'
+   : 'funcon-term' ':' expr ';'
    ;
 
 args
@@ -39,22 +39,21 @@ expr
    | mapExpr # MapExpression
    | setExpr # SetExpression
    | tupleExpr # TupleExpression
-   | terminal # TerminalExpression
+   | terminalValue # TerminalExpression
    ;
 
 exprs
    : (expr (',' expr)*)?
    ;
 
-terminal
-   : STRING
-   | IDENTIFIER
-   | NUMBER
-   | EMPTY
+terminalValue
+   : STRING # String
+   | NUMBER # Number
+   | EMPTY # Empty
    ;
 
 terminals
-   : (terminal (',' terminal)*)?
+   : (terminalValue (',' terminalValue)*)?
    ;
 
 listExpr
@@ -74,7 +73,7 @@ pair
    ;
 
 termPair
-   : key = terminal '|->' value = terminal
+   : key = terminalValue '|->' value = terminalValue
    ;
 
 pairs
@@ -98,7 +97,7 @@ input
    | '[' terminals ']' # InputList
    | '{' termPairs '}' # InputMap
    | '{' terminals '}' # InputSet
-   | terminal # InputValue
+   | terminalValue # InputValue
    ;
 
 tests
@@ -159,7 +158,7 @@ STRING
    ;
 
 IDENTIFIER
-   : [a-zA-Z_] [a-zA-Z0-9_-]*
+   : [a-zA-Z_] [a-zA-Z0-9-]*
    ;
 
 NUMBER

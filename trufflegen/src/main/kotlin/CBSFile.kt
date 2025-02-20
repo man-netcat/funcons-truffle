@@ -12,8 +12,8 @@ import objects.FunconObject
 import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.tree.ParseTree
 
-class CBSFile(val name: String) : CBSBaseVisitor<Unit>() {
-    internal val objects = mutableMapOf<String, Object?>()
+class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
+    val objects = mutableMapOf<String, Object?>()
     private var fileMetavariables: Set<Pair<ExprContext, ExprContext>> = emptySet()
 
     private fun identifyMetavariables(ctx: ParseTree): MutableSet<Pair<String, String>> {
@@ -22,79 +22,63 @@ class CBSFile(val name: String) : CBSBaseVisitor<Unit>() {
         return visitor.objectMetaVariables
     }
 
-    private fun processAliases(aliases: List<AliasDefinitionContext>): List<String> {
-        return aliases.mapNotNull { it.name.text }
+    private fun addObjectReference(obj: Object) {
+        objects[obj.name] = obj
+        obj.aliases.forEach { alias -> objects[alias] = obj }
     }
 
-    private fun addObjectReference(obj: Object, name: String, aliases: List<String> = emptyList()) {
-        objects[name] = obj
-        aliases.forEach { alias -> objects[alias] = obj }
-    }
-
-    override fun visitMetavariablesDefinition(metavarDefs: MetavariablesDefinitionContext) {
-        fileMetavariables = metavarDefs.metavarDef().flatMap { def ->
+    override fun visitMetavariablesDefinition(ctx: MetavariablesDefinitionContext) {
+        fileMetavariables = ctx.metavarDef().flatMap { def ->
             def.variables.expr().mapNotNull { metaVar -> metaVar to def.supertype }
         }.filter { (varName, _) -> varName is VariableContext }.toSet()
     }
 
-    override fun visitFunconDefinition(funcon: FunconDefinitionContext) {
-        val name = funcon.name.text
-        val params = extractParams(funcon)
-        val returns = Type(funcon.returnType)
-        val aliases = processAliases(funcon.aliasDefinition())
-        val builtin = funcon.modifier != null
-        val metaVariables = identifyMetavariables(funcon)
+    override fun visitFunconDefinition(ctx: FunconDefinitionContext) {
+        val returns = Type(ctx.returnType)
+        val builtin = ctx.modifier != null
+        val metaVariables = identifyMetavariables(ctx)
 
         val dataContainer = FunconObject(
-            name,
-            funcon,
-            params,
-            aliases,
+            ctx,
             metaVariables,
             returns,
             builtin,
-            rules = funcon.ruleDefinition(),
-            rewritesTo = funcon.rewritesTo
+            rules = ctx.ruleDefinition(),
+            rewritesTo = ctx.rewritesTo
         )
 
-        addObjectReference(dataContainer, name, aliases)
+        addObjectReference(dataContainer)
     }
 
-    override fun visitDatatypeDefinition(datatype: DatatypeDefinitionContext) {
-        val name = datatype.name.text
-        val params = extractParams(datatype)
-        val operator = datatype.op?.text ?: ""
-        val aliases = processAliases(datatype.aliasDefinition())
-        val definitions = extractAndOrExprs(datatype.definition)
-        val metaVariables = identifyMetavariables(datatype)
+    override fun visitDatatypeDefinition(ctx: DatatypeDefinitionContext) {
+        val operator = ctx.op?.text ?: ""
+        val definitions = extractAndOrExprs(ctx.definition)
+        val metaVariables = identifyMetavariables(ctx)
 
         when (operator) {
             "<:" -> {
                 val datatypeDataContainer =
-                    SupertypeDatatypeObject(name, datatype, params, definitions, aliases, metaVariables)
-                addObjectReference(datatypeDataContainer, name, aliases)
+                    SupertypeDatatypeObject(ctx, metaVariables, definitions)
+                addObjectReference(datatypeDataContainer)
 
             }
 
             "::=" -> {
-                val datatypeDataContainer = AlgebraicDatatypeObject(name, datatype, params, aliases, metaVariables)
-                addObjectReference(datatypeDataContainer, name, aliases)
+                val datatypeDataContainer = AlgebraicDatatypeObject(ctx, metaVariables)
+                addObjectReference(datatypeDataContainer)
 
 
                 definitions.forEach { funcon ->
                     when (funcon) {
                         is FunconExpressionContext -> {
                             val datatypeFunconName = funcon.name.text
-                            val datatypeFunconParams = argsToParams(funcon)
                             val dataContainer =
                                 DatatypeFunconObject(
-                                    datatypeFunconName,
                                     funcon,
-                                    datatypeFunconParams,
                                     metaVariables,
                                     datatypeDataContainer
                                 )
-                            addObjectReference(dataContainer, datatypeFunconName)
+                            addObjectReference(dataContainer)
                             datatypeDataContainer.definitions.add(dataContainer)
                         }
 
@@ -111,57 +95,42 @@ class CBSFile(val name: String) : CBSBaseVisitor<Unit>() {
         }
     }
 
-    override fun visitTypeDefinition(type: TypeDefinitionContext) {
-        val name = type.name.text
-        val params = extractParams(type)
-        val operator = type.op?.text
-        val definitions = if (type.definition != null) extractAndOrExprs(type.definition) else emptyList()
-        val aliases = processAliases(type.aliasDefinition())
-        val builtin = type.modifier != null
-        val metaVariables = identifyMetavariables(type)
-
-        val dataContainer = TypeObject(name, type, params, metaVariables, aliases, definitions)
-
-        addObjectReference(dataContainer, name, aliases)
+    override fun visitTypeDefinition(ctx: TypeDefinitionContext) {
+        val metaVariables = identifyMetavariables(ctx)
+        val dataContainer = TypeObject(ctx, metaVariables)
+        addObjectReference(dataContainer)
     }
 
-    private fun processEntityDefinition(
-        context: ParserRuleContext, entityType: EntityType
-    ) {
-        val (name, aliasDefinition) = when (context) {
-            is ControlEntityDefinitionContext -> context.name.text to context.aliasDefinition()
-            is ContextualEntityDefinitionContext -> context.name.text to context.aliasDefinition()
-            is MutableEntityDefinitionContext -> context.name.text to context.aliasDefinition()
-            else -> throw DetailedException(
-                "Unexpected context type encountered: ${context::class.simpleName}, with text: '${context.text}'"
-            )
-        }
-        val params = extractParams(context)
-        val aliases = processAliases(aliasDefinition)
-        val metaVariables = identifyMetavariables(context)
-
-        val dataContainer = EntityObject(name, context, params, aliases, metaVariables, entityType)
-
-        addObjectReference(dataContainer, name, aliases)
+    private fun processEntityDefinition(ctx: ParserRuleContext, entityType: EntityType) {
+        val metaVariables = identifyMetavariables(ctx)
+        val dataContainer = EntityObject(ctx, metaVariables, entityType)
+        addObjectReference(dataContainer)
     }
 
-    override fun visitControlEntityDefinition(controlEntity: ControlEntityDefinitionContext) {
-        processEntityDefinition(controlEntity, EntityType.CONTROL)
+    override fun visitControlEntityDefinition(ctx: ControlEntityDefinitionContext) {
+        val entityType = if (ctx.polarity != null) {
+            when (ctx.polarity.text) {
+                "?" -> EntityType.INPUT
+                "!" -> EntityType.OUTPUT
+                else -> throw DetailedException("Unexpected polarity encountered: ${ctx.polarity.text}")
+            }
+        } else EntityType.CONTROL
+        processEntityDefinition(ctx, entityType)
     }
 
-    override fun visitMutableEntityDefinition(mutableEntity: MutableEntityDefinitionContext) {
-        processEntityDefinition(mutableEntity, EntityType.MUTABLE)
+    override fun visitMutableEntityDefinition(ctx: MutableEntityDefinitionContext) {
+        processEntityDefinition(ctx, EntityType.MUTABLE)
     }
 
-    override fun visitContextualEntityDefinition(contextualEntity: ContextualEntityDefinitionContext) {
-        processEntityDefinition(contextualEntity, EntityType.CONTEXTUAL)
+    override fun visitContextualEntityDefinition(ctx: ContextualEntityDefinitionContext) {
+        processEntityDefinition(ctx, EntityType.CONTEXTUAL)
     }
 
-    fun generateCode(generatedDependencies: MutableSet<Object>): String {
+    fun generateCode(generatedDependencies: MutableSet<Object>): String? {
         val included = generatedDependencies.ifEmpty { globalObjects.values.toSet() }
         val toProcess = objects.values.distinct().filterNotNull().filter { obj -> obj in included }
 
-        if (toProcess.isEmpty()) return ""
+        if (toProcess.isEmpty()) return null
 
         val stringBuilder = StringBuilder()
 
@@ -186,7 +155,7 @@ class CBSFile(val name: String) : CBSBaseVisitor<Unit>() {
 //        stringBuilder.appendLine()
 
         toProcess.forEach { obj ->
-            println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $name)")
+            println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $fileName)")
             try {
                 val code = obj.code
                 val aliasStr = obj.aliasStr

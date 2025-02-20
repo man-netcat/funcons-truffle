@@ -1,15 +1,15 @@
+
+
+import cbs.CBSLexer
+import cbs.CBSParser
+import fct.FCTLexer
+import fct.FCTParser
 import org.antlr.v4.runtime.*
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.io.File
 import java.util.stream.Stream
-
-import cbs.CBSParser
-import cbs.CBSLexer
-
-import fct.FCTParser
-import fct.FCTLexer
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GrammarTest {
@@ -61,7 +61,7 @@ class GrammarTest {
         }
 
         private fun getFilesStream(fileExtension: String): Stream<File> {
-            val directory = File("../CBS-beta/Funcons-beta")
+            val directory = File("../../CBS-beta/Funcons-beta")
 
             return directory.walk().filter { it.isFile && it.extension == fileExtension }.toList().stream()
         }

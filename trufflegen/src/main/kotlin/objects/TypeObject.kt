@@ -1,21 +1,19 @@
 package main.objects
 
-import cbs.CBSParser.*
+import cbs.CBSParser.FunconExpressionContext
+import cbs.CBSParser.TypeDefinitionContext
 import main.*
-import main.dataclasses.Param
-import main.dataclasses.Type
 import main.exceptions.DetailedException
 
 class TypeObject(
-    name: String,
     ctx: TypeDefinitionContext,
-    params: List<Param>,
     metaVariables: Set<Pair<String, String>>,
-    aliases: List<String>,
-    private val definitions: List<ExprContext>
-) : Object(name, ctx, params, aliases, metaVariables) {
+) : Object(ctx, metaVariables) {
     override val keyWords: List<String> = listOf("abstract")
-    override val annotations: List<String> = listOf("Type")
+    override val annotations: List<String> = listOf("CBSType")
+    private val definitions = if (ctx.definition != null) extractAndOrExprs(ctx.definition) else emptyList()
+    val operator = ctx.op?.text
+    val builtin = ctx.modifier != null
     override val superClassStr: String
         get() = when (definitions.size) {
             0 -> {
@@ -28,10 +26,13 @@ class TypeObject(
             1 -> {
                 val definition = definitions[0]
                 if (definition is FunconExpressionContext) {
-                    val funconObj = globalObjects[definition.name.text]!!
-                    val args = extractArgs(definition)
-                    val typeParams = args.map { arg -> Type(arg).rewrite() }.toSet()
-                    makeFunCall(funconObj.nodeName, typeParams = typeParams)
+                    val defType = getObject(definition)
+                    when (defType) {
+                        is TypeObject -> println("TypeObject: ${defType.name}")
+                        is AlgebraicDatatypeObject -> println("AlgebraicDatatypeObject: ${defType.name}")
+                        is SupertypeDatatypeObject -> println("SupertypeDatatypeObject: ${defType.name}")
+                    }
+                    makeFunCall(defType.nodeName, args = listOf(), typeParams = setOf())
                 } else throw DetailedException("Unexpected definition ${definition.text}")
             }
 

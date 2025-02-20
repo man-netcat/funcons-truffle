@@ -5,8 +5,7 @@ import main.exceptions.DetailedException
 import main.extractArgs
 import main.toClassName
 
-class
-Type(private val expr: ExprContext?, val isParam: Boolean = false) {
+class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
     var computes = false
     var isComplement = false
     var isStarExpr = false
@@ -156,9 +155,9 @@ Type(private val expr: ExprContext?, val isParam: Boolean = false) {
 
         val rewrite = rewriteTypeRecursive(expr, inNullableExpr)
         return if (isArrayCounter == 2 && isParam) {
-            "Array<in $rewrite>"
+            "Sequence<in $rewrite>"
         } else if (isArrayCounter == 1 && !isParam) {
-            "Array<out $rewrite>"
+            "Sequence<out $rewrite>"
         } else rewrite
 //        return if (inNullableExpr && isNullable) "$res?" else res
     }

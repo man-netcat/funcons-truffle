@@ -1,10 +1,11 @@
 package main.visitors
 
 import cbs.CBSBaseVisitor
-import cbs.CBSParser.*
+import cbs.CBSParser.FunconExpressionContext
+import cbs.CBSParser.LabelContext
 
-class DependencyVisitor : CBSBaseVisitor<Unit>() {
-    val dependencies = mutableListOf<String>()
+class CBSDependencyVisitor : CBSBaseVisitor<Unit>() {
+    val dependencies = mutableSetOf<String>()
 
     override fun visitFunconExpression(ctx: FunconExpressionContext) {
         dependencies.add(ctx.name.text)

@@ -8,8 +8,8 @@ import main.exceptions.DetailedException
 import main.objects.AlgebraicDatatypeObject
 import main.objects.Object
 import main.objects.TypeObject
-import main.visitors.DependencyVisitor
-import main.visitors.FCTFunconsVisitor
+import main.visitors.CBSDependencyVisitor
+import main.visitors.FCTDependencyVisitor
 import main.visitors.IndexVisitor
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
@@ -99,30 +99,36 @@ class TruffleGen(
 
     private fun generateDependencies() {
         val usedFuncons = fctParseTrees.flatMap { (name, root) ->
-            val fctVisitor = FCTFunconsVisitor()
+            val fctVisitor = FCTDependencyVisitor()
             fctVisitor.visit(root)
-            fctVisitor.fileFuncons
+            fctVisitor.dependencies
         }.distinct()
 
         files.values.forEach { file ->
             file.objects.values.distinct().forEach { obj ->
                 println("Generating object dependencies for object ${obj?.name}...")
+                fun visitDependencies(obj: Object) {
+                    val visitor = CBSDependencyVisitor()
+                    visitor.visit(obj.ctx)
+                    val objDependencies = visitor.dependencies
+                        .map { objName -> globalObjects[objName]!! }
+                        .filter { dep -> dep.name != obj.name }
+                        .distinct()
+                    obj.dependencies.addAll(objDependencies)
+                }
+
                 when (obj) {
-                    is TypeObject -> obj.dependencies.add(globalObjects["value-types"]!!)
+                    is TypeObject -> {
+                        obj.dependencies.add(globalObjects["value-types"]!!)
+                        visitDependencies(obj)
+                    }
+
                     is AlgebraicDatatypeObject -> {
                         obj.dependencies.add(globalObjects["datatype-values"]!!)
                         obj.definitions.forEach { dep -> dep.dependencies.add(obj) }
                     }
 
-                    else -> {
-                        val visitor = DependencyVisitor()
-                        visitor.visit(obj?.ctx)
-                        val objDependencies = visitor.dependencies
-                            .map { objName -> globalObjects[objName]!! }
-                            .filter { dep -> dep.name != obj?.name }
-                            .distinct()
-                        obj?.dependencies?.addAll(objDependencies)
-                    }
+                    else -> visitDependencies(obj!!)
                 }
             }
         }
@@ -137,7 +143,6 @@ class TruffleGen(
         usedFuncons.forEach { name ->
             globalObjects[name]?.let { visitObject(it) }
         }
-        println(generatedDependencies)
     }
 
     private fun generateGraphViz() {
@@ -165,7 +170,7 @@ class TruffleGen(
         files.forEach { (name, file) ->
             println("Generating code for file $name...")
             val code = file.generateCode(generatedDependencies)
-            if (code.isNotBlank()) {
+            if (code != null) {
                 println(code)
                 val fileNameWithoutExtension = name.removeSuffix(".cbs")
                 val filePath = File(outputDir, "$fileNameWithoutExtension.kt")

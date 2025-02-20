@@ -1,6 +1,8 @@
 package main
 
 import cbs.CBSParser.*
+import main.exceptions.DetailedException
+import org.antlr.v4.runtime.tree.ParseTree
 
 fun toClassName(input: String): String {
     return (input.split("-").joinToString("") { word ->
@@ -180,7 +182,33 @@ fun makeWhenStatement(cases: List<Pair<String, String>>, elseBranch: String? = n
     return result.toString()
 }
 
+fun getObjectName(ctx: ParseTree): String {
+    return when (ctx) {
+        is FunconExpressionContext -> ctx.name.text
+        is FunconDefinitionContext -> ctx.name.text
+        is TypeDefinitionContext -> ctx.name.text
+        is DatatypeDefinitionContext -> ctx.name.text
+        is ControlEntityDefinitionContext -> ctx.name.text
+        is MutableEntityDefinitionContext -> ctx.name.text
+        is ContextualEntityDefinitionContext -> ctx.name.text
+        else -> throw DetailedException("Unexpected context type: ${ctx::class.simpleName}, ${ctx.text}")
+    }
+}
 
+fun getObjectAliases(ctx: ParseTree): List<String> {
+    val aliases = when (ctx) {
+        is FunconDefinitionContext -> ctx.aliasDefinition()
+        is TypeDefinitionContext -> ctx.aliasDefinition()
+        is DatatypeDefinitionContext -> ctx.aliasDefinition()
+        is ControlEntityDefinitionContext -> ctx.aliasDefinition()
+        is MutableEntityDefinitionContext -> ctx.aliasDefinition()
+        is ContextualEntityDefinitionContext -> ctx.aliasDefinition()
+        is FunconExpressionContext -> emptyList() // Only for funcons for AlgebraicDatatypes
+        else -> throw DetailedException("Unexpected context type: ${ctx::class.simpleName}, ${ctx.text}")
+    }
+
+    return aliases.mapNotNull { it.name.text }
+}
 
 fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<Pair<String, String>> = emptySet()): String {
     val typeParamStr = if (typeParams.isNotEmpty()) {
