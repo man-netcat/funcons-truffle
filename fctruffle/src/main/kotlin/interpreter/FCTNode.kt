@@ -5,7 +5,6 @@ import com.oracle.truffle.api.nodes.Node
 
 @Suppress("UNCHECKED_CAST")
 abstract class FCTNode : Node() {
-    abstract val typeName: String
     abstract fun execute(frame: VirtualFrame): Any?
 
     private fun getLanguage(): FCTLanguage {

@@ -1,8 +1,6 @@
 package interpreter
 
-abstract class Entity(open vararg val value: FCTNode?) {
-    abstract val typeName: String
-}
+abstract class Entity(open vararg val value: FCTNode?)
 
 abstract class ContextualEntity(value: FCTNode?) : Entity(value)
 abstract class ControlEntity(value: FCTNode?) : Entity(value)

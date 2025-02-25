@@ -2,7 +2,7 @@ package main.dataclasses
 
 import cbs.CBSParser.ExprContext
 
-class Param(index: Int, val valueExpr: ExprContext?, val typeExpr: ExprContext?) {
+class Param(val index: Int, val valueExpr: ExprContext?, val typeExpr: ExprContext?) {
     val name = "p$index"
     val type = Type(typeExpr, isParam = true)
     val value = valueExpr?.text

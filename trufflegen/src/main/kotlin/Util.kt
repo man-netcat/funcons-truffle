@@ -111,7 +111,7 @@ fun makeClass(
     // Class header
     result.append("class $name")
 
-    // main.dataclasses.Type parameters
+    // Type parameters
     if (typeParams.isNotEmpty()) {
         result.append("<")
         result.append(typeParams.joinToString { (metavar, superClass) ->
@@ -173,11 +173,11 @@ fun makeWhenStatement(cases: List<Pair<String, String>>, elseBranch: String? = n
             result.append(formattedElse.prependIndent("        "))
             result.append("\n    }\n\n")
         } else {
-            result.append("    else -> $formattedElse\n")
+            result.append("    else -> $formattedElse")
         }
     }
 
-    result.append("}")
+    result.append("\n}")
 
     return result.toString()
 }
@@ -220,7 +220,7 @@ fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<Pair<St
 fun makeFunCall(
     name: String,
     args: List<String> = emptyList(),
-    typeParams: Set<String> = emptySet()
+    typeParams: List<String> = emptyList()
 ): String {
     val typeParamStr = if (typeParams.isNotEmpty()) {
         "<" + typeParams.joinToString(", ") + ">"

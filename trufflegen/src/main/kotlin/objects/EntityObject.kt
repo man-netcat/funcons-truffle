@@ -19,6 +19,10 @@ open class EntityObject(
     private val entityClassName
         get() = entityClassMap[entityType]!!
 
+    val getFunc = when (entityType) {
+        EntityType.CONTEXTUAL -> ::getInScopeStr
+        else -> ::getGlobalStr
+    }
 
     val isIOEntity get() = entityType in listOf(EntityType.INPUT, EntityType.OUTPUT)
 

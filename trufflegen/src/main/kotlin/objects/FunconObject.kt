@@ -22,22 +22,17 @@ class FunconObject(
         ).contains(true)
 
     private val returnStr: String
-        get() = returns.rewrite(inNullableExpr = true, full = false)
+        //        get() = returns.rewrite(inNullableExpr = true, full = false)
+        get() {
+            val inner = FCTNODE + if (returns.isNullable) "?" else ""
+            return if (returns.isArray) "Sequence<${inner}>" else inner
+        }
 
     override val contentStr: String
         get() = if (!skipCriteria) {
-            val paramStrs = getParamStrs(ctx, isParam = false)
-            paramStrs.map { (valueExpr, typeExpr, paramStr) ->
-                val type = Type(typeExpr, isParam = false)
-                if (!type.computes) {
-                    // TODO
-//                println("valueExpr: ${valueExpr?.text}, type: $type, paramStr: $paramStr")
-                }
-            }
-
-            val body = "return " + if (rewritesTo != null) {
+            val body = if (rewritesTo != null) {
                 // Has single context-insensitive rewrite
-                rewrite(ctx, rewritesTo)
+                "return ${rewrite(ctx, rewritesTo)}"
             } else if (rules.isNotEmpty()) {
                 // Has one or more rewrite rules
                 val ruleObjs = rules.map { rule ->
@@ -47,23 +42,52 @@ class FunconObject(
                     Rule(premises, conclusion, returns)
                 }
 
-                if (ruleObjs.isEmpty() || ruleObjs.any { ruleObj ->
-                        ruleObj.conditionStr.isBlank()
-                    }) throw EmptyConditionException(name)
+                if (ruleObjs.isEmpty() || ruleObjs.any { ruleObj -> ruleObj.conditionStr.isBlank() }) {
+                    throw EmptyConditionException(name)
+                }
 
                 val pairs = ruleObjs.map { rule ->
                     rule.conditionStr to rule.bodyStr
                 }
-                makeWhenStatement(pairs, elseBranch = "fail()")
 
+                val reducePairs = params
+                    .filter { param -> !param.type.computes }
+                    .map { param ->
+                        val paramStr = "p${param.index}"
+                        val reducedStr = "r${param.index}"
+                        val varargIndexStr = if (param.type.isVararg) "[0]" else ""
+                        val condition = "$paramStr$varargIndexStr !is ValuesNode"
+                        val rewrite = "$paramStr${varargIndexStr}.execute(frame) as $FCTNODE"
+                        val newVar = makeVariable(reducedStr, rewrite)
+                        val paramArgStrs = params.joinToString { innerParam ->
+                            val innerParamStr = "p${innerParam.index}"
+                            val argStr = if (param.index == innerParam.index) reducedStr else innerParamStr
+                            if (innerParam.type.isVararg) {
+                                "$argStr, *$innerParamStr.sliceFrom(1)"
+                            } else {
+                                argStr
+                            }
+                        }
+                        val metavarStr = if (metaVariables.isNotEmpty()) {
+                            "<${metaVariables.joinToString { it.first }}>"
+                        } else ""
+                        val newNode = "$nodeName$metavarStr(${paramArgStrs}).execute(frame)"
+                        condition to "$newVar\n$newNode"
+                    }
+
+                val whenStmt = makeWhenStatement(reducePairs + pairs, elseBranch = "abort()")
+
+                // Concatenate intermediates and whenStmt
+                "return $whenStmt"
             } else {
+                println("no rules: ${ctx.text}")
                 // Has no rules
-                // TODO This is definitely wrong, fix
                 "TODO(\"FIXME\")"
             }
 
             makeExecuteFunction(body, returnStr)
         } else todoExecute(returnStr)
+
 
     override val annotations: List<String>
         get() = listOf("CBSFuncon")

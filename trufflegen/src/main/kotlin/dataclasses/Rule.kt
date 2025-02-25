@@ -285,7 +285,12 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
         return labels.flatMap { label ->
             if (isConclusion) {
-                val labelObj = getObject(label) as EntityObject
+                val labelObj = if (label.name.text == "abrupt") {
+                    // TODO: Edge case due to bug in CBS code for yield-on-value. Remove when fixed.
+                    globalObjects["abrupted"]
+                } else {
+                    getObject(label)
+                } as EntityObject
                 println("labelObjName: ${labelObj.name}, type: ${labelObj::class.simpleName}")
                 val valueStr = if (label.value != null) {
                     rewrite(ruleDef, label.value)

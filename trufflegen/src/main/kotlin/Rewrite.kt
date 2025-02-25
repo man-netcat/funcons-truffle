@@ -138,10 +138,6 @@ fun partitionArrayArgs(args: List<ExprContext?>): Pair<List<ExprContext>, List<E
     }
 }
 
-fun partitionParams(params: List<Param>): Pair<List<Param>, List<Param>> {
-    return params.partition { param -> param.value != null }
-}
-
 fun getParams(definition: ParseTree) = when (definition) {
     is FunconDefinitionContext,
     is TypeDefinitionContext,
@@ -198,7 +194,7 @@ fun getParamStrs(definition: ParseTree, isParam: Boolean = false, prefix: String
                 if (!argIsArray) {
                     buildParamString(obj.varargParamIndex, "[$varargRelativeIndex]")
                 } else if (varargRelativeIndex != 0) {
-                    starPrefix + "slice(${buildParamString(obj.varargParamIndex)}, $varargRelativeIndex)"
+                    starPrefix + "${buildParamString(obj.varargParamIndex)}.sliceFrom($varargRelativeIndex)"
                 } else {
                     starPrefix + buildParamString(obj.varargParamIndex)
                 }
@@ -206,7 +202,7 @@ fun getParamStrs(definition: ParseTree, isParam: Boolean = false, prefix: String
 
             // Case for parameters after the vararg parameter
             argIndex in obj.varargParamIndex + nVarargArgs until argsSize -> {
-                "TODO(\"Params after vararg not implemented\")"
+                TODO("Params after vararg not implemented")
             }
 
             else -> throw IndexOutOfBoundsException("argIndex $argIndex out of bounds.")

@@ -3,6 +3,7 @@ package main.objects
 import cbs.CBSParser.FunconExpressionContext
 import cbs.CBSParser.TypeDefinitionContext
 import main.*
+import main.dataclasses.Type
 import main.exceptions.DetailedException
 
 class TypeObject(
@@ -17,9 +18,11 @@ class TypeObject(
     override val superClassStr: String
         get() = when (definitions.size) {
             0 -> {
-                val superClassName = if (name != "value-types") {
+                val superClassName = if (name == "values") {
+                    FCTNODE
+                } else if (name != "value-types") {
                     toClassName("value-types")
-                } else FCTNODE
+                } else toClassName("values")
                 emptySuperClass(superClassName)
             }
 
@@ -27,12 +30,12 @@ class TypeObject(
                 val definition = definitions[0]
                 if (definition is FunconExpressionContext) {
                     val defType = getObject(definition)
-                    when (defType) {
-                        is TypeObject -> println("TypeObject: ${defType.name}")
-                        is AlgebraicDatatypeObject -> println("AlgebraicDatatypeObject: ${defType.name}")
-                        is SupertypeDatatypeObject -> println("SupertypeDatatypeObject: ${defType.name}")
-                    }
-                    makeFunCall(defType.nodeName, args = listOf(), typeParams = setOf())
+                    val args = extractArgs(definition)
+
+                    val (valueArgs, typeArgs) = args.partition { arg -> arg !is FunconExpressionContext }
+                    val valueArgStrs = valueArgs.map { arg -> rewrite(ctx, arg) }
+                    val typeArgStrs = typeArgs.map { arg -> Type(arg).rewrite(inNullableExpr = true) }
+                    makeFunCall(defType.nodeName, args = valueArgStrs, typeParams = typeArgStrs)
                 } else throw DetailedException("Unexpected definition ${definition.text}")
             }
 

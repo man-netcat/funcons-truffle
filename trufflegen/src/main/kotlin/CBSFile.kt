@@ -71,7 +71,6 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
                 definitions.forEach { funcon ->
                     when (funcon) {
                         is FunconExpressionContext -> {
-                            val datatypeFunconName = funcon.name.text
                             val dataContainer =
                                 DatatypeFunconObject(
                                     funcon,

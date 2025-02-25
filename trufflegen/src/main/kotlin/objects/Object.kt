@@ -6,7 +6,7 @@ import org.antlr.v4.runtime.tree.ParseTree
 
 abstract class Object(
     val ctx: ParseTree,
-    private val metaVariables: Set<Pair<String, String>>,
+    val metaVariables: Set<Pair<String, String>>,
 ) {
     val name get() = getObjectName(ctx)
     val aliases get() = getObjectAliases(ctx)
@@ -18,8 +18,6 @@ abstract class Object(
     open val superClassStr: String = emptySuperClass(FCTNODE)
     open val keyWords: List<String> = listOf("open")
 
-    private val nameStr = makeVariable("typeName", strStr(name), override = true)
-
     val varargParamIndex: Int get() = params.indexOfFirst { it.type.isVararg }
     val hasVararg: Boolean get() = varargParamIndex >= 0
     val paramsAfterVararg: Int get() = if (varargParamIndex >= 0) params.size - (varargParamIndex + 1) else 0
@@ -30,9 +28,13 @@ abstract class Object(
 
     private val valueParamStrs: List<String>
         get() {
-            return params.map { param ->
+            val valueParams = params.filterNot { param -> param.valueExpr == null }
+
+            return valueParams.map { param ->
                 val annotation = makeAnnotation(param.type.isVararg)
-                val paramTypeStr = param.type.rewrite(inNullableExpr = true, full = false)
+                val paramTypeStr = if (param.type.computes) {
+                    param.type.rewrite(inNullableExpr = true, full = false)
+                } else FCTNODE
                 makeParam(annotation, param.name, paramTypeStr)
             }
         }
@@ -47,7 +49,9 @@ abstract class Object(
     val code
         get() = makeClass(
             nodeName,
-            content = "${nameStr}\n$contentStr",
+            content = listOf(
+                contentStr
+            ).joinToString("\n"),
             constructorArgs = valueParamStrs,
             superClass = superClassStr,
             annotations = annotations,
