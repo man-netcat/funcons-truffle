@@ -1,9 +1,8 @@
-package interpreter
+package language
 
 import com.oracle.truffle.api.CallTarget
 import com.oracle.truffle.api.TruffleLanguage
 import com.oracle.truffle.api.nodes.Node
-import com.oracle.truffle.api.source.Source
 import fct.FCTLexer
 import fct.FCTParser
 import fct.FCTParser.*
@@ -13,7 +12,7 @@ import org.antlr.v4.runtime.tree.ParseTree
 
 @TruffleLanguage.Registration(
     id = FCTLanguage.ID,
-    name = "fctlang",
+    name = "FCT Language",
     defaultMimeType = FCTLanguage.MIME_TYPE,
     characterMimeTypes = [FCTLanguage.MIME_TYPE]
 )
@@ -30,36 +29,22 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
         }
     }
 
-    override fun createContext(env: Env): FCTContext {
-        return FCTContext(env)
-    }
-
-    fun parseSource(source: Source): CallTarget {
+    override fun parse(request: ParsingRequest): CallTarget {
+        val source = request.source
         val code = source.characters.toString()
 
-        // Create a CharStream that reads from the code string
         val charStream = CharStreams.fromString(code)
-
-        // Create a lexer that feeds off of input CharStream
         val lexer = FCTLexer(charStream)
-
-        // Create a buffer of tokens pulled from the lexer
         val tokens = CommonTokenStream(lexer)
-
-        // Create a parser that feeds off the tokens buffer
         val parser = FCTParser(tokens)
-
-        // Parse the code starting from the generalBlock rule
         val mainContext = parser.generalBlock()
-
-        // Convert the parsed ANTLR context to a FCTNode
         val rootNode = convertToFCTNode(mainContext)
-
-        // Create a custom FCTRootNode that wraps the root FCTNode
         val fctRootNode = FCTRootNode(this, rootNode)
-
-        // Return a CallTarget for the RootNode
         return fctRootNode.callTarget
+    }
+
+    override fun createContext(env: Env): FCTContext {
+        return FCTContext(env)
     }
 
     private fun convertToFCTNode(context: GeneralBlockContext): FCTNode {
@@ -69,9 +54,15 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
 
 
     private fun buildTree(parseTree: ParseTree): FCTNode {
+
         return when (parseTree) {
+            is FunconTermContext -> {
+                buildTree(parseTree.expr())
+            }
+
             is FunconExpressionContext -> {
                 val functionName = parseTree.name.text
+
                 val children = when (val args = parseTree.args()) {
                     is MultipleArgsContext -> args.exprs().expr().map { buildTree(it) }
                     is SingleArgsContext -> listOf(buildTree(args.expr()))
@@ -110,16 +101,16 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
             is TerminalExpressionContext -> {
                 when (val terminal = parseTree.terminalValue()) {
                     is StringContext -> {
-                        val str = terminal.STRING().text.removeSurrounding("\"").toStringNode()
+                        // Extract the string value and pass it directly to the StringNode constructor
+                        val str = terminal.STRING().text.removeSurrounding("\"")
                         FCTNodeFactory.createNode("string", listOf(str))
                     }
 
                     is NumberContext -> {
-                        val num = terminal.NUMBER().text.toInt().toIntegerNode()
+                        val num = terminal.NUMBER().text.toInt()
                         FCTNodeFactory.createNode("integer", listOf(num))
                     }
 
-                    is EmptyContext -> FCTNodeFactory.createNode("null-value", emptyList())
                     else -> throw IllegalArgumentException("Unknown terminal value: $terminal")
                 }
             }

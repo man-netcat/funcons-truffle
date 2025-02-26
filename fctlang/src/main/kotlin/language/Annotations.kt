@@ -1,4 +1,4 @@
-package interpreter
+package language
 
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)

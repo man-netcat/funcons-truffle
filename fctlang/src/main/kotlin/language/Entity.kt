@@ -1,4 +1,4 @@
-package interpreter
+package language
 
 abstract class Entity(open vararg val value: FCTNode?)
 

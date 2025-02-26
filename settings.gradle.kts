@@ -4,6 +4,6 @@ plugins {
 rootProject.name = "funcons-truffle"
 include("antlr")
 include("trufflegen")
-include("fctruffle")
-include("sandbox:untitled")
+include("fctlang")
+include("fctinterpreter")
 findProject(":sandbox:untitled")?.name = "untitled"

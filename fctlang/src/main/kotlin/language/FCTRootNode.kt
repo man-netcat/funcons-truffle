@@ -1,4 +1,4 @@
-package interpreter
+package language
 
 import com.oracle.truffle.api.TruffleLanguage
 import com.oracle.truffle.api.frame.VirtualFrame

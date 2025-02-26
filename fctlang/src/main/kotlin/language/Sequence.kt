@@ -1,4 +1,4 @@
-package interpreter
+package language
 
 class Sequence<T>(private vararg val values: T) {
     fun toArray(): Array<out T> {

@@ -32,9 +32,9 @@ args
 
 
 expr
-   : unOp expr # UnopExpression
+   : name = IDENTIFIER args # FunconExpression
+   | unOp expr # UnopExpression
    | lhs = expr binOp rhs = expr # BinOpExpression
-   | name = IDENTIFIER args # FunconExpression
    | listExpr # ListExpression
    | mapExpr # MapExpression
    | setExpr # SetExpression

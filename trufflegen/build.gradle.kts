@@ -39,7 +39,7 @@ application {
 
 tasks.named<JavaExec>("run") {
     val cbsPathStr = "../../CBS-beta/Funcons-beta/"
-    val generatedPathStr = "../fctruffle/src/main/kotlin/generated"
+    val generatedPathStr = "../fctlang/src/main/kotlin/generated"
     val generated = Paths.get(generatedPathStr)
     generated.deleteRecursively()
     Files.createDirectories(generated)

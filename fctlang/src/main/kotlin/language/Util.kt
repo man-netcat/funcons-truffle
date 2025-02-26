@@ -1,4 +1,4 @@
-package interpreter
+package language
 
 fun <T> Array<T>.sliceFrom(startIndex: Int, endIndexOffset: Int = 0): Array<T> {
     require(startIndex in 0..size) { "Start index is out of bounds." }

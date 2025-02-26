@@ -17,6 +17,7 @@ repositories {
 dependencies {
     implementation(project(":antlr"))
     implementation("org.graalvm.truffle:truffle-api:24.1.1")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:1.3.61")
 }
 
 tasks.compileKotlin {

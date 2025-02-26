@@ -1,4 +1,4 @@
-package interpreter
+package language
 
 import com.oracle.truffle.api.TruffleLanguage.ContextReference
 import com.oracle.truffle.api.TruffleLanguage.Env
