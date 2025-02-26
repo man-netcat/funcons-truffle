@@ -6,13 +6,11 @@ import main.exceptions.DetailedException
 import main.objects.EntityObject
 
 class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, returns: Type) {
-    private val conditions: MutableList<String> = mutableListOf()
+    val conditions: MutableList<String> = mutableListOf()
+    val emptyConditions: MutableList<String> = mutableListOf()
     private val assignments: MutableList<String> = mutableListOf()
     private val rewriteStr: String
     private var intermediateCounter = 0
-
-    val conditionStr: String
-        get() = conditions.joinToString(" && ")
 
     val bodyStr: String
         get() = (assignments + rewriteStr).joinToString("\n")
@@ -30,15 +28,18 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         val obj = getObject(funconExpr)
         val args = extractArgs(funconExpr)
         if (obj.params.size == 1 && args.isEmpty()) {
-            val condition = if (obj.params[0].type.isVararg) "p0.isEmpty()" else "p0 == null"
-            conditions.add(condition)
+            if (obj.params[0].type.isVararg) {
+                emptyConditions.add("p0.isEmpty()")
+            } else {
+                conditions.add("p0 == null")
+            }
         } else {
             val paramStrs = getParamStrs(funconExpr)
             (paramStrs + rewriteData).forEach { data ->
                 val (argValue, argType, paramStr) = data
 
                 if (argType == null && argValue == null) {
-                    conditions.add("${paramStr}.isEmpty()")
+                    emptyConditions.add("${paramStr}.isEmpty()")
                 }
 
                 when (argType) {
@@ -61,14 +62,14 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
                 when (argValue) {
                     is NumberContext -> conditions.add("$paramStr == ${argValue.text}")
-                    is TupleExpressionContext -> conditions.add("${paramStr}.isEmpty()")
+                    is TupleExpressionContext -> emptyConditions.add("${paramStr}.isEmpty()")
                     is VariableContext -> if (argValue.text == "_") conditions.add("$paramStr != null")
                     is SuffixExpressionContext -> {}
                 }
             }
         }
 
-        if (conditions.isEmpty()) {
+        if ((emptyConditions + conditions).isEmpty()) {
             if (obj.hasVararg) {
                 val (arrayArgs, nonArrayArgs) = partitionArrayArgs(args)
                 if (arrayArgs.isNotEmpty() && nonArrayArgs.size == 1) {

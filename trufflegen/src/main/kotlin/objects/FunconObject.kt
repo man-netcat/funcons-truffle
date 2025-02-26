@@ -4,7 +4,6 @@ import cbs.CBSParser.*
 import main.*
 import main.dataclasses.Rule
 import main.dataclasses.Type
-import main.exceptions.EmptyConditionException
 import main.objects.Object
 
 class FunconObject(
@@ -42,12 +41,13 @@ class FunconObject(
                     Rule(premises, conclusion, returns)
                 }
 
-                if (ruleObjs.isEmpty() || ruleObjs.any { ruleObj -> ruleObj.conditionStr.isBlank() }) {
-                    throw EmptyConditionException(name)
-                }
+                val (ruleWithEmpty, rule) = ruleObjs.partition { it.emptyConditions.isNotEmpty() }
 
-                val pairs = ruleObjs.map { rule ->
-                    rule.conditionStr to rule.bodyStr
+                val emptyPairs = ruleWithEmpty.map { rule ->
+                    rule.emptyConditions.joinToString(" && ") to rule.bodyStr
+                }
+                val pairs = rule.map { rule ->
+                    rule.conditions.joinToString(" && ") to rule.bodyStr
                 }
 
                 val reducePairs = params
@@ -75,7 +75,7 @@ class FunconObject(
                         condition to "$newVar\n$newNode"
                     }
 
-                val whenStmt = makeWhenStatement(reducePairs + pairs, elseBranch = "abort()")
+                val whenStmt = makeWhenStatement(emptyPairs + reducePairs + pairs, elseBranch = "abort()")
 
                 // Concatenate intermediates and whenStmt
                 "return $whenStmt"
