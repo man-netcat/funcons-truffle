@@ -1,9 +1,11 @@
 package language
 
-abstract class Entity(open vararg val value: FCTNode?)
+abstract class Entity() {
+    abstract val value: Array<out FCTNode>
+}
 
-abstract class ContextualEntity(value: FCTNode?) : Entity(value)
-abstract class ControlEntity(value: FCTNode?) : Entity(value)
-abstract class MutableEntity(value: FCTNode?) : Entity(value)
-abstract class InputEntity(vararg value: FCTNode) : Entity(*value)
-abstract class OutputEntity(vararg value: FCTNode) : Entity(*value)
+abstract class ContextualEntity(override vararg val value: FCTNode) : Entity()
+abstract class ControlEntity(override vararg val value: FCTNode) : Entity()
+abstract class MutableEntity(override vararg val value: FCTNode) : Entity()
+abstract class InputEntity(override vararg val value: FCTNode) : Entity()
+abstract class OutputEntity(override vararg val value: FCTNode) : Entity()

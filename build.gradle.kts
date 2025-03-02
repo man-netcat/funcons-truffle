@@ -1,10 +1,8 @@
-plugins {
-    kotlin("jvm") version "2.0.21"
-    java
-}
+import dependencies.Deps
 
-kotlin {
-    jvmToolchain(22)
+plugins {
+    kotlin("jvm") version "2.1.0"
+    java
 }
 
 group = "org.rickteuthof"
@@ -15,8 +13,8 @@ repositories {
 }
 
 dependencies {
-    implementation(kotlin("stdlib-jdk8"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.3")
+    implementation(Deps.kotlinStdLib)
+    testImplementation(Deps.junitJupiter)
 }
 
 tasks.test {
@@ -26,8 +24,24 @@ tasks.test {
 subprojects {
     apply(plugin = "kotlin")
 
+    java {
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(21))
+        }
+    }
+
+    kotlin {
+        jvmToolchain(21)
+    }
+
+
     repositories {
         mavenCentral()
+    }
+
+    dependencies {
+        implementation(Deps.kotlinStdLib)
+        testImplementation(Deps.junitJupiter)
     }
 
     tasks.test {

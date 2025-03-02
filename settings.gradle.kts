@@ -6,4 +6,3 @@ include("antlr")
 include("trufflegen")
 include("fctlang")
 include("fctinterpreter")
-findProject(":sandbox:untitled")?.name = "untitled"

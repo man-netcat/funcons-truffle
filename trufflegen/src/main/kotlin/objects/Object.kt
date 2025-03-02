@@ -31,11 +31,14 @@ abstract class Object(
             val valueParams = params.filterNot { param -> param.valueExpr == null }
 
             return valueParams.map { param ->
-                val annotation = makeAnnotation(param.type.isVararg)
+                val annotation = makeAnnotation(
+                    isVararg = param.type.isVararg,
+                    isEntity = this !is EntityObject
+                )
                 val paramTypeStr = if (param.type.computes) {
                     param.type.rewrite(inNullableExpr = true, full = false)
                 } else FCTNODE
-                makeParam(annotation, param.name, paramTypeStr)
+                makeParam(paramTypeStr, param.name, annotation)
             }
         }
 

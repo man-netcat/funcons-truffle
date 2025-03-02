@@ -42,4 +42,6 @@ class TypeObject(
             2 -> "" // TODO: Fix this edge case
             else -> throw DetailedException("Unexpected amount of definitions, ${definitions.joinToString()} has ${definitions.size} items")
         }
+    override val contentStr: String
+        get() = todoExecute("Any")
 }

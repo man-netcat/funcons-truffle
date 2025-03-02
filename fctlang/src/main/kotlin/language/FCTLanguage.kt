@@ -11,16 +11,13 @@ import org.antlr.v4.runtime.CommonTokenStream
 import org.antlr.v4.runtime.tree.ParseTree
 
 @TruffleLanguage.Registration(
-    id = FCTLanguage.ID,
+    id = "fctlang",
     name = "FCT Language",
-    defaultMimeType = FCTLanguage.MIME_TYPE,
-    characterMimeTypes = [FCTLanguage.MIME_TYPE]
+    defaultMimeType = "application/x-fctlang",
+    characterMimeTypes = ["application/x-fctlang"]
 )
 class FCTLanguage : TruffleLanguage<FCTContext>() {
     companion object {
-        const val ID: String = "fctlang"
-        const val MIME_TYPE: String = "application/x-fctlang"
-
         private val REFERENCE: LanguageReference<FCTLanguage> =
             LanguageReference.create(FCTLanguage::class.java)
 
@@ -54,7 +51,6 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
 
 
     private fun buildTree(parseTree: ParseTree): FCTNode {
-
         return when (parseTree) {
             is FunconTermContext -> {
                 buildTree(parseTree.expr())
@@ -111,7 +107,7 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
                         FCTNodeFactory.createNode("integer", listOf(num))
                     }
 
-                    else -> throw IllegalArgumentException("Unknown terminal value: $terminal")
+                    else -> throw IllegalArgumentException("Unknown terminal value: ${terminal.text}")
                 }
             }
 

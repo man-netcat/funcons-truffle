@@ -1,25 +1,18 @@
+import dependencies.Deps
+
 plugins {
-    kotlin("jvm") version "2.0.21"
+    kotlin("jvm") version "2.1.0"
     java
     antlr
 }
 
-kotlin {
-    jvmToolchain(21)
-}
-
-repositories {
-    mavenCentral()
-}
-
 dependencies {
-    antlr("org.antlr:antlr4-runtime:4.13.2")
-    antlr("org.antlr:antlr4:4.13.2")
-    implementation(kotlin("stdlib-jdk8"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.3")
+    antlr(Deps.antlrRuntime)
+    antlr(Deps.antlrTool)
+    implementation(Deps.kotlinStdLib)
 }
 
-// Common configuration for generating ANTLR sources
+// Common function for ANTLR source generation
 fun registerAntlrGrammarTask(name: String, grammarFileName: String, outputDirPath: String) {
     tasks.register<JavaExec>(name) {
         group = "antlr"
@@ -34,10 +27,10 @@ fun registerAntlrGrammarTask(name: String, grammarFileName: String, outputDirPat
         classpath = configurations["antlr"]
         mainClass.set("org.antlr.v4.Tool")
         args = listOf(
-            grammarFile.absolutePath, // Absolute path for grammar file
-            "-visitor", // Generate visitor classes
-            "-long-messages", // Use long messages for errors
-            "-o", outputDir.absolutePath // Explicit absolute output directory
+            grammarFile.absolutePath,
+            "-visitor",
+            "-long-messages",
+            "-o", outputDir.absolutePath
         )
     }
 }
@@ -45,31 +38,21 @@ fun registerAntlrGrammarTask(name: String, grammarFileName: String, outputDirPat
 registerAntlrGrammarTask("generateFCTGrammar", "FCT.g4", "fct")
 registerAntlrGrammarTask("generateCBSGrammar", "CBS.g4", "cbs")
 
-// Aggregate task to run both generation tasks
 tasks.register("generateAllGrammars") {
     dependsOn("generateFCTGrammar", "generateCBSGrammar")
     group = "antlr"
     description = "Generates ANTLR sources for all grammars"
 }
 
-// Ensure compilation depends on grammar generation
 tasks.compileJava {
     dependsOn("generateAllGrammars")
 }
 
-// Disable the default ANTLR source generation
 tasks.named("generateGrammarSource").configure {
     enabled = false
 }
 
 tasks.test {
     useJUnitPlatform()
-    dependsOn("generateAllGrammars")
-    testLogging {
-        events("passed", "skipped", "failed")
-    }
-}
-
-tasks.compileKotlin {
     dependsOn("generateAllGrammars")
 }

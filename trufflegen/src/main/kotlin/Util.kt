@@ -15,7 +15,7 @@ fun makeBody(content: String, indentLevel: Int = 1): String {
     return content.lines().joinToString("\n") { "$indent$it" }
 }
 
-fun makeParam(annotation: String, name: String, type: String): String {
+fun makeParam(type: String, name: String, annotation: String = ""): String {
     return if (annotation.isNotEmpty()) {
         "$annotation $name: $type"
     } else {
@@ -46,7 +46,7 @@ fun makeFunction(
 }
 
 fun makeExecuteFunction(content: String, returns: String): String =
-    makeFunction("execute", returns, listOf(makeParam("", "frame", "VirtualFrame")), content, listOf("override"))
+    makeFunction("execute", returns, listOf(makeParam("VirtualFrame", "frame", "")), content, listOf("override"))
 
 fun todoExecute(returnStr: String) = makeExecuteFunction("TODO(\"Implement me\")", returnStr)
 
@@ -245,16 +245,16 @@ tailrec fun extractAndOrExprs(
 
 fun emptySuperClass(name: String): String = makeFunCall(name, emptyList())
 
-fun makeAnnotation(isVararg: Boolean = false, isOverride: Boolean = false): String {
+fun makeAnnotation(isVararg: Boolean = false, isOverride: Boolean = false, isEntity: Boolean = false): String {
     val annotationBuilder = StringBuilder()
 
-    annotationBuilder.append(if (isVararg) "@Children " else "@Child ")
+    if (isEntity) annotationBuilder.append(if (isVararg) "@Children " else "@Child ")
 
     if (isOverride) annotationBuilder.append("override ")
 
     if (isVararg) annotationBuilder.append("vararg ")
 
-    annotationBuilder.append("val")
+    annotationBuilder.append("var")
 
     return annotationBuilder.toString()
 }

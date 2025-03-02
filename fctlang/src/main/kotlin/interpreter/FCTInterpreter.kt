@@ -1,5 +1,4 @@
-package language
-
+package interpreter
 import org.graalvm.polyglot.Context
 import org.graalvm.polyglot.Source
 import java.nio.file.Files
@@ -19,9 +18,8 @@ fun main(args: Array<String>) {
         return
     }
 
-    // Create a Truffle Context and evaluate the source
-    val context = Context.newBuilder().build()
-    val source = Source.newBuilder(FCTLanguage.ID, code, filePath).build()
+    val context = Context.newBuilder().allowAllAccess(true).build()
+    val source = Source.newBuilder("fctlang", code, filePath).build()
     try {
         val result = context.eval(source)
         println("Execution Result: $result")
@@ -29,3 +27,4 @@ fun main(args: Array<String>) {
         println("Error during execution: ${e.message}")
     }
 }
+

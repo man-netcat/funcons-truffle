@@ -1,41 +1,47 @@
+import dependencies.Deps
+
 plugins {
-    kotlin("jvm") version "2.0.21"
+    kotlin("jvm") version "2.1.0"
+    kotlin("kapt")
     java
-    application
-}
-
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
-    }
-}
-
-repositories {
-    mavenCentral()
 }
 
 dependencies {
     implementation(project(":antlr"))
-    implementation("org.graalvm.truffle:truffle-api:24.1.1")
-    implementation("org.jetbrains.kotlin:kotlin-reflect:1.3.61")
+    implementation(Deps.graalSdk)
+    implementation(Deps.truffleApi)
+    kapt(Deps.truffleDslProcessor)
+    implementation(Deps.antlrRuntime)
+    implementation(Deps.kotlinReflect)
+    testImplementation(Deps.junitJupiter)
 }
 
-tasks.compileKotlin {
-    dependsOn(":antlr:generateGrammarSource")
+sourceSets.main {
+    java.srcDirs("build/generated/source/kapt/main")
 }
 
 tasks.test {
     useJUnitPlatform()
 }
 
-application {
-    mainClass.set("main.FCTInterpreter")
+tasks.jar {
+    dependsOn(":antlr:generateGrammarSource")
+    // Add resources/META-INF to JAR
+    from(sourceSets.main.get().output)
+    from(sourceSets.main.get().resources) {
+        include("META-INF/services/**")
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    manifest {
+        attributes(
+            "Specification-Title" to "FCT Language",
+            "Implementation-Version" to project.version
+        )
+    }
 }
 
-tasks.named<JavaExec>("run") {
-    args = listOf(
-        "../CBS-beta/Funcons-beta/Values/Primitive/Booleans/tests/and.config"
-    )
+tasks.compileJava {
+    dependsOn(tasks.compileKotlin)
 }
-
-

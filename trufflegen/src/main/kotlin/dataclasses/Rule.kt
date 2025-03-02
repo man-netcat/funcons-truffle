@@ -285,13 +285,14 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         if (labels.isEmpty()) return emptyList()
 
         return labels.flatMap { label ->
+            val labelObj = if (label.name.text == "abrupt") {
+                // TODO: Edge case due to bug in CBS code for yield-on-value. Remove when fixed.
+                globalObjects["abrupted"]
+            } else {
+                getObject(label)
+            } as EntityObject
+
             if (isConclusion) {
-                val labelObj = if (label.name.text == "abrupt") {
-                    // TODO: Edge case due to bug in CBS code for yield-on-value. Remove when fixed.
-                    globalObjects["abrupted"]
-                } else {
-                    getObject(label)
-                } as EntityObject
                 println("labelObjName: ${labelObj.name}, type: ${labelObj::class.simpleName}")
                 val valueStr = if (label.value != null) {
                     rewrite(ruleDef, label.value)
@@ -301,14 +302,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
                 listOf(RewriteData(label.value, null, newEntityStr))
             } else {
-                val getFunc = when (premiseExpr) {
-                    is TransitionPremiseWithControlEntityContext,
-                    is TransitionPremiseWithMutableEntityContext -> ::getGlobalStr
-
-                    is TransitionPremiseWithContextualEntityContext -> ::getInScopeStr
-                    else -> throw DetailedException("Unexpected premise type: ${premiseExpr::class.simpleName}")
-                }
-                val getStr = getFunc(label.name.text)
+                val getStr = labelObj.getFunc(label.name.text)
                 getParamStrs(label, prefix = getStr)
             }
         }

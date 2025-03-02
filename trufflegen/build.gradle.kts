@@ -6,19 +6,9 @@ import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.deleteRecursively
 
 plugins {
-    kotlin("jvm") version "2.0.21"
+    kotlin("jvm") version "2.1.0"
     java
     application
-}
-
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
-    }
-}
-
-repositories {
-    mavenCentral()
 }
 
 dependencies {
