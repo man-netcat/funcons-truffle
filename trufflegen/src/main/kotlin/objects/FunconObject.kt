@@ -12,7 +12,7 @@ class FunconObject(
     val returns: Type,
     private val builtin: Boolean,
     val rules: List<RuleDefinitionContext> = emptyList(),
-    val rewritesTo: ExprContext? = null
+    val rewritesTo: ExprContext? = null,
 ) : Object(ctx, metaVariables) {
     private val skipCriteria: Boolean
         get() = listOf(
@@ -71,14 +71,14 @@ class FunconObject(
                         val metavarStr = if (metaVariables.isNotEmpty()) {
                             "<${metaVariables.joinToString { it.first }}>"
                         } else ""
-                        val newNode = "$nodeName$metavarStr(${paramArgStrs}).execute(frame)"
+                        val newNode = "$nodeName$metavarStr(${paramArgStrs})"
                         condition to "$newVar\n$newNode"
                     }
 
                 val whenStmt = makeWhenStatement(emptyPairs + reducePairs + pairs, elseBranch = "abort()")
 
                 // Concatenate intermediates and whenStmt
-                "return $whenStmt"
+                "val new = $whenStmt\nreplace(new)\nreturn this"
             } else {
                 println("no rules: ${ctx.text}")
                 // Has no rules
@@ -86,7 +86,7 @@ class FunconObject(
             }
 
             makeExecuteFunction(body, returnStr)
-        } else todoExecute(returnStr)
+        } else todoExecute(name, "Any")
 
 
     override val annotations: List<String>

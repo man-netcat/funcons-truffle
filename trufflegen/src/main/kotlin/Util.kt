@@ -48,7 +48,7 @@ fun makeFunction(
 fun makeExecuteFunction(content: String, returns: String): String =
     makeFunction("execute", returns, listOf(makeParam("VirtualFrame", "frame", "")), content, listOf("override"))
 
-fun todoExecute(returnStr: String) = makeExecuteFunction("TODO(\"Implement me\")", returnStr)
+fun todoExecute(name: String, returnStr: String) = makeExecuteFunction("TODO(\"Implement me: $name\")", returnStr)
 
 fun makeIfStatement(conditions: List<Pair<String, String>>, elseBranch: String? = null): String {
     val result = StringBuilder()
@@ -220,7 +220,7 @@ fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<Pair<St
 fun makeFunCall(
     name: String,
     args: List<String> = emptyList(),
-    typeParams: List<String> = emptyList()
+    typeParams: List<String> = emptyList(),
 ): String {
     val typeParamStr = if (typeParams.isNotEmpty()) {
         "<" + typeParams.joinToString(", ") + ">"

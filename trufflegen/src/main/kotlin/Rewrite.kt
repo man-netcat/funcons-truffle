@@ -30,8 +30,7 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
                 }.joinToString()
             } else "null"
             val prefix = if (obj is FunconObject && obj.returns.isArray && isParam) "*" else ""
-            val suffix = if (obj is FunconObject) ".execute(frame)" else ""
-            val str = "$prefix$className($argStr)$suffix"
+            val str = "$prefix$className($argStr)"
             return str
         }
 

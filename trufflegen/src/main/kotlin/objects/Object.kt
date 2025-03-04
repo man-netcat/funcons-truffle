@@ -35,9 +35,10 @@ abstract class Object(
                     isVararg = param.type.isVararg,
                     isEntity = this !is EntityObject
                 )
-                val paramTypeStr = if (param.type.computes) {
-                    param.type.rewrite(inNullableExpr = true, full = false)
-                } else FCTNODE
+//                val paramTypeStr = if (param.type.computes) {
+//                    param.type.rewrite(inNullableExpr = true, full = false)
+//                } else FCTNODE
+                val paramTypeStr = FCTNODE
                 makeParam(paramTypeStr, param.name, annotation)
             }
         }

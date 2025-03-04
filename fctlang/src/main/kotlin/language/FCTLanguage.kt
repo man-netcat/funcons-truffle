@@ -49,7 +49,6 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
         return buildTree(expr)
     }
 
-
     private fun buildTree(parseTree: ParseTree): FCTNode {
         return when (parseTree) {
             is FunconTermContext -> {
@@ -57,25 +56,33 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
             }
 
             is FunconExpressionContext -> {
-                val functionName = parseTree.name.text
+                val funconName = parseTree.name.text
 
-                val children = when (val args = parseTree.args()) {
-                    is MultipleArgsContext -> args.exprs().expr().map { buildTree(it) }
-                    is SingleArgsContext -> listOf(buildTree(args.expr()))
+                val args = parseTree.args()
+                val children = when (args) {
+                    is SingleArgsContext -> {
+                        when (val arg = args.expr()) {
+                            is SequenceExpressionContext -> arg.sequenceExpr().expr()
+                                .map { expr -> buildTree(expr) }
+
+                            else -> listOf(buildTree(arg))
+                        }
+                    }
+
                     is NoArgsContext -> emptyList()
                     else -> throw IllegalArgumentException("Unknown arg type: ${args::class.simpleName}, ${args.text}")
                 }
-
-                FCTNodeFactory.createNode(functionName, children)
+                println("building funcon: ${funconName}: with args: ${children::class.simpleName}: $children")
+                FCTNodeFactory.createNode(funconName, children)
             }
 
             is ListExpressionContext -> {
-                val elements = parseTree.listExpr().exprs()?.expr()?.map { buildTree(it) } ?: emptyList()
+                val elements = parseTree.listExpr().sequenceExpr()?.expr()?.map { buildTree(it) } ?: emptyList()
                 FCTNodeFactory.createNode("list", elements)
             }
 
             is SetExpressionContext -> {
-                val elements = parseTree.setExpr().exprs()?.expr()?.map { buildTree(it) } ?: emptyList()
+                val elements = parseTree.setExpr().sequenceExpr()?.expr()?.map { buildTree(it) } ?: emptyList()
                 FCTNodeFactory.createNode("set", elements)
             }
 
@@ -90,14 +97,13 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
             }
 
             is TupleExpressionContext -> {
-                val elements = parseTree.tupleExpr().exprs()?.expr()?.map { buildTree(it) } ?: emptyList()
+                val elements = parseTree.tupleExpr().sequenceExpr()?.expr()?.map { buildTree(it) } ?: emptyList()
                 FCTNodeFactory.createNode("tuple", elements)
             }
 
             is TerminalExpressionContext -> {
                 when (val terminal = parseTree.terminalValue()) {
                     is StringContext -> {
-                        // Extract the string value and pass it directly to the StringNode constructor
                         val str = terminal.STRING().text.removeSurrounding("\"")
                         FCTNodeFactory.createNode("string", listOf(str))
                     }

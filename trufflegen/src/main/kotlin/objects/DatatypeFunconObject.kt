@@ -15,5 +15,5 @@ class DatatypeFunconObject(
         get() = makeFunCall(superclass.nodeName)
     override val keyWords: List<String> = emptyList()
     override val contentStr: String
-        get() = todoExecute("Any")
+        get() = todoExecute(name, "Any")
 }
