@@ -13,8 +13,7 @@ class FCTRootNode(language: TruffleLanguage<*>, @Child private var rootExpr: FCT
 //
 //        frame.setObject(mapSlot, mutableMapOf<String, Entity>())
 
-        val new = rootExpr.execute(frame) as FCTNode
-        replace(new)
-        return this
+        rootExpr.execute(frame)
+        return null
     }
 }
