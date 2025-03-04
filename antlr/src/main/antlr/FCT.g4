@@ -25,14 +25,14 @@ funconTerm
    ;
 
 args
-   : '(' exprs ')' # MultipleArgs
-   | expr # SingleArgs
+   : expr # SingleArgs
    | # NoArgs
    ;
 
 
 expr
    : name = IDENTIFIER args # FunconExpression
+   | '(' sequenceExpr ')' # SequenceExpression
    | unOp expr # UnopExpression
    | lhs = expr binOp rhs = expr # BinOpExpression
    | listExpr # ListExpression
@@ -42,14 +42,13 @@ expr
    | terminalValue # TerminalExpression
    ;
 
-exprs
+sequenceExpr
    : (expr (',' expr)*)?
    ;
 
 terminalValue
    : STRING # String
    | NUMBER # Number
-   | EMPTY # Empty
    ;
 
 terminals
@@ -57,7 +56,7 @@ terminals
    ;
 
 listExpr
-   : '[' exprs ']'
+   : '[' sequenceExpr ']'
    ;
 
 mapExpr
@@ -65,7 +64,7 @@ mapExpr
    ;
 
 setExpr
-   : '{' exprs '}'
+   : '{' sequenceExpr '}'
    ;
 
 pair
@@ -85,7 +84,7 @@ termPairs
    ;
 
 tupleExpr
-   : 'tuple(' exprs ')'
+   : 'tuple(' sequenceExpr ')'
    ;
 
 standardIn
@@ -115,7 +114,7 @@ store
    ;
 
 standardOut
-   : 'standard-out' ':' '[' exprs ']' ';'
+   : 'standard-out' ':' '[' sequenceExpr ']' ';'
    ;
 
 binOp
@@ -143,10 +142,6 @@ OR
 
 COMPUTE
    : '=>'
-   ;
-
-EMPTY
-   : '(' WS? ')'
    ;
 
 COMMENT

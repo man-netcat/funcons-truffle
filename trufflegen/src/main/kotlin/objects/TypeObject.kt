@@ -43,5 +43,5 @@ class TypeObject(
             else -> throw DetailedException("Unexpected amount of definitions, ${definitions.joinToString()} has ${definitions.size} items")
         }
     override val contentStr: String
-        get() = todoExecute("Any")
+        get() = todoExecute(name, "Any")
 }

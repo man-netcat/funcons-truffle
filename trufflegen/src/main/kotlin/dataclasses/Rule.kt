@@ -52,7 +52,8 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                     is FunconExpressionContext,
                     is ListExpressionContext,
                     is SetExpressionContext,
-                    is ComplementExpressionContext -> {
+                    is ComplementExpressionContext,
+                        -> {
                         val typeCondition = makeTypeCondition(paramStr, argType)
                         conditions.add(typeCondition)
                     }
@@ -86,7 +87,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
     }
 
     private fun processIntermediates(
-        ruleDef: ExprContext, premise: PremiseExprContext, rewriteData: List<RewriteData>
+        ruleDef: ExprContext, premise: PremiseExprContext, rewriteData: List<RewriteData>,
     ): List<RewriteData> {
         val (lhs, rhs) = extractLhsRhs(premise)
 
@@ -114,7 +115,8 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
             is TransitionPremiseContext,
             is TransitionPremiseWithControlEntityContext,
-            is TransitionPremiseWithContextualEntityContext -> {
+            is TransitionPremiseWithContextualEntityContext,
+                -> {
                 val rewriteRhs = newVar()
                 listOf(RewriteData(rhs, null, rewriteRhs))
             }
@@ -153,7 +155,8 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
             is TransitionPremiseContext,
             is TransitionPremiseWithControlEntityContext,
             is TransitionPremiseWithContextualEntityContext,
-            is TransitionPremiseWithMutableEntityContext -> {
+            is TransitionPremiseWithMutableEntityContext,
+                -> {
                 val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
                 val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
 
@@ -228,7 +231,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
     }
 
     private fun processConclusion(
-        ruleDef: ExprContext, conclusion: PremiseExprContext, rewriteData: List<RewriteData>
+        ruleDef: ExprContext, conclusion: PremiseExprContext, rewriteData: List<RewriteData>,
     ) {
         fun addAssignment(label: LabelContext, putStrFunc: (String, String) -> String) {
             val valueStr = if (label.value != null) {
@@ -269,7 +272,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
     private fun processEntities(
         ruleDef: ExprContext,
         premiseExpr: PremiseExprContext,
-        isConclusion: Boolean = false
+        isConclusion: Boolean = false,
     ): List<RewriteData> {
         val labels = when (premiseExpr) {
             is TransitionPremiseWithControlEntityContext -> {

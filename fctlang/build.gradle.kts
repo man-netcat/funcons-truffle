@@ -33,13 +33,6 @@ tasks.jar {
     }
 
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-
-    manifest {
-        attributes(
-            "Specification-Title" to "FCT Language",
-            "Implementation-Version" to project.version
-        )
-    }
 }
 
 tasks.compileJava {
