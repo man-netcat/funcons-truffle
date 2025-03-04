@@ -72,7 +72,7 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
                     is NoArgsContext -> emptyList()
                     else -> throw IllegalArgumentException("Unknown arg type: ${args::class.simpleName}, ${args.text}")
                 }
-                println("building funcon: ${funconName}: with args: ${children::class.simpleName}: $children")
+                println("building funcon: ${funconName}: with args: ${children.map { it::class.simpleName }}")
                 FCTNodeFactory.createNode(funconName, children)
             }
 
