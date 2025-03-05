@@ -5,7 +5,7 @@ import com.oracle.truffle.api.nodes.Node
 
 @Suppress("UNCHECKED_CAST")
 abstract class FCTNode : Node() {
-    abstract fun execute(frame: VirtualFrame): Any?
+    abstract fun execute(frame: VirtualFrame): Any
 
     private fun getLanguage(): FCTLanguage {
         return FCTLanguage.get(this)
@@ -41,5 +41,13 @@ abstract class FCTNode : Node() {
 
     protected fun isGlobal(key: String): Boolean {
         return key in getContext().entities.keys
+    }
+
+    override fun onReplace(newNode: Node?, reason: CharSequence?) {
+        val reasonStr = if (reason != null && reason.isNotEmpty()) " with reason: $reason" else ""
+//        if (newNode != null)
+//            println("replacing: ${this::class.simpleName} for ${newNode::class.simpleName}$reasonStr")
+//        else
+//            println("newNode is null $reasonStr")
     }
 }

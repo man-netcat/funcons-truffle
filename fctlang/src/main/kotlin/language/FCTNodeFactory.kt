@@ -25,8 +25,6 @@ object FCTNodeFactory {
         val constructor = findMatchingConstructor(clazz, children)
             ?: throw IllegalArgumentException("No suitable constructor found for class: ${clazz.qualifiedName}")
 
-//        println("Found constructor: $constructor for class: ${clazz.qualifiedName}")
-
         val argsMap = prepareArguments(constructor, children)
         return constructor.callBy(argsMap)
     }

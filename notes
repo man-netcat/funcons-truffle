@@ -9,3 +9,5 @@ find fix for BoundedIntegersNode
 types need complete overhaul, current implementation does not work (determine type parameters vs value parameters)
 
 values need an execute function, maybe let user implement it or hardcode it
+
+how to handle small steps for sequences? i.e. in print

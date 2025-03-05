@@ -78,7 +78,7 @@ class FunconObject(
                 val whenStmt = makeWhenStatement(emptyPairs + reducePairs + pairs, elseBranch = "abort()")
 
                 // Concatenate intermediates and whenStmt
-                "val new = $whenStmt\nreplace(new)\nreturn this"
+                "val new = $whenStmt\nreturn replace(new).execute(frame)"
             } else {
                 println("no rules: ${ctx.text}")
                 // Has no rules
