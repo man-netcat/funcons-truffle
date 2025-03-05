@@ -22,7 +22,7 @@ val globalObjects: MutableMap<String, Object?> = mutableMapOf()
 class TruffleGen(
     private val cbsDir: File,
     private val outputDir: File,
-    private vararg val fctFiles: File
+    private vararg val fctFiles: File,
 ) {
     private val files: MutableMap<String, CBSFile> = mutableMapOf()
     private var cbsParseTrees = mutableMapOf<String, CBSParser.RootContext>()
@@ -67,7 +67,6 @@ class TruffleGen(
             val parser = FCTParser(tokens)
             val root = parser.root()
             fctParseTrees[file.name] = root
-            println(root.text)
         }
     }
 
@@ -171,7 +170,6 @@ class TruffleGen(
             println("Generating code for file $name...")
             val code = file.generateCode(generatedDependencies)
             if (code != null) {
-                println(code)
                 val fileNameWithoutExtension = name.removeSuffix(".cbs")
                 val filePath = File(outputDir, "$fileNameWithoutExtension.kt")
                 filePath.writeText(code)

@@ -20,13 +20,6 @@ class FunconObject(
             paramsAfterVararg > 0  // This behaviour is not yet implemented
         ).contains(true)
 
-    private val returnStr: String
-        //        get() = returns.rewrite(inNullableExpr = true, full = false)
-        get() {
-            val inner = FCTNODE + if (returns.isNullable) "?" else ""
-            return if (returns.isArray) "Sequence<${inner}>" else inner
-        }
-
     override val contentStr: String
         get() = if (!skipCriteria) {
             val body = if (rewritesTo != null) {
@@ -57,7 +50,7 @@ class FunconObject(
                         val reducedStr = "r${param.index}"
                         val varargIndexStr = if (param.type.isVararg) "[0]" else ""
                         val condition = "$paramStr$varargIndexStr !is ValuesNode"
-                        val rewrite = "$paramStr${varargIndexStr}.execute(frame) as $FCTNODE"
+                        val rewrite = "$paramStr${varargIndexStr}.execute(frame)"
                         val newVar = makeVariable(reducedStr, rewrite)
                         val paramArgStrs = params.joinToString { innerParam ->
                             val innerParamStr = "p${innerParam.index}"
@@ -80,13 +73,14 @@ class FunconObject(
                 // Concatenate intermediates and whenStmt
                 "val new = $whenStmt\nreturn replace(new).execute(frame)"
             } else {
-                println("no rules: ${ctx.text}")
+                // TODO: Fix me
+//                println("no rules: ${ctx.text}")
                 // Has no rules
                 "TODO(\"FIXME\")"
             }
 
-            makeExecuteFunction(body, returnStr)
-        } else todoExecute(name, "Any")
+            makeExecuteFunction(body, FCTNODE)
+        } else todoExecute(name, FCTNODE)
 
 
     override val annotations: List<String>

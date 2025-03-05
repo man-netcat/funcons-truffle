@@ -2,10 +2,11 @@ package language
 
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
+import generated.*
 
 @Suppress("UNCHECKED_CAST")
 abstract class FCTNode : Node() {
-    abstract fun execute(frame: VirtualFrame): Any
+    abstract fun execute(frame: VirtualFrame): FCTNode
 
     private fun getLanguage(): FCTLanguage {
         return FCTLanguage.get(this)
@@ -43,11 +44,50 @@ abstract class FCTNode : Node() {
         return key in getContext().entities.keys
     }
 
-    override fun onReplace(newNode: Node?, reason: CharSequence?) {
-        val reasonStr = if (reason != null && reason.isNotEmpty()) " with reason: $reason" else ""
+//    override fun onReplace(newNode: Node?, reason: CharSequence?) {
+//        val reasonStr = if (reason != null && reason.isNotEmpty()) " with reason: $reason" else ""
 //        if (newNode != null)
 //            println("replacing: ${this::class.simpleName} for ${newNode::class.simpleName}$reasonStr")
 //        else
 //            println("newNode is null $reasonStr")
+//    }
+
+    open val value: Any
+        get() {
+            if (this !is ValuesNode) throw IllegalStateException("Node with type: ${this::class.simpleName} is not of type ValuesNode")
+            return when (this) {
+                is FalseNode -> false
+                is TrueNode -> true
+                is NullValueNode -> "null-value"
+                else -> throw IllegalStateException("Unsupported node type: ${this::class.simpleName}")
+            }
+        }
+
+    override fun equals(other: Any?): Boolean {
+        return when {
+            this === other -> true
+            other !is Node -> false
+            this is FalseNode && other is FalseNode -> true
+            this is TrueNode && other is TrueNode -> true
+            else -> {
+                println("Not equal; nodes are: ${this::class.simpleName}, ${other::class.simpleName}")
+                false
+            }
+        }
+    }
+
+    override fun hashCode(): Int {
+        return when (this) {
+            is NaturalNumberNode -> value.hashCode()
+            is IntegerNode -> value.hashCode()
+            is FalseNode -> false.hashCode()
+            is TrueNode -> true.hashCode()
+            is StringNode -> value.hashCode()
+            else -> javaClass.hashCode()
+        }
+    }
+
+    fun isInstance(other: ValueTypesNode): Boolean {
+        return other::class.isInstance(this)
     }
 }

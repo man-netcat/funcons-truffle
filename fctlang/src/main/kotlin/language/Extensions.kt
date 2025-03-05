@@ -1,47 +1,53 @@
 package language
 
-import generated.*
+import generated.IntegersNode
+import generated.NaturalNumbersNode
+import generated.StringsNode
 
-open class NaturalNumberNode(val value: Int) : NaturalNumbersNode()
+data class NaturalNumberNode(override val value: Int) : NaturalNumbersNode() {
+    override fun equals(other: Any?): Boolean = when (other) {
+        is NaturalNumberNode -> this.value == other.value
+        is IntegerNode -> this.value == other.value
+        else -> false
+    }
+
+    override fun hashCode(): Int = value.hashCode()
+}
 
 fun Int.toNaturalNumberNode(): NaturalNumbersNode {
     if (this < 0) throw IllegalArgumentException("Natural numbers cannot be negative.")
     return NaturalNumberNode(this)
 }
 
-fun NaturalNumbersNode.toInt(): Int {
-    return when (this) {
-        is NaturalNumberNode -> this.value
-        else -> throw IllegalArgumentException("Unsupported NaturalNumbersNode type")
-    }
+fun NaturalNumbersNode.toInt(): Int = when (this) {
+    is NaturalNumberNode -> this.value
+    else -> throw IllegalArgumentException("Unsupported NaturalNumbersNode type")
 }
 
-open class IntegerNode(val value: Int) : IntegersNode()
+data class IntegerNode(override val value: Int) : IntegersNode() {
+    override fun equals(other: Any?): Boolean = when (other) {
+        is NaturalNumberNode -> this.value == other.value
+        is IntegerNode -> this.value == other.value
+        else -> false
+    }
+
+    override fun hashCode(): Int = value.hashCode()
+}
 
 fun Int.toIntegerNode(): IntegersNode {
     return IntegerNode(this)
 }
 
-fun IntegersNode.toInt(): Int {
-    return when (this) {
-        is IntegerNode -> this.value
-        else -> throw IllegalArgumentException("Unsupported IntegersNode type")
-    }
+fun IntegersNode.toInt(): Int = when (this) {
+    is IntegerNode -> this.value
+    else -> throw IllegalArgumentException("Unsupported IntegersNode type")
 }
 
-open class StringNode(val value: String) : StringsNode()
+data class StringNode(override val value: String) : StringsNode()
 
-fun String.toStringNode(): StringsNode {
-    return StringNode(this)
-}
+fun String.toStringNode(): StringsNode = StringNode(this)
 
-fun StringsNode.toStringLiteral(): String {
-    return when (this) {
-        is StringNode -> this.value
-        else -> throw IllegalArgumentException("Unsupported StringsNode type")
-    }
-}
-
-fun ValueTypesNode.isInstance(other: ValuesNode): Boolean {
-    TODO("Not yet implemented")
+fun StringsNode.toStringLiteral(): String = when (this) {
+    is StringNode -> this.value
+    else -> throw IllegalArgumentException("Unsupported StringsNode type")
 }
