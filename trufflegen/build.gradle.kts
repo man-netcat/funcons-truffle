@@ -37,6 +37,7 @@ tasks.named<JavaExec>("run") {
         cbsPathStr,
         generatedPathStr,
         *listOf(
+//            "Computations/Normal/Flowing/tests/do-while.config",
             "Computations/Normal/Flowing/tests/if-true-else.config",
             "Computations/Normal/Flowing/tests/sequential.config",
             "Values/Primitive/Booleans/tests/and.config",

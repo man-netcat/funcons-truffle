@@ -10,7 +10,6 @@ version = "1.0-SNAPSHOT"
 
 dependencies {
     project(":fctlang")
-    implementation(Deps.polyglot)
     implementation(project(":fctlang"))
     implementation(Deps.polyglot)
     implementation(Deps.graalSdk)

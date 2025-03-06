@@ -45,7 +45,7 @@ abstract class Object(
 
     val aliasStr
         get() = aliases.joinToString("\n") { alias ->
-            makeTypeAlias(toClassName(alias), nodeName, typeParams = metaVariables)
+            makeTypeAlias(toClassName(alias), nodeName)
         }
 
     val nodeName = toClassName(name)
@@ -59,7 +59,7 @@ abstract class Object(
             constructorArgs = valueParamStrs,
             superClass = superClassStr,
             annotations = annotations,
-            typeParams = metaVariables,
+            typeParams = if (!isFuncon) metaVariables else emptySet(),
             keywords = keyWords,
         )
 }

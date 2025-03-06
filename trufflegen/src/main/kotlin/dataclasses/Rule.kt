@@ -272,6 +272,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
     private fun processEntities(
         ruleDef: ExprContext,
         premiseExpr: PremiseExprContext,
+        rewriteData: List<RewriteData>,
         isConclusion: Boolean = false,
     ): List<RewriteData> {
         val labels = when (premiseExpr) {
@@ -298,7 +299,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
             if (isConclusion) {
                 println("labelObjName: ${labelObj.name}, type: ${labelObj::class.simpleName}")
                 val valueStr = if (label.value != null) {
-                    rewrite(ruleDef, label.value)
+                    rewrite(ruleDef, label.value, rewriteData)
                 } else ""
                 val star = if (labelObj.isIOEntity) "*" else ""
                 val newEntityStr = "${labelObj.nodeName}($star$valueStr)"
@@ -319,8 +320,8 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
             val rewriteData = mutableListOf<RewriteData>()
 
             // Add values for entities
-            rewriteData.addAll((premises).flatMap { premise -> processEntities(ruleDef, premise) })
-            rewriteData.addAll(processEntities(ruleDef, conclusion, isConclusion = true))
+            rewriteData.addAll((premises).flatMap { premise -> processEntities(ruleDef, premise, rewriteData) })
+            rewriteData.addAll(processEntities(ruleDef, conclusion, rewriteData, isConclusion = true))
 
             // Process all intermediate values
             // TODO: Identify common intermediates, maybe outside the scope of a single Rule

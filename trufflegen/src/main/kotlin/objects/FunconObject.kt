@@ -22,9 +22,41 @@ class FunconObject(
 
     override val contentStr: String
         get() = if (!skipCriteria) {
+            val reducePairs = params
+                .filter { param -> !param.type.computes }
+                .map { param ->
+                    val paramStr = "p${param.index}"
+                    val reducedStr = "r${param.index}"
+                    val varargIndexStr = if (param.type.isVararg) "[0]" else ""
+                    val condition = "$paramStr$varargIndexStr !is ValuesNode"
+                    val rewrite = "$paramStr${varargIndexStr}.execute(frame)"
+                    val newVar = makeVariable(reducedStr, rewrite)
+                    val paramArgStrs = params.joinToString { innerParam ->
+                        val innerParamStr = "p${innerParam.index}"
+                        val argStr = if (param.index == innerParam.index) reducedStr else innerParamStr
+                        if (innerParam.type.isVararg) {
+                            "$argStr, *$innerParamStr.sliceFrom(1)"
+                        } else {
+                            argStr
+                        }
+                    }
+                    val metavarStr =
+//                        if (metaVariables.isNotEmpty()) {
+//                        "<${metaVariables.joinToString { it.first }}>"
+//                    } else
+                        ""
+                    val newNode = "$nodeName$metavarStr(${paramArgStrs})"
+                    condition to "$newVar\n$newNode"
+                }
+
+
             val body = if (rewritesTo != null) {
                 // Has single context-insensitive rewrite
-                "return ${rewrite(ctx, rewritesTo)}"
+                val rewriteStr = rewrite(ctx, rewritesTo)
+                val whenStmt = if (reducePairs.isNotEmpty()) {
+                    makeWhenStatement(reducePairs, elseBranch = rewriteStr)
+                } else rewriteStr
+                "val new = $whenStmt\nreturn replace(new).execute(frame)"
             } else if (rules.isNotEmpty()) {
                 // Has one or more rewrite rules
                 val ruleObjs = rules.map { rule ->
@@ -42,31 +74,6 @@ class FunconObject(
                 val pairs = rule.map { rule ->
                     rule.conditions.joinToString(" && ") to rule.bodyStr
                 }
-
-                val reducePairs = params
-                    .filter { param -> !param.type.computes }
-                    .map { param ->
-                        val paramStr = "p${param.index}"
-                        val reducedStr = "r${param.index}"
-                        val varargIndexStr = if (param.type.isVararg) "[0]" else ""
-                        val condition = "$paramStr$varargIndexStr !is ValuesNode"
-                        val rewrite = "$paramStr${varargIndexStr}.execute(frame)"
-                        val newVar = makeVariable(reducedStr, rewrite)
-                        val paramArgStrs = params.joinToString { innerParam ->
-                            val innerParamStr = "p${innerParam.index}"
-                            val argStr = if (param.index == innerParam.index) reducedStr else innerParamStr
-                            if (innerParam.type.isVararg) {
-                                "$argStr, *$innerParamStr.sliceFrom(1)"
-                            } else {
-                                argStr
-                            }
-                        }
-                        val metavarStr = if (metaVariables.isNotEmpty()) {
-                            "<${metaVariables.joinToString { it.first }}>"
-                        } else ""
-                        val newNode = "$nodeName$metavarStr(${paramArgStrs})"
-                        condition to "$newVar\n$newNode"
-                    }
 
                 val whenStmt = makeWhenStatement(emptyPairs + reducePairs + pairs, elseBranch = "abort()")
 
