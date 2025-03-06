@@ -1,5 +1,6 @@
 @file:OptIn(ExperimentalPathApi::class)
 
+import dependencies.Vars
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.io.path.ExperimentalPathApi
@@ -28,23 +29,12 @@ application {
 }
 
 tasks.named<JavaExec>("run") {
-    val cbsPathStr = "../../CBS-beta/Funcons-beta/"
-    val generatedPathStr = "../fctlang/src/main/kotlin/generated"
-    val generated = Paths.get(generatedPathStr)
+    val generated = Paths.get(Vars.generatedPathStr)
     generated.deleteRecursively()
     Files.createDirectories(generated)
     args = listOf(
-        cbsPathStr,
-        generatedPathStr,
-        *listOf(
-//            "Computations/Normal/Flowing/tests/do-while.config",
-            "Computations/Normal/Flowing/tests/if-true-else.config",
-            "Computations/Normal/Flowing/tests/sequential.config",
-            "Values/Primitive/Booleans/tests/and.config",
-            "Values/Primitive/Booleans/tests/exclusive-or.config",
-            "Values/Primitive/Booleans/tests/implies.config",
-            "Values/Primitive/Booleans/tests/not.config",
-            "Values/Primitive/Booleans/tests/or.config",
-        ).map { "$cbsPathStr/$it" }.toTypedArray()
+        Vars.cbsFilePath,
+        Vars.generatedPathStr,
+        *Vars.configFiles
     )
 }

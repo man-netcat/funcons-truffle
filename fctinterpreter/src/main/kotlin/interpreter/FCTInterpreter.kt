@@ -20,9 +20,7 @@ fun main(args: Array<String>) {
         return
     }
 
-    println("Interpreting file ${filePath.fileName}")
     print("standard-out: ")
-
     val context = Context.newBuilder("fctlang").allowAllAccess(true).build()
     val source = Source.newBuilder("fctlang", code, filePath.pathString).build()
     try {

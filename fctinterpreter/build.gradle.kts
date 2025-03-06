@@ -1,4 +1,6 @@
+
 import dependencies.Deps
+import dependencies.Vars
 
 plugins {
     kotlin("jvm")
@@ -28,4 +30,28 @@ tasks.named<JavaExec>("run") {
     // Set classpath and JVM args
     classpath = files(fctlangJar) + sourceSets.main.get().runtimeClasspath
     jvmArgs = listOf("-Dpolyglot.engine.WarnInterpreterOnly=false")
+}
+
+tasks.register("testFilesRun") {
+    group = "application"
+    description = "Runs the interpreter for a list of test files"
+    dependsOn(":fctlang:jar")
+    doLast {
+        // List of file names containing your fctlang code.
+        val testFiles = Vars.configFiles
+
+        // Get reference to the fctlang JAR.
+        val fctlangJar = project(":fctlang").tasks.jar.get().archiveFile.get().asFile
+
+        // Iterate over each file and run the interpreter.
+        testFiles.forEach { fileName ->
+            println("Executing file: $fileName")
+            javaexec {
+                mainClass.set("interpreter.FCTInterpreterKt")
+                args = listOf(fileName)
+                classpath = files(fctlangJar) + sourceSets["main"].runtimeClasspath
+                jvmArgs = listOf("-Dpolyglot.engine.WarnInterpreterOnly=false")
+            }
+        }
+    }
 }
