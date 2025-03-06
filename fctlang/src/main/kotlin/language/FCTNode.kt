@@ -17,7 +17,10 @@ abstract class FCTNode : Node() {
     }
 
     private fun getLocalContext(frame: VirtualFrame): MutableMap<String, Entity?> {
-        return frame.getObject(FrameSlots.LOCAL_CONTEXT.ordinal) as MutableMap<String, Entity?>
+        return frame.getObject(FrameSlots.LOCAL_CONTEXT.ordinal) as? MutableMap<String, Entity?>
+            ?: mutableMapOf<String, Entity?>().also {
+                frame.setObject(FrameSlots.LOCAL_CONTEXT.ordinal, it)
+            }
     }
 
     protected fun getInScope(frame: VirtualFrame, key: String): Entity? {
@@ -29,28 +32,20 @@ abstract class FCTNode : Node() {
     }
 
     protected fun isInScope(frame: VirtualFrame, key: String): Boolean {
-        return key in getLocalContext(frame).keys
+        return getLocalContext(frame).containsKey(key)
     }
 
     protected fun getGlobal(key: String): Entity? {
-        return getContext().getEntity(key)
+        return getContext().globalVariables[key]
     }
 
     protected fun putGlobal(key: String, value: Entity) {
-        getContext().putEntity(key, value)
+        getContext().globalVariables[key] = value
     }
 
     protected fun isGlobal(key: String): Boolean {
-        return key in getContext().entities.keys
+        return getContext().globalVariables.containsKey(key)
     }
-
-//    override fun onReplace(newNode: Node?, reason: CharSequence?) {
-//        val reasonStr = if (reason != null && reason.isNotEmpty()) " with reason: $reason" else ""
-//        if (newNode != null)
-//            println("replacing: ${this::class.simpleName} for ${newNode::class.simpleName}$reasonStr")
-//        else
-//            println("newNode is null $reasonStr")
-//    }
 
     open val value: Any
         get() {
@@ -83,4 +78,16 @@ abstract class FCTNode : Node() {
     fun isInstance(other: ValueTypesNode): Boolean {
         return other::class.isInstance(this)
     }
+
+//    override fun onReplace(newNode: Node?, reason: CharSequence?) {
+//        val reasonStr = if (reason != null && reason.isNotEmpty()) " with reason: $reason" else ""
+//        if (newNode != null)
+//            println("replacing: ${this::class.simpleName} for ${newNode::class.simpleName}$reasonStr")
+//        else
+//            println("newNode is null $reasonStr")
+//    }
+}
+
+enum class FrameSlots {
+    LOCAL_CONTEXT
 }

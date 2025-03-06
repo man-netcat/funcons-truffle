@@ -23,11 +23,10 @@ fun main(args: Array<String>) {
     print("standard-out: ")
     val context = Context.newBuilder("fctlang").allowAllAccess(true).build()
     val source = Source.newBuilder("fctlang", code, filePath.pathString).build()
-    try {
+//    try {
         val result = context.eval(source)
         println("\nresult-term: $result")
-    } catch (e: Exception) {
-        println("Error during execution: ${e.message}")
-    }
+//    } catch (e: Exception) {
+//        println("Error during execution: ${e.message}")
+//    }
 }
-

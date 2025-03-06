@@ -2,6 +2,8 @@ package language
 
 import com.oracle.truffle.api.CallTarget
 import com.oracle.truffle.api.TruffleLanguage
+import com.oracle.truffle.api.frame.FrameDescriptor
+import com.oracle.truffle.api.frame.FrameSlotKind
 import com.oracle.truffle.api.nodes.Node
 import fct.FCTLexer
 import fct.FCTParser
@@ -36,7 +38,10 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
         val parser = FCTParser(tokens)
         val mainContext = parser.generalBlock()
         val rootNode = convertToFCTNode(mainContext)
-        val fctRootNode = FCTRootNode(this, rootNode)
+        val frameDescriptorBuilder = FrameDescriptor.newBuilder()
+        frameDescriptorBuilder.addSlots(100, FrameSlotKind.Object)
+        val frameDescriptor = frameDescriptorBuilder.build()
+        val fctRootNode = FCTRootNode(this, frameDescriptor, rootNode)
         return fctRootNode.callTarget
     }
 

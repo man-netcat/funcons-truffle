@@ -10,6 +10,8 @@ import objects.FunconObject
 import org.antlr.v4.runtime.tree.ParseTree
 
 fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<RewriteData> = emptyList()): String {
+
+
     fun rewriteRecursive(toRewrite: ParseTree, isParam: Boolean = true): String {
         fun mapParamString(str: String): String {
             val paramStrs = getParamStrs(definition, isParam = isParam)

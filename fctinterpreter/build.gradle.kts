@@ -1,4 +1,3 @@
-
 import dependencies.Deps
 import dependencies.Vars
 
@@ -22,7 +21,7 @@ tasks.named<JavaExec>("run") {
     dependsOn(":fctlang:jar")
 
     mainClass.set("interpreter.FCTInterpreterKt")
-    args = listOf("../../CBS-beta/Funcons-beta/Computations/Normal/Flowing/tests/sequential.config")
+    args = listOf("../../CBS-beta/Funcons-beta/Computations/Normal/Flowing/tests/do-while.config")
 
     // Get reference to fctlang JAR
     val fctlangJar = project(":fctlang").tasks.jar.flatMap { it.archiveFile }
@@ -49,9 +48,10 @@ tasks.register("testFilesRun") {
             javaexec {
                 mainClass.set("interpreter.FCTInterpreterKt")
                 args = listOf(fileName)
-                classpath = files(fctlangJar) + sourceSets["main"].runtimeClasspath
+                classpath = sourceSets["main"].runtimeClasspath + files(fctlangJar)
                 jvmArgs = listOf("-Dpolyglot.engine.WarnInterpreterOnly=false")
             }
+            println("-----------------------")
         }
     }
 }

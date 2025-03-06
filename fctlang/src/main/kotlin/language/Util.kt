@@ -18,4 +18,4 @@ fun <T> Array<T>.sliceUntil(endIndex: Int, startIndexOffset: Int = 0): Array<T> 
     return sliceArray(startIndexOffset until endIndex)
 }
 
-fun abort(): Nothing = throw RuntimeException()
+fun abort(reason: String = ""): Nothing = throw RuntimeException(reason)

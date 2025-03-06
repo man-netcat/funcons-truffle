@@ -9,6 +9,7 @@ object FCTNodeFactory {
     private const val INTERPRETER = "language"
 
     fun createNode(funconName: String, children: List<Any>): FCTNode {
+        println("creating node: $funconName with children ${children.map { it::class.simpleName }}")
         val className = toClassName(funconName, GENERATED)
 
         return try {
@@ -53,59 +54,36 @@ object FCTNodeFactory {
         children: List<Any>,
     ): Map<KParameter, Any?> {
         val parameters = constructor.parameters
-        val isVararg = parameters.any { it.isVararg }
+        val varargIndex = parameters.indexOfFirst { it.isVararg }
 
-        return if (isVararg) {
-            prepareVarargArguments(parameters, children)
-        } else {
-            prepareFixedArguments(parameters, children)
-        }
-    }
+        return if (varargIndex >= 0) {
+            val beforeVararg = parameters.take(varargIndex)
+            val varargParam = parameters[varargIndex]
+            val afterVararg = parameters.drop(varargIndex + 1)
 
-    private fun prepareFixedArguments(
-        parameters: List<KParameter>,
-        children: List<Any>,
-    ): Map<KParameter, Any?> {
-        return parameters.zip(children).associate { (param, arg) ->
-            param to arg
-        }
-    }
+            val beforeArgs = children.take(beforeVararg.size)
+            val varargArgs = children.drop(beforeVararg.size).dropLast(afterVararg.size)
+                .toTypedArray()
+            val afterArgs = children.takeLast(afterVararg.size)
 
-    private fun prepareVarargArguments(
-        parameters: List<KParameter>,
-        children: List<Any>,
-    ): Map<KParameter, Any?> {
-        val varargParam = parameters.first { it.isVararg }
-        val fixedParamCount = parameters.size - 1  // Total parameters minus vararg
 
-        // Split children into vararg part and fixed parameters
-        val varargChildren = children.take(children.size - fixedParamCount)
-        val fixedChildren = children.drop(varargChildren.size)
-
-        // Create vararg array (handle empty case)
-        val componentType = (varargParam.type.arguments.first().type!!.classifier as KClass<*>).java
-        val varargArray = if (varargChildren.isNotEmpty()) {
-            java.lang.reflect.Array.newInstance(componentType, varargChildren.size).also { array ->
-                for (i in varargChildren.indices) {
-                    java.lang.reflect.Array.set(array, i, varargChildren[i] as FCTNode)
+            val componentType = (varargParam.type.arguments.first().type!!.classifier as KClass<*>).java
+            val varargArray = if (varargArgs.isNotEmpty()) {
+                java.lang.reflect.Array.newInstance(componentType, varargArgs.size).also { array ->
+                    varargArgs.withIndex().forEach { arg ->
+                        java.lang.reflect.Array.set(array, arg.index, arg.value as FCTNode)
+                    }
                 }
+            } else {
+                java.lang.reflect.Array.newInstance(componentType, 0)
             }
+
+            beforeVararg.zip(beforeArgs).toMap() +
+                    mapOf(varargParam to varargArray) +
+                    afterVararg.zip(afterArgs).toMap()
         } else {
-            // Empty array for vararg
-            java.lang.reflect.Array.newInstance(componentType, 0)
+            parameters.zip(children).toMap()
         }
-
-        // Combine vararg array and fixed parameters into a map
-        val argsMap = mutableMapOf<KParameter, Any?>()
-        for (i in parameters.indices) {
-            val param = parameters[i]
-            argsMap[param] = when {
-                param.isVararg -> varargArray
-                else -> fixedChildren[i - (parameters.size - fixedParamCount)]
-            }
-        }
-
-        return argsMap
     }
 
     private fun toClassName(funconName: String, packageName: String): String {

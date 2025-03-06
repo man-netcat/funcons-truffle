@@ -75,7 +75,10 @@ class FunconObject(
                     rule.conditions.joinToString(" && ") to rule.bodyStr
                 }
 
-                val whenStmt = makeWhenStatement(emptyPairs + reducePairs + pairs, elseBranch = "abort()")
+                val whenStmt = makeWhenStatement(
+                    emptyPairs + reducePairs + pairs,
+                    elseBranch = "abort(\"$name\")"
+                )
 
                 // Concatenate intermediates and whenStmt
                 "val new = $whenStmt\nreturn replace(new).execute(frame)"
