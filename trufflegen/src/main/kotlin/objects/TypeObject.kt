@@ -20,9 +20,11 @@ class TypeObject(
             0 -> {
                 val superClassName = if (name == "values") {
                     FCTNODE
-                } else if (name != "value-types") {
-                    toClassName("value-types")
-                } else toClassName("values")
+                } else if (name == "ground-values") {
+                    toClassName("values")
+                } else {
+                    toClassName("ground-values")
+                }
                 emptySuperClass(superClassName)
             }
 

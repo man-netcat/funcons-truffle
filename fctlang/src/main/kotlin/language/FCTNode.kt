@@ -77,14 +77,7 @@ abstract class FCTNode : Node() {
     }
 
     override fun hashCode(): Int {
-        return when (this) {
-            is NaturalNumberNode -> value.hashCode()
-            is IntegerNode -> value.hashCode()
-            is FalseNode -> false.hashCode()
-            is TrueNode -> true.hashCode()
-            is StringNode -> value.hashCode()
-            else -> javaClass.hashCode()
-        }
+        return this.value.hashCode()
     }
 
     fun isInstance(other: ValueTypesNode): Boolean {
