@@ -26,22 +26,40 @@ class FunconObject(
                 .filter { param -> !param.type.computes }
                 .map { param ->
                     val paramStr = "p${param.index}"
-                    val reducedStr = "r${param.index}"
-                    val varargIndexStr = if (param.type.isVararg) "[0]" else ""
-                    val condition = "$paramStr$varargIndexStr !is ValuesNode"
-                    val rewrite = "$paramStr${varargIndexStr}.execute(frame)"
-                    val newVar = makeVariable(reducedStr, rewrite)
-                    val paramArgStrs = params.joinToString { innerParam ->
-                        val innerParamStr = "p${innerParam.index}"
-                        val argStr = if (param.index == innerParam.index) reducedStr else innerParamStr
-                        if (innerParam.type.isVararg) {
-                            "$argStr, *$innerParamStr.sliceFrom(1)"
-                        } else {
-                            argStr
+                    if (!param.type.isVararg) {
+                        val condition = "$paramStr !is ValuesNode"
+                        val rewrite = "$paramStr.execute(frame)"
+                        val paramArgStrs = params.joinToString { innerParam ->
+                            val innerParamStr = "p${innerParam.index}"
+                            val argStr = if (param.index == innerParam.index) "r" else innerParamStr
+                            if (innerParam.type.isVararg) {
+                                "$argStr, *$innerParamStr.sliceFrom(1)"
+                            } else {
+                                argStr
+                            }
                         }
+                        val newVar = makeVariable("r", rewrite)
+                        val newNode = "$nodeName(${paramArgStrs})"
+                        condition to "$newVar\n$newNode"
+                    } else {
+                        // TODO: figure out method for retaining optimisations such as short-circuiting
+                        val condition = "$paramStr.any { it !is ValuesNode }"
+                        val getFirst = "$paramStr.withIndex().first { it.value !is ValuesNode }"
+                        val newVar1 = makeVariable("p", getFirst)
+                        val rewrite = "p.value.execute(frame)"
+                        val newVar2 = makeVariable("r", rewrite)
+                        val paramArgStrs = params.joinToString { innerParam ->
+                            val innerParamStr = "p${innerParam.index}"
+                            val argStr = if (param.index == innerParam.index) "r" else innerParamStr
+                            if (innerParam.type.isVararg) {
+                                "*$innerParamStr.sliceUntil(p.index), $argStr, *$innerParamStr.sliceFrom(p.index + 1)"
+                            } else {
+                                argStr
+                            }
+                        }
+                        val newNode = "$nodeName(${paramArgStrs})"
+                        condition to "$newVar1\n$newVar2\n$newNode"
                     }
-                    val newNode = "$nodeName(${paramArgStrs})"
-                    condition to "$newVar\n$newNode"
                 }
 
 

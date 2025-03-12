@@ -4,6 +4,8 @@ object Vars {
     const val generatedPathStr = "../fctlang/src/main/kotlin/generated"
     const val cbsFilePath = "../../CBS-beta/Funcons-beta/"
     val configFiles = listOf<String>(
+        "Computations/Normal/Flowing/tests/effect.config",
+        "Computations/Normal/Flowing/tests/choice.config",
         "Computations/Normal/Flowing/tests/do-while.config",
         "Computations/Normal/Flowing/tests/while.config",
         "Computations/Normal/Flowing/tests/if-true-else.config",
