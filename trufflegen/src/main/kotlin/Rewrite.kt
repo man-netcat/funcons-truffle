@@ -25,7 +25,7 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
                 args.mapIndexed { i, arg ->
                     if (obj.paramsAfterVararg > 0 && i in args.size - obj.paramsAfterVararg until args.size) {
                         val paramIndex = obj.params.size - (args.size - i)
-                        "p$paramIndex=${rewriteRecursive(arg)}"
+                        "p$paramIndex = ${rewriteRecursive(arg)}"
                     } else rewriteRecursive(arg)
                 }.joinToString()
             } else "null"

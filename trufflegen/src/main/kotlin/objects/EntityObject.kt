@@ -29,7 +29,11 @@ open class EntityObject(
         else -> ::putGlobalStr
     }
 
-    val getStr = getFunc(name)
+    fun getStr(): String {
+        val qmark = if (entityType == EntityType.CONTROL) "?" else ""
+        return "(${getFunc(name)} as $nodeName$qmark)?"
+    }
+
     fun putStr(value: String) = putFunc(name, value)
 
     val isIOEntity get() = entityType in listOf(EntityType.INPUT, EntityType.OUTPUT)

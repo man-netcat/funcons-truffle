@@ -1,5 +1,6 @@
 package language
 
+import generated.aliasMap
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
@@ -9,8 +10,10 @@ object FCTNodeFactory {
     private const val INTERPRETER = "language"
 
     fun createNode(funconName: String, children: List<Any>): TermNode {
+        val resolvedName = aliasMap[funconName] ?: funconName
+
         val classNames = sequenceOf(GENERATED, INTERPRETER)
-            .map { packageName -> toClassName(funconName, packageName) }
+            .map { packageName -> toClassName(resolvedName, packageName) }
 
         val clazz = classNames
             .mapNotNull { className ->

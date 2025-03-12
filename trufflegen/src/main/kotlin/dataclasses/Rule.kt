@@ -7,9 +7,10 @@ import main.exceptions.StringNotFoundException
 import main.objects.EntityObject
 
 class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, returns: Type) {
-    val conditions: MutableList<String> = mutableListOf()
-    val emptyConditions: MutableList<String> = mutableListOf()
-    private val assignments: MutableList<String> = mutableListOf()
+    val conditions = mutableListOf<String>()
+    val emptyConditions = mutableListOf<String>()
+    val entityVars = mutableSetOf<String>()
+    private val assignments = mutableListOf<String>()
     private val rewriteStr: String
     private var intermediateCounter = 0
 
@@ -177,11 +178,11 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
             is TransitionPremiseWithContextualEntityContext,
             is TransitionPremiseWithMutableEntityContext,
                 -> {
+                if (rhs.text == "_") return
                 val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
                 val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
 
                 val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
-                println(rewrite)
                 assignments.add(rewrite)
 
                 val condition = when {
@@ -276,16 +277,16 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 val star = if (labelObj.isIOEntity) "*" else ""
                 val newEntityStr = "${labelObj.nodeName}($star$valueStr)"
                 val assignment = labelObj.putStr(newEntityStr)
-                assignments.add(assignment)
+                assignments.addFirst(assignment)
             } catch (e: StringNotFoundException) {
                 // Likely a read-only entity
                 val condition = if (label.value == null) {
-                    "${labelObj.getStr} == null"
+                    "${labelObj.getStr()} == null"
                 } else {
-                    "${labelObj.getStr} != null"
+                    "${labelObj.getStr()} != null"
                 }
                 conditions.add(condition)
-                val getStr = labelObj.getStr
+                val getStr = labelObj.getStr()
                 rewriteData.addAll(getParamStrs(label, prefix = getStr))
             }
         }
@@ -309,7 +310,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         val labels = getEntities(premiseExpr)
 
         return labels.flatMap { (label, labelObj) ->
-            val getStr = labelObj.getStr
+            val getStr = labelObj.getStr()
             getParamStrs(label, prefix = getStr)
         }
     }

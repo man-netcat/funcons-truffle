@@ -162,7 +162,7 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
                 stringBuilder.appendLine(code)
                 if (aliasStr.isNotBlank()) {
                     stringBuilder.appendLine()
-                    stringBuilder.appendLine(aliasStr)
+//                    stringBuilder.appendLine(aliasStr)
                 }
             } catch (e: StringNotFoundException) {
                 println(e)

@@ -10,7 +10,6 @@ group = "org.rickteuthof"
 version = "1.0-SNAPSHOT"
 
 dependencies {
-    project(":fctlang")
     implementation(project(":fctlang"))
     implementation(Deps.polyglot)
     implementation(Deps.graalSdk)
@@ -34,7 +33,7 @@ dependencies {
 tasks.register("testFilesRun") {
     group = "application"
     description = "Runs the interpreter for a list of test files"
-    dependsOn(":fctlang:build", ":fctinterpreter:build") // Ensure both modules are built
+    dependsOn(":fctlang:jar", ":fctinterpreter:build") // Ensure both modules are built
     doLast {
         // List of file names containing your fctlang code.
         val testFiles = Vars.configFiles

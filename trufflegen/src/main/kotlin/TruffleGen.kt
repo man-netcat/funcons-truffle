@@ -174,8 +174,25 @@ class TruffleGen(
                 val filePath = File(outputDir, "$fileNameWithoutExtension.kt")
                 filePath.writeText(code)
             }
-            println(code)
+            if (code != null) {
+                println(code)
+            }
         }
+        val aliasFilePath = File(outputDir, "Aliases.kt")
+        val stringBuilder = StringBuilder()
+
+        stringBuilder.appendLine("package generated")
+        stringBuilder.appendLine()
+
+        stringBuilder.appendLine("val aliasMap: Map<String, String> = mapOf(")
+        globalObjects.flatMap { (name, obj) ->
+            obj!!.aliases
+                .filter { alias -> alias != name }
+                .map { alias -> "\"$alias\" to \"$name\"" }
+        }.joinToString(",\n    ").let { stringBuilder.appendLine("    $it") }
+        stringBuilder.appendLine(")")
+
+        aliasFilePath.writeText(stringBuilder.toString())
     }
 
     companion object {
