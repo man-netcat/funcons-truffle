@@ -15,7 +15,7 @@ abstract class Object(
     val dependencies = mutableSetOf<Object>()
     open val contentStr: String = ""
     open val annotations: List<String> = emptyList()
-    open val superClassStr: String = emptySuperClass(FCTNODE)
+    open val superClassStr: String = emptySuperClass(TERMNODE)
     open val keyWords: List<String> = listOf("open")
 
     val varargParamIndex: Int get() = params.indexOfFirst { it.type.isVararg }
@@ -38,7 +38,7 @@ abstract class Object(
 //                val paramTypeStr = if (param.type.computes) {
 //                    param.type.rewrite(inNullableExpr = true, full = false)
 //                } else FCTNODE
-                val paramTypeStr = FCTNODE
+                val paramTypeStr = TERMNODE + if (param.type.isNullable) "?" else ""
                 makeParam(paramTypeStr, param.name, annotation)
             }
         }

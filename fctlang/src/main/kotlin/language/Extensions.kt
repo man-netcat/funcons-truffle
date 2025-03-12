@@ -43,7 +43,12 @@ fun IntegersNode.toInt(): Int = when (this) {
     else -> throw IllegalArgumentException("Unsupported IntegersNode type")
 }
 
-data class StringNode(override val value: String) : StringsNode()
+data class StringNode(override val value: String) : StringsNode() {
+    override fun equals(other: Any?): Boolean = when (other) {
+        is StringNode -> this.value == other.value
+        else -> false
+    }
+}
 
 fun String.toStringNode(): StringsNode = StringNode(this)
 

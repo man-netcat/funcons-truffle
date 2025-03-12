@@ -3,6 +3,7 @@ package main.dataclasses
 import cbs.CBSParser.*
 import main.*
 import main.exceptions.DetailedException
+import main.exceptions.StringNotFoundException
 import main.objects.EntityObject
 
 class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, returns: Type) {
@@ -24,9 +25,14 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         return "$paramStr ${complementStr}is $typeStr"
     }
 
-    private fun argsConditions(funconExpr: FunconExpressionContext, rewriteData: List<RewriteData>) {
+    private fun argsConditions(
+        funconExpr: FunconExpressionContext,
+        conclusion: PremiseExprContext,
+        rewriteData: MutableList<RewriteData>,
+    ) {
         val obj = getObject(funconExpr)
         val args = extractArgs(funconExpr)
+        val labels = getEntities(conclusion)
         if (obj.params.size == 1 && args.isEmpty()) {
             if (obj.params[0].type.isVararg) {
                 emptyConditions.add("p0.isEmpty()")
@@ -63,31 +69,45 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
                 when (argValue) {
                     is NumberContext -> conditions.add("$paramStr == ${argValue.text}")
-                    is TupleExpressionContext -> emptyConditions.add("${paramStr}.isEmpty()")
-                    is VariableContext -> if (argValue.text == "_") conditions.add("$paramStr != null")
+                    is TupleExpressionContext -> conditions.add("${paramStr}.isEmpty()")
                     is SuffixExpressionContext -> {}
                 }
             }
         }
 
-        if ((emptyConditions + conditions).isEmpty()) {
-            if (obj.hasVararg) {
-                val (arrayArgs, nonArrayArgs) = partitionArrayArgs(args)
-                if (arrayArgs.isNotEmpty() && nonArrayArgs.size == 1) {
-                    conditions.add("p${obj.varargParamIndex}.isNotEmpty()")
-                } else if (arrayArgs.isNotEmpty()) {
-                    conditions.add("p${obj.varargParamIndex}.size >= ${nonArrayArgs.size}")
-                } else {
-                    conditions.add("p${obj.varargParamIndex}.size == ${nonArrayArgs.size}")
+        if (obj.hasVararg) {
+            val (arrayArgs, nonArrayArgs) = partitionArrayArgs(args)
+
+            val sumVarargMin = arrayArgs.sumOf { arg ->
+                fun processArg(arg: ExprContext): Int {
+                    return when (arg) {
+                        is TypeExpressionContext -> processArg(arg.value)
+                        is SuffixExpressionContext -> when (arg.op.text) {
+                            "+" -> 1
+                            else -> 0
+                        }
+
+                        else -> 1
+                    }
                 }
-            } else {
-                println("funconExpr: ${funconExpr.text}, rewriteData: $rewriteData")
+                processArg(arg)
             }
+
+            val varargParam = "p${obj.varargParamIndex}"
+            val offsetValue = sumVarargMin + nonArrayArgs.size - (obj.params.size - 1)
+            val condition = if (arrayArgs.isNotEmpty()) {
+                "$varargParam.size >= $offsetValue"
+            } else {
+                "$varargParam.size == $offsetValue"
+            }
+            conditions.addFirst(condition)
+        } else {
+            println("funconExpr: ${funconExpr.text}, rewriteData: $rewriteData")
         }
     }
 
     private fun processIntermediates(
-        ruleDef: ExprContext, premise: PremiseExprContext, rewriteData: List<RewriteData>,
+        ruleDef: ExprContext, premise: PremiseExprContext, rewriteData: MutableList<RewriteData>,
     ): List<RewriteData> {
         val (lhs, rhs) = extractLhsRhs(premise)
 
@@ -137,7 +157,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
     private fun processPremises(
         ruleDef: ExprContext,
         premise: PremiseExprContext,
-        rewriteData: List<RewriteData>,
+        rewriteData: MutableList<RewriteData>,
     ) {
         val (lhs, rhs) = extractLhsRhs(premise)
 
@@ -161,28 +181,18 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
 
                 val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
+                println(rewrite)
                 assignments.add(rewrite)
 
                 val condition = when {
-                    lhs is VariableContext && rhs is VariableContext && rhs.text == lhs.text + "\'" -> {
-                        // Base case, X usually rewrites to X'
-                        "$rewriteLhs is $FCTNODE"
-                    }
-
-                    rhs is VariableContext && rhs.text == "_" -> {
-                        // If executes to any non-null value
-                        "$rewriteLhs is $FCTNODE && $rewriteRhs != null"
+                    rhs is VariableContext -> {
+                        "$rewriteLhs !is ValuesNode"
                     }
 
                     lhs is FunconExpressionContext -> {
                         // In the case of `atomic(X') --yielded( )->2 X''`
                         val lhsFuncon = getObject(lhs)
                         "$rewriteLhs is ${lhsFuncon.nodeName}"
-                    }
-
-                    lhs is VariableContext && rhs is VariableContext -> {
-                        // In the case of `X --yielded( )-> V`
-                        "$rewriteLhs == $rewriteLhs"
                     }
 
                     else -> throw DetailedException("Unexpected premise: ${premise.text}")
@@ -218,10 +228,10 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 val condition =
                     if (rhs is VariableContext) {
                         val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
-                        "${rewriteRhs}.isInstance($rewriteLhs)"
+                        "${rewriteRhs}.instanceOf($rewriteLhs as TypesNode)"
                     } else if (rhs is ComplementExpressionContext && rhs.operand is VariableContext) {
                         val rewriteRhs = rewrite(ruleDef, rhs.operand, rewriteData)
-                        "!${rewriteRhs}.isInstance($rewriteLhs)"
+                        "!${rewriteRhs}.instanceOf($rewriteLhs as TypesNode)"
                     } else {
                         makeTypeCondition(rewriteLhs, premise.type)
                     }
@@ -230,28 +240,54 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         }
     }
 
-    private fun processConclusion(
-        ruleDef: ExprContext, conclusion: PremiseExprContext, rewriteData: List<RewriteData>,
-    ) {
-        fun addAssignment(label: LabelContext, putStrFunc: (String, String) -> String) {
-            val valueStr = if (label.value != null) {
-                println("rewriting: ${label.text}")
-                rewrite(ruleDef, label.value, rewriteData)
-            } else "null"
-            val assignment = putStrFunc(label.name.text, valueStr)
-            assignments.add(assignment)
+    private fun getEntities(premiseExpr: PremiseExprContext): List<Pair<LabelContext, EntityObject>> {
+        fun labelToObject(label: LabelContext): EntityObject {
+            return if (label.name.text == "abrupt") {
+                // TODO: Edge case due to bug in CBS code for yield-on-value. Remove when fixed.
+                globalObjects["abrupted"]
+            } else {
+                getObject(label)
+            } as EntityObject
         }
 
-        when (conclusion) {
+        return when (premiseExpr) {
             is TransitionPremiseWithControlEntityContext -> {
-                val steps = conclusion.steps().step().sortedBy { it.sequenceNumber.text.toInt() }
-                steps.forEach { step ->
-                    step.labels().label().forEach { label -> addAssignment(label, ::putGlobalStr) }
+                val steps = premiseExpr.steps().step().sortedBy { it.sequenceNumber.text.toInt() }
+                steps.flatMap { step ->
+                    step.labels().label().map { label -> label to labelToObject(label) }
                 }
             }
 
-            is TransitionPremiseWithContextualEntityContext -> addAssignment(conclusion.context_, ::putInScopeStr)
-            is TransitionPremiseWithMutableEntityContext -> addAssignment(conclusion.entityRhs, ::putGlobalStr)
+            is TransitionPremiseWithMutableEntityContext -> listOf(premiseExpr.entityLhs to labelToObject(premiseExpr.entityLhs))
+            is TransitionPremiseWithContextualEntityContext -> listOf(premiseExpr.context_ to labelToObject(premiseExpr.context_))
+            else -> listOf<Pair<LabelContext, EntityObject>>()
+        }
+    }
+
+    private fun processConclusion(
+        ruleDef: ExprContext, conclusion: PremiseExprContext, rewriteData: MutableList<RewriteData>,
+    ) {
+        val labels = getEntities(conclusion)
+        labels.forEach { (label, labelObj) ->
+            try {
+                val valueStr = if (label.value != null) {
+                    rewrite(ruleDef, label.value, rewriteData)
+                } else "null"
+                val star = if (labelObj.isIOEntity) "*" else ""
+                val newEntityStr = "${labelObj.nodeName}($star$valueStr)"
+                val assignment = labelObj.putStr(newEntityStr)
+                assignments.add(assignment)
+            } catch (e: StringNotFoundException) {
+                // Likely a read-only entity
+                val condition = if (label.value == null) {
+                    "${labelObj.getStr} == null"
+                } else {
+                    "${labelObj.getStr} != null"
+                }
+                conditions.add(condition)
+                val getStr = labelObj.getStr
+                rewriteData.addAll(getParamStrs(label, prefix = getStr))
+            }
         }
     }
 
@@ -269,46 +305,12 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         }
     }
 
-    private fun processEntities(
-        ruleDef: ExprContext,
-        premiseExpr: PremiseExprContext,
-        rewriteData: List<RewriteData>,
-        isConclusion: Boolean = false,
-    ): List<RewriteData> {
-        val labels = when (premiseExpr) {
-            is TransitionPremiseWithControlEntityContext -> {
-                val steps = premiseExpr.steps().step().sortedBy { it.sequenceNumber.text.toInt() }
-                steps.flatMap { step -> step.labels().label() }
-            }
+    private fun processEntities(premiseExpr: PremiseExprContext): List<RewriteData> {
+        val labels = getEntities(premiseExpr)
 
-            is TransitionPremiseWithMutableEntityContext -> listOf(premiseExpr.entityLhs)
-            is TransitionPremiseWithContextualEntityContext -> listOf(premiseExpr.context_)
-            else -> listOf()
-        }
-
-        if (labels.isEmpty()) return emptyList()
-
-        return labels.flatMap { label ->
-            val labelObj = if (label.name.text == "abrupt") {
-                // TODO: Edge case due to bug in CBS code for yield-on-value. Remove when fixed.
-                globalObjects["abrupted"]
-            } else {
-                getObject(label)
-            } as EntityObject
-
-            if (isConclusion) {
-                println("labelObjName: ${labelObj.name}, type: ${labelObj::class.simpleName}")
-                val valueStr = if (label.value != null) {
-                    rewrite(ruleDef, label.value, rewriteData)
-                } else ""
-                val star = if (labelObj.isIOEntity) "*" else ""
-                val newEntityStr = "${labelObj.nodeName}($star$valueStr)"
-
-                listOf(RewriteData(label.value, null, newEntityStr))
-            } else {
-                val getStr = labelObj.getFunc(label.name.text)
-                getParamStrs(label, prefix = getStr)
-            }
+        return labels.flatMap { (label, labelObj) ->
+            val getStr = labelObj.getStr
+            getParamStrs(label, prefix = getStr)
         }
     }
 
@@ -320,16 +322,15 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
             val rewriteData = mutableListOf<RewriteData>()
 
             // Add values for entities
-            rewriteData.addAll((premises).flatMap { premise -> processEntities(ruleDef, premise, rewriteData) })
-            rewriteData.addAll(processEntities(ruleDef, conclusion, rewriteData, isConclusion = true))
+            rewriteData.addAll((premises).flatMap { premise -> processEntities(premise) })
+//            rewriteData.addAll(processEntities(conclusion))
 
             // Process all intermediate values
             // TODO: Identify common intermediates, maybe outside the scope of a single Rule
             premises.forEach { premise -> rewriteData.addAll(processIntermediates(ruleDef, premise, rewriteData)) }
 
             // Add the type checking conditions
-            // TODO: Remove redundant type conditions
-            if (ruleDef is FunconExpressionContext) argsConditions(ruleDef, rewriteData)
+            if (ruleDef is FunconExpressionContext) argsConditions(ruleDef, conclusion, rewriteData)
 
             // Add data for premises and build conclusions
             premises.forEach { premise -> processPremises(ruleDef, premise, rewriteData) }

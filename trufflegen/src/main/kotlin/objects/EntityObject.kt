@@ -6,7 +6,7 @@ import org.antlr.v4.runtime.tree.ParseTree
 open class EntityObject(
     ctx: ParseTree,
     metaVariables: Set<Pair<String, String>>,
-    private val entityType: EntityType
+    private val entityType: EntityType,
 ) : Object(ctx, metaVariables) {
     private val entityClassMap = mapOf(
         EntityType.CONTEXTUAL to CONTEXTUALENTITY,
@@ -23,6 +23,14 @@ open class EntityObject(
         EntityType.CONTEXTUAL -> ::getInScopeStr
         else -> ::getGlobalStr
     }
+
+    val putFunc = when (entityType) {
+        EntityType.CONTEXTUAL -> ::putInScopeStr
+        else -> ::putGlobalStr
+    }
+
+    val getStr = getFunc(name)
+    fun putStr(value: String) = putFunc(name, value)
 
     val isIOEntity get() = entityType in listOf(EntityType.INPUT, EntityType.OUTPUT)
 

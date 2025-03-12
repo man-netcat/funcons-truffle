@@ -8,19 +8,19 @@ object FCTNodeFactory {
     private const val GENERATED = "generated"
     private const val INTERPRETER = "language"
 
-    fun createNode(funconName: String, children: List<Any>): FCTNode {
-        println("creating node: $funconName with children ${children.map { it::class.simpleName }}")
-        val className = toClassName(funconName, GENERATED)
+    fun createNode(funconName: String, children: List<Any>): TermNode {
+        val classNames = sequenceOf(GENERATED, INTERPRETER)
+            .map { packageName -> toClassName(funconName, packageName) }
 
-        return try {
-            val clazz = Class.forName(className).kotlin
-            instantiate(clazz, children) as FCTNode
-        } catch (e: ClassNotFoundException) {
-            val extensionsClassName = toClassName(funconName, INTERPRETER)
-            val clazz = Class.forName(extensionsClassName).kotlin
-            instantiate(clazz, children) as FCTNode
-        }
+        val clazz = classNames
+            .mapNotNull { className ->
+                runCatching { Class.forName(className).kotlin }.getOrNull()
+            }
+            .firstOrNull() ?: throw ClassNotFoundException("No class found for $funconName")
+
+        return instantiate(clazz, children) as TermNode
     }
+
 
     private fun instantiate(clazz: KClass<out Any>, children: List<Any>): Any {
         val constructor = findMatchingConstructor(clazz, children)
@@ -71,7 +71,7 @@ object FCTNodeFactory {
             val varargArray = if (varargArgs.isNotEmpty()) {
                 java.lang.reflect.Array.newInstance(componentType, varargArgs.size).also { array ->
                     varargArgs.withIndex().forEach { arg ->
-                        java.lang.reflect.Array.set(array, arg.index, arg.value as FCTNode)
+                        java.lang.reflect.Array.set(array, arg.index, arg.value as TermNode)
                     }
                 }
             } else {

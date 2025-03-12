@@ -49,12 +49,12 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
         return FCTContext(env)
     }
 
-    private fun convertToFCTNode(context: GeneralBlockContext): FCTNode {
+    private fun convertToFCTNode(context: GeneralBlockContext): TermNode {
         val expr = context.funconTerm()
         return buildTree(expr)
     }
 
-    private fun buildTree(parseTree: ParseTree): FCTNode {
+    private fun buildTree(parseTree: ParseTree): TermNode {
         return when (parseTree) {
             is FunconTermContext -> {
                 buildTree(parseTree.expr())
@@ -108,7 +108,7 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
             is TerminalExpressionContext -> {
                 when (val terminal = parseTree.terminalValue()) {
                     is StringContext -> {
-                        val str = terminal.STRING().text.removeSurrounding("\"")
+                        val str = terminal.STRING().text
                         FCTNodeFactory.createNode("string", listOf(str))
                     }
 

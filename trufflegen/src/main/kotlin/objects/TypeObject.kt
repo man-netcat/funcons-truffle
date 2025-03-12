@@ -19,9 +19,11 @@ class TypeObject(
         get() = when (definitions.size) {
             0 -> {
                 val superClassName = if (name == "values") {
-                    FCTNODE
+                    TERMNODE
                 } else if (name == "ground-values") {
                     toClassName("values")
+                } else if (name == "datatype-values") {
+                    toClassName("value-types")
                 } else {
                     toClassName("ground-values")
                 }
@@ -45,5 +47,5 @@ class TypeObject(
             else -> throw DetailedException("Unexpected amount of definitions, ${definitions.joinToString()} has ${definitions.size} items")
         }
     override val contentStr: String
-        get() = if (name == "values") makeExecuteFunction("return this", FCTNODE) else ""
+        get() = if (name == "values") makeExecuteFunction("return this", TERMNODE) else ""
 }

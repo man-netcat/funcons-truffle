@@ -5,6 +5,7 @@ import cbs.CBSParser.*
 import main.dataclasses.Type
 import main.exceptions.DetailedException
 import main.exceptions.EmptyConditionException
+import main.exceptions.StringNotFoundException
 import main.objects.*
 import main.visitors.MetaVariableVisitor
 import objects.FunconObject
@@ -163,8 +164,8 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
                     stringBuilder.appendLine()
                     stringBuilder.appendLine(aliasStr)
                 }
-//            } catch (e: StringNotFoundException) {
-//                println(e)
+            } catch (e: StringNotFoundException) {
+                println(e)
             } catch (e: EmptyConditionException) {
                 println(e)
             }

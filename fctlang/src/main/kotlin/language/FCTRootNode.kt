@@ -3,14 +3,24 @@ package language
 import com.oracle.truffle.api.frame.FrameDescriptor
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.RootNode
+import generated.ValuesNode
 
 class FCTRootNode(
     language: FCTLanguage,
     frameDescriptor: FrameDescriptor,
-    @Child private var rootExpr: FCTNode,
+    @Child private var rootExpr: TermNode,
 ) : RootNode(language, frameDescriptor) {
     override fun execute(frame: VirtualFrame): Any {
-        val result = rootExpr.execute(frame)
-        return result.value
+        var iterationCount = 0
+
+        while (rootExpr !is ValuesNode) {
+//            println("Iteration $iterationCount: Current result is ${rootExpr::class.simpleName}")
+//            println(rootExpr.getContext().globalVariables)
+//            rootExpr.printTree()
+            rootExpr = rootExpr.execute(frame)
+            iterationCount++
+        }
+
+        return rootExpr.value
     }
 }

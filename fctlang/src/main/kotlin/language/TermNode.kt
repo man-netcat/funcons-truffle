@@ -3,17 +3,14 @@ package language
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
 import generated.*
+import kotlin.reflect.full.primaryConstructor
 
 @Suppress("UNCHECKED_CAST")
-abstract class FCTNode : Node() {
-    abstract fun execute(frame: VirtualFrame): FCTNode
+abstract class TermNode : Node() {
+    abstract fun execute(frame: VirtualFrame): TermNode
 
     private fun getLanguage(): FCTLanguage {
         return FCTLanguage.get(this)
-    }
-
-    private fun getContext(): FCTContext {
-        return FCTContext.get(this)
     }
 
     private fun getLocalContext(frame: VirtualFrame): MutableMap<String, Entity?> {
@@ -21,6 +18,10 @@ abstract class FCTNode : Node() {
             ?: mutableMapOf<String, Entity?>().also {
                 frame.setObject(FrameSlots.LOCAL_CONTEXT.ordinal, it)
             }
+    }
+
+    fun getContext(): FCTContext {
+        return FCTContext.get(this)!!
     }
 
     protected fun getInScope(frame: VirtualFrame, key: String): Entity? {
@@ -36,15 +37,11 @@ abstract class FCTNode : Node() {
     }
 
     protected fun getGlobal(key: String): Entity? {
-        return getContext().globalVariables[key]
+        return getContext().globalVariables.getEntity(key)
     }
 
     protected fun putGlobal(key: String, value: Entity) {
-        getContext().globalVariables[key] = value
-    }
-
-    protected fun isGlobal(key: String): Boolean {
-        return getContext().globalVariables.containsKey(key)
+        getContext().globalVariables.putEntity(key, value)
     }
 
     open val value: Any
@@ -54,7 +51,7 @@ abstract class FCTNode : Node() {
                 is FalseNode -> false
                 is TrueNode -> true
                 is NullValueNode -> "null-value"
-                else -> throw IllegalStateException("Unsupported node type: ${this::class.simpleName}")
+                else -> this::class.simpleName!!
             }
         }
 
@@ -75,7 +72,7 @@ abstract class FCTNode : Node() {
         return this.value.hashCode()
     }
 
-    fun isInstance(other: ValueTypesNode): Boolean {
+    fun instanceOf(other: ValueTypesNode): Boolean {
         return other::class.isInstance(this)
     }
 
@@ -86,6 +83,26 @@ abstract class FCTNode : Node() {
 //        else
 //            println("newNode is null $reasonStr")
 //    }
+
+    fun printTree(indent: String = "") {
+        // For debug purposes only
+
+        val value = try {
+            ": ${this.value}"
+        } catch (e: IllegalStateException) {
+            ""
+        }
+        println("$indent${this::class.simpleName}$value")
+
+        this::class.primaryConstructor!!.parameters.forEach { param ->
+            val member = this::class.members.firstOrNull { it.name == param.name }
+            val res = member!!.call(this)
+            when (res) {
+                is Array<*> -> res.forEach { (it as TermNode).printTree("$indent  ") }
+                is TermNode -> res.printTree("$indent  ")
+            }
+        }
+    }
 }
 
 enum class FrameSlots {

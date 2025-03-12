@@ -258,3 +258,15 @@ fun makeAnnotation(isVararg: Boolean = false, isOverride: Boolean = false, isEnt
 
     return annotationBuilder.toString()
 }
+
+fun <A, B, C> combineLists(pairs: List<Pair<A, B>>, thirdList: List<C>): List<Triple<A, B, C>> {
+    return pairs.zip(thirdList) { pair, third ->
+        Triple(pair.first, pair.second, third)
+    }
+}
+
+fun <A, B : Comparable<B>, C> sortAndExtract(pairs: List<Triple<A, B, C>>): List<Pair<A, C>> {
+    return pairs
+        .sortedBy { it.second }
+        .map { Pair(it.first, it.third) }
+}

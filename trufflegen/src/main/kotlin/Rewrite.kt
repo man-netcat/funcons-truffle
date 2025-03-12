@@ -10,8 +10,6 @@ import objects.FunconObject
 import org.antlr.v4.runtime.tree.ParseTree
 
 fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<RewriteData> = emptyList()): String {
-
-
     fun rewriteRecursive(toRewrite: ParseTree, isParam: Boolean = true): String {
         fun mapParamString(str: String): String {
             val paramStrs = getParamStrs(definition, isParam = isParam)
@@ -145,30 +143,35 @@ fun getParams(definition: ParseTree) = when (definition) {
     is ControlEntityDefinitionContext,
     is ContextualEntityDefinitionContext,
     is MutableEntityDefinitionContext,
-    is DatatypeDefinitionContext -> extractParams(definition)
+    is DatatypeDefinitionContext,
+        -> extractParams(definition)
 
     is FunconExpressionContext,
     is ListExpressionContext,
     is SetExpressionContext,
-    is LabelContext -> argsToParams(definition)
+    is LabelContext,
+        -> argsToParams(definition)
 
     else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
 }
 
-fun getObject(definition: ParseTree) = when (definition) {
-    is FunconDefinitionContext -> globalObjects[definition.name.text]!!
-    is TypeDefinitionContext -> globalObjects[definition.name.text]!!
-    is DatatypeDefinitionContext -> globalObjects[definition.name.text]!!
-    is FunconExpressionContext -> globalObjects[definition.name.text]!!
-    is ListExpressionContext -> globalObjects["list"]!!
-    is SetExpressionContext -> globalObjects["set"]!!
-    is LabelContext -> globalObjects[definition.name.text]!!
-    else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
+fun getObject(definition: ParseTree): Object {
+    val name = when (definition) {
+        is FunconDefinitionContext -> definition.name.text
+        is TypeDefinitionContext -> definition.name.text
+        is DatatypeDefinitionContext -> definition.name.text
+        is FunconExpressionContext -> definition.name.text
+        is ListExpressionContext -> "list"
+        is SetExpressionContext -> "set"
+        is LabelContext -> definition.name.text
+        else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
+    }
+    return globalObjects[name]!!
 }
 
 fun getParamStrs(definition: ParseTree, isParam: Boolean = false, prefix: String = ""): List<RewriteData> {
     fun makeParamStr(
-        argIndex: Int, argsSize: Int, obj: Object, parentStr: String, argIsArray: Boolean = false
+        argIndex: Int, argsSize: Int, obj: Object, parentStr: String, argIsArray: Boolean = false,
     ): String {
         // Calculate the number of arguments passed to the vararg
         val nVarargArgs = argsSize - (obj.params.size - 1)

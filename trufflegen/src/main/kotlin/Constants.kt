@@ -6,7 +6,7 @@ const val MUTABLEENTITY = "MutableEntity"
 const val CONTROLENTITY = "ControlEntity"
 const val INPUTENTITY = "InputEntity"
 const val OUTPUTENTITY = "OutputEntity"
-const val FCTNODE = "FCTNode"
+const val TERMNODE = "TermNode"
 
 enum class EntityType {
     CONTEXTUAL,

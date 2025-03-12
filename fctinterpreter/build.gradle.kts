@@ -16,25 +16,25 @@ dependencies {
     implementation(Deps.graalSdk)
     implementation(Deps.truffleApi)
 }
-
-tasks.named<JavaExec>("run") {
-    dependsOn(":fctlang:jar")
-
-    mainClass.set("interpreter.FCTInterpreterKt")
-    args = listOf("../../CBS-beta/Funcons-beta/Computations/Normal/Flowing/tests/do-while.config")
-
-    // Get reference to fctlang JAR
-    val fctlangJar = project(":fctlang").tasks.jar.flatMap { it.archiveFile }
-
-    // Set classpath and JVM args
-    classpath = files(fctlangJar) + sourceSets.main.get().runtimeClasspath
-    jvmArgs = listOf("-Dpolyglot.engine.WarnInterpreterOnly=false")
-}
+//
+//tasks.named<JavaExec>("run") {
+//    dependsOn(":fctlang:jar")
+//
+//    mainClass.set("interpreter.FCTInterpreterKt")
+//    args = listOf("../../CBS-beta/Funcons-beta/Computations/Normal/Flowing/tests/do-while.config")
+//
+//    // Get reference to fctlang JAR
+//    val fctlangJar = project(":fctlang").tasks.jar.flatMap { it.archiveFile }
+//
+//    // Set classpath and JVM args
+//    classpath = files(fctlangJar) + sourceSets.main.get().runtimeClasspath
+//    jvmArgs = listOf("-Dpolyglot.engine.WarnInterpreterOnly=false")
+//}
 
 tasks.register("testFilesRun") {
     group = "application"
     description = "Runs the interpreter for a list of test files"
-    dependsOn(":fctlang:jar")
+    dependsOn(":fctlang:build", ":fctinterpreter:build") // Ensure both modules are built
     doLast {
         // List of file names containing your fctlang code.
         val testFiles = Vars.configFiles

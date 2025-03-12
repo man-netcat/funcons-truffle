@@ -40,12 +40,7 @@ class FunconObject(
                             argStr
                         }
                     }
-                    val metavarStr =
-//                        if (metaVariables.isNotEmpty()) {
-//                        "<${metaVariables.joinToString { it.first }}>"
-//                    } else
-                        ""
-                    val newNode = "$nodeName$metavarStr(${paramArgStrs})"
+                    val newNode = "$nodeName(${paramArgStrs})"
                     condition to "$newVar\n$newNode"
                 }
 
@@ -56,7 +51,7 @@ class FunconObject(
                 val whenStmt = if (reducePairs.isNotEmpty()) {
                     makeWhenStatement(reducePairs, elseBranch = rewriteStr)
                 } else rewriteStr
-                "val new = $whenStmt\nreturn replace(new).execute(frame)"
+                "val new = $whenStmt\nreturn replace(new)"
             } else if (rules.isNotEmpty()) {
                 // Has one or more rewrite rules
                 val ruleObjs = rules.map { rule ->
@@ -81,7 +76,7 @@ class FunconObject(
                 )
 
                 // Concatenate intermediates and whenStmt
-                "val new = $whenStmt\nreturn replace(new).execute(frame)"
+                "val new = $whenStmt\nreturn replace(new)"
             } else {
                 // TODO: Fix me
 //                println("no rules: ${ctx.text}")
@@ -89,8 +84,8 @@ class FunconObject(
                 "TODO(\"FIXME\")"
             }
 
-            makeExecuteFunction(body, FCTNODE)
-        } else todoExecute(name, FCTNODE)
+            makeExecuteFunction(body, TERMNODE)
+        } else todoExecute(name, TERMNODE)
 
 
     override val annotations: List<String>

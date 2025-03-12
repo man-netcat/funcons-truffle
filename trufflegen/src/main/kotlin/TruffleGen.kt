@@ -174,6 +174,7 @@ class TruffleGen(
                 val filePath = File(outputDir, "$fileNameWithoutExtension.kt")
                 filePath.writeText(code)
             }
+            println(code)
         }
     }
 
