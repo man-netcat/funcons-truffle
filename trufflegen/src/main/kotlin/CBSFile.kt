@@ -35,14 +35,12 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
 
     override fun visitFunconDefinition(ctx: FunconDefinitionContext) {
         val returns = Type(ctx.returnType)
-        val builtin = ctx.modifier != null
         val metaVariables = identifyMetavariables(ctx)
 
         val dataContainer = FunconObject(
             ctx,
             metaVariables,
             returns,
-            builtin,
             rules = ctx.ruleDefinition(),
             rewritesTo = ctx.rewritesTo
         )
@@ -156,14 +154,9 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
         toProcess.forEach { obj ->
             println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $fileName)")
             try {
-                val code = obj.code
-                val aliasStr = obj.aliasStr
+                val code = obj.makeCode()
                 stringBuilder.appendLine()
                 stringBuilder.appendLine(code)
-                if (aliasStr.isNotBlank()) {
-                    stringBuilder.appendLine()
-//                    stringBuilder.appendLine(aliasStr)
-                }
             } catch (e: StringNotFoundException) {
                 println(e)
             } catch (e: EmptyConditionException) {

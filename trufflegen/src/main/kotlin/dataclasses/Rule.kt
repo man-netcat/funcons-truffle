@@ -35,7 +35,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         val args = extractArgs(funconExpr)
         val labels = getEntities(conclusion)
         if (obj.params.size == 1 && args.isEmpty()) {
-            if (obj.params[0].type.isVararg) {
+            if (obj.params[0].type.isSequence) {
                 emptyConditions.add("p0.isEmpty()")
             } else {
                 conditions.add("p0 == null")
@@ -94,7 +94,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 processArg(arg)
             }
 
-            val varargParam = "p${obj.varargParamIndex}"
+            val varargParam = "p${obj.sequenceIndex}"
             val offsetValue = sumVarargMin + nonArrayArgs.size - (obj.params.size - 1)
             val condition = if (arrayArgs.isNotEmpty()) {
                 "$varargParam.size >= $offsetValue"
@@ -182,7 +182,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
                 val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
 
-                val rewrite = "val $rewriteRhs = $rewriteLhs.execute(frame)"
+                val rewrite = "val $rewriteRhs = $rewriteLhs.reduce(frame)"
                 assignments.add(rewrite)
 
                 val condition = when {
@@ -202,7 +202,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 if (premise is TransitionPremiseWithMutableEntityContext) {
                     val rewriteEntityLhs = rewrite(ruleDef, premise.entityLhs.value, rewriteData)
                     val rewriteEntityRhs = rewrite(ruleDef, premise.entityRhs.value, rewriteData)
-                    val rewritten = "val $rewriteEntityRhs = $rewriteEntityLhs.execute(frame)"
+                    val rewritten = "val $rewriteEntityRhs = $rewriteEntityLhs.reduce(frame)"
                     assignments.add(rewritten)
                 }
             }
@@ -274,8 +274,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 val valueStr = if (label.value != null) {
                     rewrite(ruleDef, label.value, rewriteData)
                 } else "null"
-                val star = if (labelObj.isIOEntity) "*" else ""
-                val newEntityStr = "${labelObj.nodeName}($star$valueStr)"
+                val newEntityStr = "${labelObj.nodeName}($valueStr)"
                 val assignment = labelObj.putStr(newEntityStr)
                 assignments.addFirst(assignment)
             } catch (e: StringNotFoundException) {

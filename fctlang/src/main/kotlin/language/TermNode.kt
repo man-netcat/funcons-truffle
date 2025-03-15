@@ -7,7 +7,7 @@ import kotlin.reflect.full.primaryConstructor
 
 @Suppress("UNCHECKED_CAST")
 abstract class TermNode : Node() {
-    abstract fun execute(frame: VirtualFrame): TermNode
+    abstract fun reduce(frame: VirtualFrame): TermNode
 
     private fun getLanguage(): FCTLanguage {
         return FCTLanguage.get(this)

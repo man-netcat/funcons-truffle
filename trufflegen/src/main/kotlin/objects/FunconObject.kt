@@ -10,50 +10,45 @@ class FunconObject(
     ctx: FunconDefinitionContext,
     metaVariables: Set<Pair<String, String>>,
     val returns: Type,
-    private val builtin: Boolean,
     val rules: List<RuleDefinitionContext> = emptyList(),
     val rewritesTo: ExprContext? = null,
 ) : Object(ctx, metaVariables) {
-    private val skipCriteria: Boolean
-        get() = listOf(
-            builtin,               // Builtins should be implemented manually
-            paramsAfterVararg > 0  // This behaviour is not yet implemented
-        ).contains(true)
+    fun makeReducePairs(): List<Pair<String, String>> {
+        return params
+            .filter { param -> !param.type.computes }
+            .map { param ->
+                val paramStr = "p${param.index}"
+                if (!param.type.isSequence) {
+                    val condition = "$paramStr !is ValuesNode"
+                    val reduced = "$paramStr.reduce(frame)"
+                    val paramArgStrs = params.joinToString { innerParam ->
+                        val innerParamStr = "p${innerParam.index}"
+                        val argStr = if (param.index == innerParam.index) "r" else innerParamStr
+                        if (innerParam.type.isSequence) {
+                            "$argStr, $innerParamStr.tail"
+                        } else argStr
+                    }
+                    val newVar = makeVariable("r", value = reduced)
+                    val newNode = "$nodeName(${paramArgStrs})"
+                    condition to "$newVar\n$newNode"
+                } else {
+                    val condition = "$paramStr.hasNonValuesNode()"
+                    val reduced = "$paramStr.reduce(frame)"
+                    val newVar = makeVariable("r", value = reduced)
+                    val paramArgStrs = params.joinToString { innerParam ->
+                        val innerParamStr = "p${innerParam.index}"
+                        val argStr = if (param.index == innerParam.index) "r" else innerParamStr
+                        if (innerParam.type.isSequence) "r" else argStr
+                    }
+                    val newNode = "$nodeName(${paramArgStrs})"
+                    condition to "$newVar\n$newNode"
+                }
+            }
+    }
 
     override val contentStr: String
-        get() = if (!skipCriteria) {
-            val reducePairs = params
-                .filter { param -> !param.type.computes }
-                .map { param ->
-                    val paramStr = "p${param.index}"
-                    if (!param.type.isVararg) {
-                        val condition = "$paramStr !is ValuesNode"
-                        val rewrite = "reduce($paramStr, frame)"
-                        val paramArgStrs = params.joinToString { innerParam ->
-                            val innerParamStr = "p${innerParam.index}"
-                            val argStr = if (param.index == innerParam.index) "r" else innerParamStr
-                            if (innerParam.type.isVararg) {
-                                "$argStr, *$innerParamStr.sliceFrom(1)"
-                            } else argStr
-                        }
-                        val newVar = makeVariable("r", rewrite)
-                        val newNode = "$nodeName(${paramArgStrs})"
-                        condition to "$newVar\n$newNode"
-                    } else {
-                        // TODO: figure out method for retaining optimisations such as short-circuiting
-                        val condition = "$paramStr.any { it !is ValuesNode }"
-                        val getFirst = "reduceSequence($paramStr, frame)"
-                        val newVar = makeVariable("pn", getFirst)
-                        val paramArgStrs = params.joinToString { innerParam ->
-                            val innerParamStr = "p${innerParam.index}"
-                            val argStr = if (param.index == innerParam.index) "r" else innerParamStr
-                            if (innerParam.type.isVararg) "*pn" else argStr
-                        }
-                        val newNode = "$nodeName(${paramArgStrs})"
-                        condition to "$newVar\n$newNode"
-                    }
-                }
-
+        get() {
+            val reducePairs = makeReducePairs()
 
             val body = if (rewritesTo != null) {
                 // Has single context-insensitive rewrite
@@ -94,8 +89,8 @@ class FunconObject(
                 "TODO(\"FIXME\")"
             }
 
-            makeExecuteFunction(body, TERMNODE)
-        } else todoExecute(name, TERMNODE)
+            return makeReduceFunction(body, TERMNODE)
+        }
 
 
     override val annotations: List<String>

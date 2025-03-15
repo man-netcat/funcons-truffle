@@ -7,6 +7,7 @@ const val CONTROLENTITY = "ControlEntity"
 const val INPUTENTITY = "InputEntity"
 const val OUTPUTENTITY = "OutputEntity"
 const val TERMNODE = "TermNode"
+const val SEQUENCE = "SequenceNode"
 
 enum class EntityType {
     CONTEXTUAL,

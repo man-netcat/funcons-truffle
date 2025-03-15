@@ -3,7 +3,6 @@ package language
 import com.oracle.truffle.api.frame.FrameDescriptor
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.RootNode
-import generated.ValuesNode
 
 class FCTRootNode(
     language: FCTLanguage,
@@ -18,7 +17,7 @@ class FCTRootNode(
 //            println("Iteration $iterationCount: Current result is ${rootExpr::class.simpleName}")
 //            rootExpr.printTree()
 //            println(rootExpr.getContext().globalVariables)
-            rootExpr = rootExpr.execute(frame)
+            rootExpr = rootExpr.reduce(frame)
             iterationCount++
         }
 

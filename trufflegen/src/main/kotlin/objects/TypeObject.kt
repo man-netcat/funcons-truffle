@@ -14,19 +14,10 @@ class TypeObject(
     override val annotations: List<String> = listOf("CBSType")
     private val definitions = if (ctx.definition != null) extractAndOrExprs(ctx.definition) else emptyList()
     val operator = ctx.op?.text
-    val builtin = ctx.modifier != null
     override val superClassStr: String
         get() = when (definitions.size) {
             0 -> {
-                val superClassName = if (name == "values") {
-                    TERMNODE
-                } else if (name == "ground-values") {
-                    toClassName("values")
-                } else if (name == "datatype-values") {
-                    toClassName("value-types")
-                } else {
-                    toClassName("ground-values")
-                }
+                val superClassName = toClassName("ground-values")
                 emptySuperClass(superClassName)
             }
 
@@ -47,5 +38,5 @@ class TypeObject(
             else -> throw DetailedException("Unexpected amount of definitions, ${definitions.joinToString()} has ${definitions.size} items")
         }
     override val contentStr: String
-        get() = if (name == "values") makeExecuteFunction("return this", TERMNODE) else ""
+        get() = if (name == "values") makeReduceFunction("return this", TERMNODE) else ""
 }

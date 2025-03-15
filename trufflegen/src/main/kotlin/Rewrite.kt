@@ -6,13 +6,12 @@ import main.dataclasses.RewriteData
 import main.exceptions.DetailedException
 import main.exceptions.StringNotFoundException
 import main.objects.Object
-import objects.FunconObject
 import org.antlr.v4.runtime.tree.ParseTree
 
 fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<RewriteData> = emptyList()): String {
-    fun rewriteRecursive(toRewrite: ParseTree, isParam: Boolean = true): String {
+    fun rewriteRecursive(toRewrite: ParseTree): String {
         fun mapParamString(str: String): String {
-            val paramStrs = getParamStrs(definition, isParam = isParam)
+            val paramStrs = getParamStrs(definition)
             val exprMap = (paramStrs + rewriteData).associate { (arg, _, paramStr) -> Pair(arg?.text, paramStr) }
             return exprMap[str] ?: throw StringNotFoundException(str, exprMap.keys.toList())
         }
@@ -22,15 +21,9 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
             val className = toClassName(name)
             val args = extractArgs(context)
             val argStr = if (!(obj.hasNullable && args.isEmpty())) {
-                args.mapIndexed { i, arg ->
-                    if (obj.paramsAfterVararg > 0 && i in args.size - obj.paramsAfterVararg until args.size) {
-                        val paramIndex = obj.params.size - (args.size - i)
-                        "p$paramIndex = ${rewriteRecursive(arg)}"
-                    } else rewriteRecursive(arg)
-                }.joinToString()
+                args.joinToString { arg -> rewriteRecursive(arg) }
             } else "null"
-            val prefix = if (obj is FunconObject && obj.returns.isArray && isParam) "*" else ""
-            val str = "$prefix$className($argStr)"
+            val str = "$className($argStr)"
             return str
         }
 
@@ -78,7 +71,7 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
         }
     }
 
-    return rewriteRecursive(toRewrite, isParam = false)
+    return rewriteRecursive(toRewrite)
 }
 
 fun extractParams(obj: ParseTree): List<Param> {
@@ -169,16 +162,13 @@ fun getObject(definition: ParseTree): Object {
     return globalObjects[name]!!
 }
 
-fun getParamStrs(definition: ParseTree, isParam: Boolean = false, prefix: String = ""): List<RewriteData> {
+fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> {
     fun makeParamStr(
-        argIndex: Int, argsSize: Int, obj: Object, parentStr: String, argIsArray: Boolean = false,
+        argIndex: Int, argsSize: Int, obj: Object, parentStr: String, argIsSequence: Boolean = false,
     ): String {
         // Calculate the number of arguments passed to the vararg
         val nVarargArgs = argsSize - (obj.params.size - 1)
-        val argsAfterVararg = if (obj.varargParamIndex >= 0) argsSize - (obj.varargParamIndex + nVarargArgs) else 0
-
-        // Prefix '*' as the spread operator if the argument is both an array and a parameter
-        val starPrefix = if (argIsArray && isParam) "*" else ""
+        val argsAfterVararg = if (obj.sequenceIndex >= 0) argsSize - (obj.sequenceIndex + nVarargArgs) else 0
 
         // Utility function to build parameter string based on provided condition
         fun buildParamString(paramIndex: Int, suffix: String = ""): String {
@@ -187,26 +177,23 @@ fun getParamStrs(definition: ParseTree, isParam: Boolean = false, prefix: String
 
         return when {
             // Case when there is no vararg parameter (obj.varargParamIndex == -1)
-            obj.varargParamIndex == -1 || argIndex in 0 until obj.varargParamIndex -> {
-                starPrefix + buildParamString(argIndex)
+            obj.sequenceIndex == -1 || argIndex in 0 until obj.sequenceIndex -> {
+                buildParamString(argIndex)
             }
 
             // Case for an actual vararg parameter range
-            argIndex in obj.varargParamIndex until obj.varargParamIndex + nVarargArgs -> {
-                val varargRelativeIndex = argIndex - obj.varargParamIndex
+            argIndex in obj.sequenceIndex until obj.sequenceIndex + nVarargArgs -> {
+                val varargRelativeIndex = argIndex - obj.sequenceIndex
 
-                if (!argIsArray) {
-                    buildParamString(obj.varargParamIndex, "[$varargRelativeIndex]")
-                } else if (varargRelativeIndex != 0) {
-                    starPrefix + "${buildParamString(obj.varargParamIndex)}.sliceFrom($varargRelativeIndex)"
+                if (!argIsSequence) {
+                    buildParamString(obj.sequenceIndex, "[$varargRelativeIndex]")
+                } else if (varargRelativeIndex == 1) {
+                    "${buildParamString(obj.sequenceIndex)}.tail"
+                } else if (varargRelativeIndex > 1) {
+                    "${buildParamString(obj.sequenceIndex)}.sliceFrom($varargRelativeIndex)"
                 } else {
-                    starPrefix + buildParamString(obj.varargParamIndex)
+                    buildParamString(obj.sequenceIndex)
                 }
-            }
-
-            // Case for parameters after the vararg parameter
-            argIndex in obj.varargParamIndex + nVarargArgs until argsSize -> {
-                TODO("Params after vararg not implemented")
             }
 
             else -> throw IndexOutOfBoundsException("argIndex $argIndex out of bounds.")
@@ -237,13 +224,13 @@ fun getParamStrs(definition: ParseTree, isParam: Boolean = false, prefix: String
                 }
 
                 is SuffixExpressionContext, is VariableContext, is NumberContext -> {
-                    val argIsArray = (arg is SuffixExpressionContext && arg.op.text in listOf("+", "*"))
-                    val newStr = makeParamStr(argIndex, args.size, obj, parentStr, argIsArray = argIsArray)
+                    val argIsSequence = (arg is SuffixExpressionContext && arg.op.text in listOf("+", "*"))
+                    val newStr = makeParamStr(argIndex, args.size, obj, parentStr, argIsSequence = argIsSequence)
                     listOf(RewriteData(arg, type, newStr))
                 }
 
                 is TupleExpressionContext -> {
-                    val newStr = makeParamStr(argIndex, args.size, obj, parentStr, argIsArray = true)
+                    val newStr = makeParamStr(argIndex, args.size, obj, parentStr, argIsSequence = true)
                     listOf(RewriteData(arg, null, newStr))
                 }
 

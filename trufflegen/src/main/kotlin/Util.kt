@@ -10,6 +10,12 @@ fun toClassName(input: String): String {
     }) + "Node"
 }
 
+fun toInterfaceName(input: String): String {
+    return (input.split("-").joinToString("") { word ->
+        word.replaceFirstChar { it.uppercase() }
+    }) + "Interface"
+}
+
 fun makeBody(content: String, indentLevel: Int = 1): String {
     val indent = "    ".repeat(indentLevel)
     return content.lines().joinToString("\n") { "$indent$it" }
@@ -45,10 +51,10 @@ fun makeFunction(
     return result.toString()
 }
 
-fun makeExecuteFunction(content: String, returns: String): String =
-    makeFunction("execute", returns, listOf(makeParam("VirtualFrame", "frame", "")), content, listOf("override"))
+fun makeReduceFunction(content: String, returns: String): String =
+    makeFunction("reduce", returns, listOf(makeParam("VirtualFrame", "frame", "")), content, listOf("override"))
 
-fun todoExecute(name: String, returnStr: String) = makeExecuteFunction("TODO(\"Implement me: $name\")", returnStr)
+fun todoReduce(name: String, returnStr: String) = makeReduceFunction("TODO(\"Implement me: $name\")", returnStr)
 
 fun makeIfStatement(conditions: List<Pair<String, String>>, elseBranch: String? = null): String {
     val result = StringBuilder()
@@ -75,13 +81,64 @@ fun makeForLoop(variable: String, range: String, body: String): String {
     return "$loopHeader\n$content\n}"
 }
 
-fun makeVariable(name: String, value: String, type: String? = null, override: Boolean = false): String {
+fun makeVariable(name: String, value: String? = null, type: String? = null, override: Boolean = false): String {
     return buildString {
         if (override) append("override ")
         append("val $name")
         if (type != null) append(": $type")
-        append(" = $value")
+        if (value != null) append(" = $value")
     }
+}
+
+fun makeInterface(
+    name: String,
+    properties: List<String> = emptyList(),
+    functions: List<String> = emptyList(),
+    annotations: List<String> = emptyList(),
+    typeParams: Set<Pair<String, String?>> = emptySet(),
+    superInterfaces: List<String> = emptyList(),
+): String {
+    val result = StringBuilder()
+
+    // Add annotations
+    if (annotations.isNotEmpty()) {
+        annotations.forEach { result.append("@$it\n") }
+    }
+
+    // Add interface header
+    result.append("interface $name")
+
+    // Add type parameters (if any)
+    if (typeParams.isNotEmpty()) {
+        result.append("<")
+        result.append(typeParams.joinToString { (metavar, superClass) ->
+            if (superClass != null) "$metavar : $superClass" else metavar
+        })
+        result.append("> ")
+    }
+
+    // Add super interfaces (if any)
+    if (superInterfaces.isNotEmpty()) {
+        result.append(" : ")
+        result.append(superInterfaces.joinToString())
+    }
+
+    // Add properties and functions
+    if (properties.isNotEmpty() || functions.isNotEmpty()) {
+        result.append(" {\n")
+
+        // Add properties
+        properties.forEach { result.append("    $it\n") }
+
+        // Add functions
+        functions.forEach { func ->
+            result.append("    $func\n")
+        }
+
+        result.append("}")
+    }
+
+    return result.toString()
 }
 
 fun makeClass(

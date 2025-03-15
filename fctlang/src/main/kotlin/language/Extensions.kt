@@ -63,10 +63,10 @@ open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
         }.toTypedArray()
     }
 
-    override fun execute(frame: VirtualFrame): SequenceNode {
+    override fun reduce(frame: VirtualFrame): SequenceNode {
         val i = elements.indexOfFirst { it !is ValuesNode }
         val newElements = elements.mapIndexed { index, node ->
-            if (index == i) node.execute(frame) else node
+            if (index == i) node.reduce(frame) else node
         }.toTypedArray()
 
         val new = SequenceNode(*newElements)
@@ -124,7 +124,7 @@ open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
 
 @CBSFuncon
 class ValueTupleNode(@Child var p0: SequenceNode) : TuplesNode() {
-    override fun execute(frame: VirtualFrame): TermNode {
+    override fun reduce(frame: VirtualFrame): TermNode {
         return this
     }
 

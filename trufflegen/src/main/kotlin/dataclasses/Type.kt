@@ -12,8 +12,8 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
     var isPlusExpr = false
     var isPower = false
     var isNullable = false
+    var isSequence = false
     var isVararg = false
-    var isArray = false
 
     private fun handleUnaryComputesExpression(expr: UnaryComputesExpressionContext) {
         computes = true
@@ -22,7 +22,7 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
             if (unaryComputesExpression.op.text == "?") {
                 isNullable = true
             }
-            isArray = true
+            isVararg = true
         }
     }
 
@@ -33,12 +33,12 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
                     val op = expr.op.text
                     when (op) {
                         "*" -> {
-                            if (isParam) isVararg = true else isArray = true
+                            if (isParam) isSequence = true else isVararg = true
                             isStarExpr = true
                         }
 
                         "+" -> {
-                            if (isParam) isVararg = true else isArray = true
+                            if (isParam) isSequence = true else isVararg = true
                             isPlusExpr = true
                         }
 
@@ -53,7 +53,7 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
 
                 is PowerExpressionContext -> {
                     isPower = true
-                    if (isParam) isVararg = true else isArray = true
+                    if (isParam) isSequence = true else isVararg = true
                     val operand = expr.operand
                     if (operand is NestedExpressionContext) {
                         val nestedExpr = operand.expr()
@@ -66,7 +66,7 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
                 is OrExpressionContext -> isNullable = true
             }
 
-            if (isVararg && !isParam) throw IllegalStateException("A non-parameter type cannot be vararg")
+            if (isSequence && !isParam) throw IllegalStateException("A non-parameter type cannot be vararg")
         }
     }
 
