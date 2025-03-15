@@ -18,4 +18,6 @@ fun <T> Array<T>.sliceUntil(endIndex: Int, startIndexOffset: Int = 0): Array<T> 
     return sliceArray(startIndexOffset until endIndex)
 }
 
-fun abort(reason: String = ""): Nothing = throw RuntimeException(reason)
+inline fun <T> Array<T>.indexOfFirstOrLast(reverse: Boolean, predicate: (T) -> Boolean): Int {
+    return if (reverse) indexOfLast(predicate) else indexOfFirst(predicate)
+}

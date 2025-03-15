@@ -8,11 +8,12 @@ import kotlin.io.path.pathString
 
 fun main(args: Array<String>) {
     if (args.isEmpty()) {
-        println("Usage: FCTInterpreter <file_path>")
+        println("Usage: FCTInterpreter <file_path> [args...]")
         return
     }
 
     val filePath = Paths.get(args[0])
+    val standardInArgs = args.drop(1).toTypedArray()
     val code = try {
         Files.readString(filePath)
     } catch (e: Exception) {
@@ -20,8 +21,16 @@ fun main(args: Array<String>) {
         return
     }
 
-    val context = Context.newBuilder("fctlang").allowAllAccess(true).build()
-    val source = Source.newBuilder("fctlang", code, filePath.pathString).build()
+    val context = Context
+        .newBuilder("fctlang")
+        .arguments("fctlang", standardInArgs)
+        .allowAllAccess(true)
+        .build()
+
+    val source = Source
+        .newBuilder("fctlang", code, filePath.pathString)
+        .build()
+
     print("standard-out: ")
     val result = context.eval(source)
     println("\nresult-term: $result")

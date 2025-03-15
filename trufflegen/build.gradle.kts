@@ -29,12 +29,12 @@ application {
 }
 
 tasks.named<JavaExec>("run") {
-    val generated = Paths.get(Vars.generatedPathStr)
+    val generated = Paths.get(Vars.GENERATEDPATHSTR)
     generated.deleteRecursively()
     Files.createDirectories(generated)
     args = listOf(
-        Vars.cbsFilePath,
-        Vars.generatedPathStr,
+        Vars.CBSFILEPATH,
+        Vars.GENERATEDPATHSTR,
         *Vars.configFiles
     )
 }

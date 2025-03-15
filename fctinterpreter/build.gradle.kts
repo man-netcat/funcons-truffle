@@ -46,7 +46,7 @@ tasks.register("testFilesRun") {
             println("Executing file: $fileName")
             javaexec {
                 mainClass.set("interpreter.FCTInterpreterKt")
-                args = listOf(fileName)
+                args = listOf(fileName, "test")
                 classpath = sourceSets["main"].runtimeClasspath + files(fctlangJar)
                 jvmArgs = listOf("-Dpolyglot.engine.WarnInterpreterOnly=false")
             }

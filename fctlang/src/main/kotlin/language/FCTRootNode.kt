@@ -14,9 +14,10 @@ class FCTRootNode(
         var iterationCount = 0
 
         while (rootExpr !is ValuesNode) {
+//            println("------------------")
 //            println("Iteration $iterationCount: Current result is ${rootExpr::class.simpleName}")
-//            println(rootExpr.getContext().globalVariables)
 //            rootExpr.printTree()
+//            println(rootExpr.getContext().globalVariables)
             rootExpr = rootExpr.execute(frame)
             iterationCount++
         }

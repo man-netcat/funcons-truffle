@@ -46,7 +46,6 @@ abstract class TermNode : Node() {
 
     open val value: Any
         get() {
-            if (this !is ValuesNode) throw IllegalStateException("Node with type: ${this::class.simpleName} is not of type ValuesNode")
             return when (this) {
                 is FalseNode -> false
                 is TrueNode -> true
@@ -87,11 +86,7 @@ abstract class TermNode : Node() {
     fun printTree(indent: String = "") {
         // For debug purposes only
 
-        val value = try {
-            ": ${this.value}"
-        } catch (e: IllegalStateException) {
-            ""
-        }
+        val value = if (this is ValuesNode) ": ${this.value}" else ""
         println("$indent${this::class.simpleName}$value")
 
         this::class.primaryConstructor!!.parameters.forEach { param ->
@@ -102,6 +97,12 @@ abstract class TermNode : Node() {
                 is TermNode -> res.printTree("$indent  ")
             }
         }
+    }
+
+    fun abort(reason: String = ""): Nothing = throw RuntimeException(reason)
+
+    fun asSequence(): SequenceNode {
+        return this as? SequenceNode ?: SequenceNode(this)
     }
 }
 
