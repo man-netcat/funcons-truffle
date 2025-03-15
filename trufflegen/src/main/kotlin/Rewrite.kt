@@ -52,13 +52,13 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
             is VariableContext -> mapParamString(toRewrite.text)
             is NumberContext -> {
                 if ('-' in toRewrite.text) {
-                    "(${toRewrite.text}).toIntegerNode()"
+                    "newIntegerNode(${toRewrite.text})"
                 } else {
-                    "(${toRewrite.text}).toNaturalNumberNode()"
+                    "newNaturalNumberNode(${toRewrite.text})"
                 }
             }
 
-            is StringContext -> "(${toRewrite.text}).toStringNode()"
+            is StringContext -> "newStringNode(${toRewrite.text})"
             is TypeExpressionContext -> rewriteRecursive(toRewrite.value)
             is NestedExpressionContext -> rewriteRecursive(toRewrite.expr())
             is PairContext -> {

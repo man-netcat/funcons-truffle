@@ -2,7 +2,9 @@ package language
 
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
-import generated.*
+import generated.FalseNode
+import generated.NullValueNode
+import generated.TrueNode
 import kotlin.reflect.full.primaryConstructor
 
 @Suppress("UNCHECKED_CAST")
