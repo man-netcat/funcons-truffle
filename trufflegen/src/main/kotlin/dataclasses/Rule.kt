@@ -76,10 +76,10 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
             }
         }
 
-        if (obj.hasVararg) {
-            val (arrayArgs, nonArrayArgs) = partitionArrayArgs(args)
+        if (obj.hasSequence) {
+            val (sequenceArgs, nonSequenceArgs) = partitionArgs(args)
 
-            val sumVarargMin = arrayArgs.sumOf { arg ->
+            val sumVarargMin = sequenceArgs.sumOf { arg ->
                 fun processArg(arg: ExprContext): Int {
                     return when (arg) {
                         is TypeExpressionContext -> processArg(arg.value)
@@ -94,12 +94,12 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 processArg(arg)
             }
 
-            val varargParam = "p${obj.sequenceIndex}"
-            val offsetValue = sumVarargMin + nonArrayArgs.size - (obj.params.size - 1)
-            val condition = if (arrayArgs.isNotEmpty()) {
-                "$varargParam.size >= $offsetValue"
+            val sequenceParam = "p${obj.sequenceIndex}"
+            val offsetValue = sumVarargMin + nonSequenceArgs.size - (obj.params.size - 1)
+            val condition = if (sequenceArgs.isNotEmpty()) {
+                "$sequenceParam.size >= $offsetValue"
             } else {
-                "$varargParam.size == $offsetValue"
+                "$sequenceParam.size == $offsetValue"
             }
             conditions.addFirst(condition)
         } else {
@@ -273,7 +273,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
             try {
                 val valueStr = if (label.value != null) {
                     rewrite(ruleDef, label.value, rewriteData)
-                } else "null"
+                } else "EmptySequenceNode()"
                 val newEntityStr = "${labelObj.nodeName}($valueStr)"
                 val assignment = labelObj.putStr(newEntityStr)
                 assignments.addFirst(assignment)

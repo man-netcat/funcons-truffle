@@ -135,7 +135,6 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
         stringBuilder.appendLine()
 
         val imports = listOf(
-            "generated.*",
             "language.*",
             "com.oracle.truffle.api.frame.VirtualFrame",
             "com.oracle.truffle.api.nodes.Node.Child",

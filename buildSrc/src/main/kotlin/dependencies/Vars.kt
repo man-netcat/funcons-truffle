@@ -11,7 +11,7 @@ object Vars {
 //        "Computations/Normal/Interacting/tests/read-3.config",
         "Computations/Normal/Flowing/tests/effect.config",
         "Computations/Normal/Flowing/tests/left-to-right.config",
-//        "Computations/Normal/Flowing/tests/right-to-left.config",
+        "Computations/Normal/Flowing/tests/right-to-left.config",
         "Computations/Normal/Flowing/tests/choice.config",
         "Computations/Normal/Flowing/tests/do-while.config",
         "Computations/Normal/Flowing/tests/while.config",

@@ -1,7 +1,7 @@
 package language
 
 abstract class Entity() {
-    abstract val value: Any?
+    abstract val value: TermNode?
 }
 
 abstract class ContextualEntity(override val value: TermNode) : Entity()

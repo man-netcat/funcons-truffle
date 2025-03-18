@@ -4,7 +4,7 @@ import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
 
 @CBSType
-open class ValuesNode : TermNode(), ValuesInterface {
+abstract class ValuesNode : TermNode(), ValuesInterface {
     override fun reduce(frame: VirtualFrame): TermNode {
         return this
     }
@@ -20,25 +20,53 @@ abstract class ValueTypesNode : ValuesNode(), ValueTypesInterface
 final class EmptyTypeNode : ValuesNode(), EmptyTypeInterface
 
 @CBSType
-abstract class DatatypeValuesNode : ValueTypesNode(), DatatypeValuesInterface
+abstract class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
 
 @CBSType
 abstract class IntegersNode : ValueTypesNode(), IntegersInterface
 
 @CBSType
+abstract class CharactersNode : ValueTypesNode(), CharactersInterface
+
+@CBSType
 abstract class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
+
+@CBSFuncon
+class StuckNode() : TermNode(), StuckInterface {
+    override fun reduce(frame: VirtualFrame): TermNode {
+        abort("stuck")
+    }
+}
 
 @CBSFuncon
 class LeftToRightNode(@Child override var p0: SequenceNode) : TermNode(), LeftToRightInterface {
     override fun reduce(frame: VirtualFrame): TermNode {
         val new = when {
             p0.size == 0 -> SequenceNode()
-            p0.hasNonValuesNode() -> {
+            p0.isReducible() -> {
                 val r = p0.reduce(frame)
                 LeftToRightNode(r)
             }
 
-            !p0.hasNonValuesNode() -> p0
+            !p0.isReducible() -> p0
+            else -> abort("left-to-right")
+        }
+
+        return replace(new)
+    }
+}
+
+@CBSFuncon
+class RightToLeftNode(@Child override var p0: SequenceNode) : TermNode(), RightToLeftInterface {
+    override fun reduce(frame: VirtualFrame): TermNode {
+        val new = when {
+            p0.size == 0 -> SequenceNode()
+            p0.isReducible() -> {
+                val r = p0.reduceReverse(frame)
+                RightToLeftNode(r)
+            }
+
+            !p0.isReducible() -> p0
             else -> abort("left-to-right")
         }
 
@@ -50,15 +78,14 @@ class LeftToRightNode(@Child override var p0: SequenceNode) : TermNode(), LeftTo
 class SequentialNode(@Child override var p0: SequenceNode, @Child override var p1: TermNode) : TermNode(),
     SequentialInterface {
     override fun reduce(frame: VirtualFrame): TermNode {
-
         val new = when {
-            p0.hasNonValuesNode() -> {
+            p0.size == 0 -> p1
+            p0.isReducible() -> {
                 val r = p0.reduce(frame)
                 SequentialNode(r, p1)
             }
 
             p0.size >= 1 && p0.head is NullValueNode -> SequentialNode(p0.tail, p1)
-            p0.size == 0 -> p1
             else -> abort("sequential")
         }
         return replace(new)
@@ -80,7 +107,7 @@ class ChoiceNode(@Child override var p0: SequenceNode) : TermNode(), ChoiceInter
 class IntegerAddNode(@Child override var p0: SequenceNode) : TermNode(), IntegerAddInterface {
     override fun reduce(frame: VirtualFrame): TermNode {
         val new = when {
-            p0.hasNonValuesNode() -> {
+            p0.isReducible() -> {
                 val r = p0.reduce(frame)
                 IntegerAddNode(r)
             }
@@ -102,11 +129,26 @@ class IntegerAddNode(@Child override var p0: SequenceNode) : TermNode(), Integer
 }
 
 @Builtin
+class EmptySequenceNode() : ValuesNode()
+
+@Builtin
 open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
     init {
         elements = elements.flatMap {
             if (it is SequenceNode) it.elements.toList() else listOf(it)
         }.toTypedArray()
+    }
+
+    fun reduceReverse(frame: VirtualFrame): SequenceNode {
+        val i = elements.indexOfLast { it !is ValuesNode }
+        val newElements = elements.mapIndexed { index, node ->
+            if (index == i) node.reduce(frame) else node
+        }.toTypedArray()
+
+        val new = SequenceNode(*newElements)
+
+
+        return replace(new)
     }
 
     override fun reduce(frame: VirtualFrame): SequenceNode {
@@ -130,31 +172,18 @@ open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
         return elements.isEmpty()
     }
 
-    fun hasNonValuesNode(): Boolean {
-        return elements.any {
-            when (it) {
-                is SequenceNode -> it.hasNonValuesNode()
-                else -> it !is ValuesNode
-            }
-        }
-    }
-
     operator fun get(index: Int): TermNode {
         return elements[index]
     }
 
-    val head: TermNode
-        get() {
-            require(elements.isNotEmpty())
-            return get(0)
-        }
+    fun sliceFrom(n: Int): SequenceNode {
+        val sliced = elements.sliceFrom(n)
+        return SequenceNode(*sliced)
+    }
 
-    val tail: SequenceNode
-        get() {
-            require(elements.isNotEmpty())
-            val sliced = elements.sliceFrom(1)
-            return SequenceNode(*sliced)
-        }
+    val head: TermNode get() = get(0)
+    val tail: SequenceNode get() = sliceFrom(1)
+
 
     fun random(): TermNode {
         require(elements.isNotEmpty())
@@ -165,6 +194,10 @@ open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
         get() {
             return elements.joinToString { it.value.toString() }
         }
+
+    override fun toString(): String {
+        return elements.joinToString("") { it.value.toString() }
+    }
 }
 
 
@@ -175,9 +208,7 @@ class ValueTupleNode(@Child var p0: SequenceNode) : TuplesNode() {
     }
 
     override val value: Any
-        get() {
-            return "tuple(${p0.value})"
-        }
+        get() = "tuple(${p0.value})"
 }
 
 @Builtin

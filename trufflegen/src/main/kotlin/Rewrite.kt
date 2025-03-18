@@ -16,22 +16,36 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
             return exprMap[str] ?: throw StringNotFoundException(str, exprMap.keys.toList())
         }
 
-        fun rewriteFunconExpr(name: String, context: ParseTree): String {
-            val obj = globalObjects[name]!!
-            val className = toClassName(name)
-            val args = extractArgs(context)
-            val argStr = if (!(obj.hasNullable && args.isEmpty())) {
-                args.joinToString { arg -> rewriteRecursive(arg) }
-            } else "null"
-            val str = "$className($argStr)"
-            return str
+        fun rewriteFunconExpr(ctx: ParseTree): String {
+            val obj = getObject(ctx)
+            println(obj.name)
+            val args = extractArgs(ctx)
+            val params = obj.params
+
+            val argStrs = args.mapIndexed { index, arg ->
+                val rewrittenArg = rewriteRecursive(arg)
+                val isSequence = params.getOrNull(index)?.type?.isSequence == true
+                if (isSequence) "$rewrittenArg.toSequence()" else rewrittenArg
+            }
+
+            val isNullArg = obj.hasNullable && args.isEmpty()
+            val isEmptyArg = obj.params.size == 1 && obj.sequenceIndex == 0 && args.isEmpty()
+
+            return if (isNullArg) {
+                "${obj.nodeName}()"
+            } else if (isEmptyArg) {
+                "${obj.nodeName}(SequenceNode())"
+            } else {
+                "${obj.nodeName}(${argStrs.joinToString()})"
+            }
         }
 
+
         return when (toRewrite) {
-            is FunconExpressionContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite)
-            is ListExpressionContext -> rewriteFunconExpr("list", toRewrite)
-            is SetExpressionContext -> rewriteFunconExpr("set", toRewrite)
-            is LabelContext -> rewriteFunconExpr(toRewrite.name.text, toRewrite)
+            is FunconExpressionContext -> rewriteFunconExpr(toRewrite)
+            is ListExpressionContext -> rewriteFunconExpr(toRewrite)
+            is SetExpressionContext -> rewriteFunconExpr(toRewrite)
+            is LabelContext -> rewriteFunconExpr(toRewrite)
             is MapExpressionContext -> {
                 val pairStr = toRewrite.pairs().pair().joinToString { pair -> rewriteRecursive(pair) }
                 "MapNode($pairStr)"
@@ -124,7 +138,7 @@ fun makeArgList(args: ArgsContext): List<ExprContext> {
     }
 }
 
-fun partitionArrayArgs(args: List<ExprContext?>): Pair<List<ExprContext>, List<ExprContext>> {
+fun partitionArgs(args: List<ExprContext?>): Pair<List<ExprContext>, List<ExprContext>> {
     return args.filterNotNull().partition { arg ->
         arg is SuffixExpressionContext || (arg is TypeExpressionContext && arg.value is SuffixExpressionContext)
     }
@@ -167,8 +181,8 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
         argIndex: Int, argsSize: Int, obj: Object, parentStr: String, argIsSequence: Boolean = false,
     ): String {
         // Calculate the number of arguments passed to the vararg
-        val nVarargArgs = argsSize - (obj.params.size - 1)
-        val argsAfterVararg = if (obj.sequenceIndex >= 0) argsSize - (obj.sequenceIndex + nVarargArgs) else 0
+        val nSequenceArgs = argsSize - (obj.params.size - 1)
+        if (obj.sequenceIndex >= 0) argsSize - (obj.sequenceIndex + nSequenceArgs) else 0
 
         // Utility function to build parameter string based on provided condition
         fun buildParamString(paramIndex: Int, suffix: String = ""): String {
@@ -176,23 +190,27 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
         }
 
         return when {
-            // Case when there is no vararg parameter (obj.varargParamIndex == -1)
+            // Case when there is no sequence (obj.sequenceIndex == -1)
             obj.sequenceIndex == -1 || argIndex in 0 until obj.sequenceIndex -> {
                 buildParamString(argIndex)
             }
 
-            // Case for an actual vararg parameter range
-            argIndex in obj.sequenceIndex until obj.sequenceIndex + nVarargArgs -> {
-                val varargRelativeIndex = argIndex - obj.sequenceIndex
+            // Case for an actual sequence range
+            argIndex in obj.sequenceIndex until obj.sequenceIndex + nSequenceArgs -> {
+                val sequenceRelativeIndex = argIndex - obj.sequenceIndex
 
-                if (!argIsSequence) {
-                    buildParamString(obj.sequenceIndex, "[$varargRelativeIndex]")
-                } else if (varargRelativeIndex == 1) {
-                    "${buildParamString(obj.sequenceIndex)}.tail"
-                } else if (varargRelativeIndex > 1) {
-                    "${buildParamString(obj.sequenceIndex)}.sliceFrom($varargRelativeIndex)"
+                if (argIsSequence) {
+                    when {
+                        sequenceRelativeIndex == 0 -> buildParamString(obj.sequenceIndex)
+                        sequenceRelativeIndex == 1 -> "${buildParamString(obj.sequenceIndex)}.tail"
+                        sequenceRelativeIndex > 1 -> "${buildParamString(obj.sequenceIndex)}.sliceFrom($sequenceRelativeIndex)"
+                        else -> throw IndexOutOfBoundsException(sequenceRelativeIndex)
+                    }
                 } else {
-                    buildParamString(obj.sequenceIndex)
+                    when (sequenceRelativeIndex) {
+                        0 -> "${buildParamString(obj.sequenceIndex)}.head"
+                        else -> buildParamString(obj.sequenceIndex, "[$sequenceRelativeIndex]")
+                    }
                 }
             }
 

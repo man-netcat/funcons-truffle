@@ -43,7 +43,6 @@ open class EntityObject(
 
     override val superClassStr: String
         get() {
-            val value = if (isIOEntity) "*p0" else "p0"
-            return makeFunCall(entityClassName, listOf(value))
+            return makeFunCall(entityClassName, listOf("p0"))
         }
 }

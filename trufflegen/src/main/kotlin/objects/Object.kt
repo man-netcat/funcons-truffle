@@ -11,12 +11,13 @@ abstract class Object(
 ) {
     private val skipCriteria: Boolean
         get() = listOf(
-            builtin,               // Builtins should be implemented manually
+            builtin,                                    // Builtins should be implemented manually
             name in listOf(
-                "left-to-right",
-                "right-to-left",
-                "choice",
-                "sequential"
+                "left-to-right", "right-to-left",       // Ambiguous semantics
+                "choice",                               // Utilises random
+                "sequential",                           // Param after sequence
+                "some-element", "stuck", "abstraction", // No rules, implement manually
+
             )
         ).contains(true)
 
@@ -39,8 +40,8 @@ abstract class Object(
     open val keyWords: List<String> = listOf("open")
 
     val sequenceIndex: Int get() = params.indexOfFirst { it.type.isSequence }
-    val hasVararg: Boolean get() = sequenceIndex >= 0
-    val paramsAfterVararg: Int get() = if (sequenceIndex >= 0) params.size - (sequenceIndex + 1) else 0
+    val hasSequence: Boolean get() = sequenceIndex >= 0
+    val paramsAfterSequence: Int get() = if (sequenceIndex >= 0) params.size - (sequenceIndex + 1) else 0
 
     private val isFuncon get() = this is FunconObject || this is DatatypeFunconObject
     private val isEntity get() = this is EntityObject
@@ -86,13 +87,11 @@ abstract class Object(
             constructorArgs = valueParamStrs,
             superClass = superClassStr,
             annotations = annotations,
-            typeParams = if (!isFuncon) metaVariables else emptySet(),
             keywords = keyWords,
         ) else makeInterface(
             interfaceName,
             properties = interfaceProperties,
             annotations = annotations,
-            typeParams = if (!isFuncon) metaVariables else emptySet(),
         )
     }
 }

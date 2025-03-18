@@ -5,10 +5,15 @@ import com.oracle.truffle.api.nodes.Node
 import generated.FalseNode
 import generated.NullValueNode
 import generated.TrueNode
+import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
 
 @Suppress("UNCHECKED_CAST")
 abstract class TermNode : Node() {
+    init {
+
+    }
+
     abstract fun reduce(frame: VirtualFrame): TermNode
 
     private fun getLanguage(): FCTLanguage {
@@ -103,8 +108,47 @@ abstract class TermNode : Node() {
 
     fun abort(reason: String = ""): Nothing = throw RuntimeException(reason)
 
-    fun asSequence(): SequenceNode {
+    fun toSequence(): SequenceNode {
         return this as? SequenceNode ?: SequenceNode(this)
+    }
+
+    fun isReducible(): Boolean {
+        return when (this) {
+            is SequenceNode -> elements.any { it.isReducible() }
+            else -> this !is ValuesNode
+        }
+    }
+
+    fun reduceComputations(frame: VirtualFrame, reducibleIndices: List<Int>): TermNode? {
+        // Obtain terms using Kotlin Reflect's wacky voodoo magic
+        val primaryConstructor = this::class.primaryConstructor!!
+        val memberProperties = this::class.memberProperties
+        val params = primaryConstructor.parameters.mapNotNull { param ->
+            memberProperties.first() { it.name == param.name }.getter.call(this)!!.let { it as? TermNode }
+        }
+
+        val newParams = params.toMutableList()
+        var lastException: Exception? = null
+        var attemptedReduction = false
+
+        reducibleIndices.forEach { index ->
+            if (index in newParams.indices && newParams[index].isReducible()) {
+                attemptedReduction = true
+                try {
+                    newParams[index] = newParams[index].reduce(frame)
+                    // Return on first success
+                    return primaryConstructor.call(*newParams.toTypedArray())
+                } catch (e: Exception) {
+                    lastException = e
+                }
+            }
+        }
+
+        // If no reduction was even attempted (Thus all terms are irreducible), return null instead of throwing
+        // If least one reduction has been attempted, it means we were unable to reduce, and thus we throw an exception
+        return if (attemptedReduction) {
+            throw lastException ?: IllegalStateException("All reductions failed")
+        } else null
     }
 }
 

@@ -30,7 +30,7 @@ class TypeObject(
                     val (valueArgs, typeArgs) = args.partition { arg -> arg !is FunconExpressionContext }
                     val valueArgStrs = valueArgs.map { arg -> rewrite(ctx, arg) }
                     val typeArgStrs = typeArgs.map { arg -> Type(arg).rewrite(inNullableExpr = true) }
-                    makeFunCall(defType.nodeName, args = valueArgStrs, typeParams = typeArgStrs)
+                    makeFunCall(defType.nodeName, args = valueArgStrs)
                 } else throw DetailedException("Unexpected definition ${definition.text}")
             }
 
