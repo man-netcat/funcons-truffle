@@ -10,8 +10,8 @@ import kotlin.reflect.full.primaryConstructor
 
 @Suppress("UNCHECKED_CAST")
 abstract class TermNode : Node() {
-    init {
-
+    enum class FrameSlots {
+        LOCAL_CONTEXT
     }
 
     abstract fun reduce(frame: VirtualFrame): TermNode
@@ -150,8 +150,4 @@ abstract class TermNode : Node() {
             throw lastException ?: IllegalStateException("All reductions failed")
         } else null
     }
-}
-
-enum class FrameSlots {
-    LOCAL_CONTEXT
 }

@@ -6,7 +6,7 @@ import org.antlr.v4.runtime.tree.ParseTree
 open class EntityObject(
     ctx: ParseTree,
     metaVariables: Set<Pair<String, String>>,
-    private val entityType: EntityType,
+    val entityType: EntityType,
 ) : Object(ctx, metaVariables) {
     private val entityClassMap = mapOf(
         EntityType.CONTEXTUAL to CONTEXTUALENTITY,
@@ -31,7 +31,7 @@ open class EntityObject(
 
     fun getStr(): String {
         val qmark = if (entityType == EntityType.CONTROL) "?" else ""
-        return "(${getFunc(name)} as $nodeName$qmark)?"
+        return "${getFunc(name)} as $nodeName$qmark"
     }
 
     fun putStr(value: String) = putFunc(name, value)

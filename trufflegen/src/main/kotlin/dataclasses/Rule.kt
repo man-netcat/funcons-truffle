@@ -5,11 +5,12 @@ import main.*
 import main.exceptions.DetailedException
 import main.exceptions.StringNotFoundException
 import main.objects.EntityObject
+import main.objects.Object
 
 class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, returns: Type) {
     val conditions = mutableListOf<String>()
     val emptyConditions = mutableListOf<String>()
-    val entityVars = mutableSetOf<String>()
+    val entityVars = mutableSetOf<Object>()
     private val assignments = mutableListOf<String>()
     private val rewriteStr: String
     private var intermediateCounter = 0
@@ -83,23 +84,19 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 fun processArg(arg: ExprContext): Int {
                     return when (arg) {
                         is TypeExpressionContext -> processArg(arg.value)
-                        is SuffixExpressionContext -> when (arg.op.text) {
-                            "+" -> 1
-                            else -> 0
-                        }
-
+                        is SuffixExpressionContext -> if (arg.op.text == "+") 1 else 0
                         else -> 1
                     }
                 }
                 processArg(arg)
             }
 
-            val sequenceParam = "p${obj.sequenceIndex}"
+            val sequenceParamStr = obj.sequenceParam!!.name
             val offsetValue = sumVarargMin + nonSequenceArgs.size - (obj.params.size - 1)
             val condition = if (sequenceArgs.isNotEmpty()) {
-                "$sequenceParam.size >= $offsetValue"
+                "$sequenceParamStr.size >= $offsetValue"
             } else {
-                "$sequenceParam.size == $offsetValue"
+                "$sequenceParamStr.size == $offsetValue"
             }
             conditions.addFirst(condition)
         } else {
@@ -309,8 +306,9 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         val labels = getEntities(premiseExpr)
 
         return labels.flatMap { (label, labelObj) ->
-            val getStr = labelObj.getStr()
-            getParamStrs(label, prefix = getStr)
+            entityVars.add(labelObj)
+            val qmark = if (labelObj.entityType == EntityType.CONTROL) "?" else ""
+            getParamStrs(label, prefix = labelObj.asVarName + qmark)
         }
     }
 

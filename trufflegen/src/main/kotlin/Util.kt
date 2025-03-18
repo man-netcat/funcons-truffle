@@ -10,6 +10,13 @@ fun toClassName(input: String): String {
     }) + "Node"
 }
 
+fun toVariableName(input: String): String {
+    return input.split("-").mapIndexed { index, word ->
+        if (index == 0) word.lowercase() else word.replaceFirstChar { it.uppercase() }
+    }.joinToString("")
+}
+
+
 fun toInterfaceName(input: String): String {
     return (input.split("-").joinToString("") { word ->
         word.replaceFirstChar { it.uppercase() }
@@ -45,7 +52,7 @@ fun makeFunction(
     }
 
     result.append("fun $name(${parameters.joinToString()}): $returnType {\n")
-    result.append(makeBody(body))
+    result.append(makeBody(body).trim())
     result.append("\n}")
 
     return result.toString()

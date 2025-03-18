@@ -2,7 +2,8 @@ package main.objects
 
 import cbs.CBSParser.*
 import main.*
-import objects.FunconObject
+import main.dataclasses.Param
+import objects.AbstractFunconObject
 import org.antlr.v4.runtime.tree.ParseTree
 
 abstract class Object(
@@ -41,9 +42,10 @@ abstract class Object(
 
     val sequenceIndex: Int get() = params.indexOfFirst { it.type.isSequence }
     val hasSequence: Boolean get() = sequenceIndex >= 0
-    val paramsAfterSequence: Int get() = if (sequenceIndex >= 0) params.size - (sequenceIndex + 1) else 0
+    val sequenceParam: Param? get() = if (hasSequence) params[sequenceIndex] else null
+    val paramsAfterSequence: Int get() = if (hasSequence) params.size - (sequenceIndex + 1) else 0
 
-    private val isFuncon get() = this is FunconObject || this is DatatypeFunconObject
+    private val isFuncon get() = this is AbstractFunconObject
     private val isEntity get() = this is EntityObject
     val hasNullable get() = params.size == 1 && params[0].type.isNullable
 
@@ -76,6 +78,7 @@ abstract class Object(
         }
 
     val nodeName get() = toClassName(name)
+    val asVarName get() = toVariableName(name)
     val interfaceName get() = toInterfaceName(name)
 
     fun makeCode(): String {

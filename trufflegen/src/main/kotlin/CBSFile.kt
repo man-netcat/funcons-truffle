@@ -8,6 +8,7 @@ import main.exceptions.EmptyConditionException
 import main.exceptions.StringNotFoundException
 import main.objects.*
 import main.visitors.MetaVariableVisitor
+import objects.DatatypeFunconObject
 import objects.FunconObject
 import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.tree.ParseTree
