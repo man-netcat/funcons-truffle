@@ -52,7 +52,7 @@ fun makeFunction(
     }
 
     result.append("fun $name(${parameters.joinToString()}): $returnType {\n")
-    result.append(makeBody(body).trim())
+    result.append(makeBody(body).trimEnd())
     result.append("\n}")
 
     return result.toString()

@@ -112,14 +112,10 @@ class IntegerAddNode(@Child override var p0: SequenceNode) : TermNode(), Integer
                 IntegerAddNode(r)
             }
 
-            p0.size >= 1 -> {
-                val sum = p0.elements.fold(0) { acc, node ->
-                    node.value as Int
-                }
+            p0.size >= 0 -> {
+                val sum = p0.elements.fold(0) { acc, node -> node.value as Int }
                 IntegerNode(sum)
             }
-
-            p0.size == 0 -> IntegerNode(0)
 
             else -> abort("integer-add")
         }
@@ -133,12 +129,12 @@ class EmptySequenceNode() : ValuesNode()
 
 @Builtin
 class ValueTupleNode(@Child var p0: SequenceNode) : TuplesNode() {
-    override fun reduce(frame: VirtualFrame): TermNode {
-        return this
-    }
+    override val value = "tuple(${p0.value})"
+}
 
-    override val value: Any
-        get() = "tuple(${p0.value})"
+@Builtin
+class ValueListNode(@Child var p0: SequenceNode) : TuplesNode() {
+    override val value = "[${p0.value}]"
 }
 
 @Builtin
@@ -152,11 +148,6 @@ data class NaturalNumberNode(override val value: Int) : NaturalNumbersNode() {
     override fun hashCode(): Int = value.hashCode()
 }
 
-fun NaturalNumbersNode.toInt(): Int = when (this) {
-    is NaturalNumberNode -> this.value
-    else -> throw IllegalArgumentException("Unsupported NaturalNumbersNode type")
-}
-
 @Builtin
 data class IntegerNode(override val value: Int) : IntegersNode() {
     override fun equals(other: Any?): Boolean = when (other) {
@@ -168,11 +159,6 @@ data class IntegerNode(override val value: Int) : IntegersNode() {
     override fun hashCode(): Int = value.hashCode()
 }
 
-fun IntegersNode.toInt(): Int = when (this) {
-    is IntegerNode -> this.value
-    else -> throw IllegalArgumentException("Unsupported IntegersNode type")
-}
-
 @Builtin
 data class StringNode(override val value: String) : StringsNode() {
     override fun equals(other: Any?): Boolean = when (other) {
@@ -181,20 +167,3 @@ data class StringNode(override val value: String) : StringsNode() {
     }
 }
 
-fun StringsNode.toStringLiteral(): String = when (this) {
-    is StringNode -> this.value
-    else -> throw IllegalArgumentException("Unsupported StringsNode type")
-}
-
-fun newNaturalNumberNode(value: Int): NaturalNumbersNode {
-    if (value < 0) throw IllegalArgumentException("Natural numbers cannot be negative.")
-    return NaturalNumberNode(value)
-}
-
-fun newIntegerNode(value: Int): IntegersNode {
-    return IntegerNode(value)
-}
-
-fun newStringNode(value: String): StringsNode {
-    return StringNode(value)
-}

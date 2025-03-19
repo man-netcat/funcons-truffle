@@ -27,14 +27,9 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         return "$paramStr ${complementStr}is $typeStr"
     }
 
-    private fun argsConditions(
-        funconExpr: FunconExpressionContext,
-        conclusion: PremiseExprContext,
-        rewriteData: MutableList<RewriteData>,
-    ) {
+    private fun argsConditions(funconExpr: FunconExpressionContext, rewriteData: MutableList<RewriteData>) {
         val obj = getObject(funconExpr)
         val args = extractArgs(funconExpr)
-        val labels = getEntities(conclusion)
         if (obj.params.size == 1 && args.isEmpty()) {
             if (obj.params[0].type.isSequence) {
                 emptyConditions.add("p0.isEmpty()")
@@ -100,7 +95,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
             }
             conditions.addFirst(condition)
         } else {
-            println("funconExpr: ${funconExpr.text}, rewriteData: $rewriteData")
+//            println("funconExpr: ${funconExpr.text}, rewriteData: $rewriteData")
         }
     }
 
@@ -181,6 +176,16 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
                 val rewrite = "val $rewriteRhs = $rewriteLhs.reduce(frame)"
                 assignments.add(rewrite)
+
+                val labels = getEntities(premise)
+                if (labels.isNotEmpty()) {
+                    labels.forEach { (label, obj) ->
+                        println(label.text)
+                        if (label.value == null) {
+                            conditions.add("${obj.asVarName}?.p0 == null")
+                        }
+                    }
+                }
 
                 val condition = when {
                     rhs is VariableContext -> {
@@ -328,7 +333,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
             premises.forEach { premise -> rewriteData.addAll(processIntermediates(ruleDef, premise, rewriteData)) }
 
             // Add the type checking conditions
-            if (ruleDef is FunconExpressionContext) argsConditions(ruleDef, conclusion, rewriteData)
+            if (ruleDef is FunconExpressionContext) argsConditions(ruleDef, rewriteData)
 
             // Add data for premises and build conclusions
             premises.forEach { premise -> processPremises(ruleDef, premise, rewriteData) }

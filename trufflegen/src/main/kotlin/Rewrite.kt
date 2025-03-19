@@ -18,7 +18,6 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
 
         fun rewriteFunconExpr(ctx: ParseTree): String {
             val obj = getObject(ctx)
-            println(obj.name)
             val args = extractArgs(ctx)
             val params = obj.params
 
@@ -66,13 +65,13 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
             is VariableContext -> mapParamString(toRewrite.text)
             is NumberContext -> {
                 if ('-' in toRewrite.text) {
-                    "newIntegerNode(${toRewrite.text})"
+                    "IntegerNode(${toRewrite.text})"
                 } else {
-                    "newNaturalNumberNode(${toRewrite.text})"
+                    "NaturalNumberNode(${toRewrite.text})"
                 }
             }
 
-            is StringContext -> "newStringNode(${toRewrite.text})"
+            is StringContext -> "StringNode(${toRewrite.text})"
             is TypeExpressionContext -> rewriteRecursive(toRewrite.value)
             is NestedExpressionContext -> rewriteRecursive(toRewrite.expr())
             is PairContext -> {
