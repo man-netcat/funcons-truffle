@@ -43,7 +43,7 @@ class TruffleGen(
         generateDependencies()
 
         // Generates a graphviz visualisation for dependencies
-        generateGraphViz()
+//        generateGraphViz()
 
         // Generate code from the objects
         generateCode()
@@ -59,7 +59,6 @@ class TruffleGen(
             cbsParseTrees[file.name] = root
         }
 
-        // Also optionally make parse trees for the FCT files
         fctFiles.forEach { file ->
             val input = CharStreams.fromPath(file.toPath())
             val lexer = FCTLexer(input)
@@ -133,7 +132,7 @@ class TruffleGen(
         }
 
         fun visitObject(obj: Object) {
-            if (obj !in generatedDependencies) { // Alternative safety check
+            if (obj !in generatedDependencies) {
                 generatedDependencies.add(obj)
                 obj.dependencies.forEach { visitObject(it) }
             }

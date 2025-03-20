@@ -1,9 +1,7 @@
 package main.objects
 
-import cbs.CBSParser.FunconExpressionContext
-import cbs.CBSParser.TypeDefinitionContext
+import cbs.CBSParser.*
 import main.*
-import main.dataclasses.Type
 import main.exceptions.DetailedException
 
 class TypeObject(
@@ -26,10 +24,11 @@ class TypeObject(
                 if (definition is FunconExpressionContext) {
                     val defType = getObject(definition)
                     val args = extractArgs(definition)
-
-                    val (valueArgs, typeArgs) = args.partition { arg -> arg !is FunconExpressionContext }
+                    val (valueArgs, typeArgs) = args.partition { arg -> arg is TypeExpressionContext || arg is NumberContext }
+                    println(args.map { it.text })
+                    println(valueArgs.map { it.text })
                     val valueArgStrs = valueArgs.map { arg -> rewrite(ctx, arg) }
-                    val typeArgStrs = typeArgs.map { arg -> Type(arg).rewrite(inNullableExpr = true) }
+//                    val typeArgStrs = typeArgs.map { arg -> Type(arg).rewrite(inNullableExpr = true) }
                     makeFunCall(defType.nodeName, args = valueArgStrs)
                 } else throw DetailedException("Unexpected definition ${definition.text}")
             }

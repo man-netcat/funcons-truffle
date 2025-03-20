@@ -296,6 +296,7 @@ fun strStr(str: String): String = "\"${str}\""
 
 fun getGlobalStr(name: String): String = makeFunCall("getGlobal", listOf(strStr(name)))
 fun putGlobalStr(name: String, value: String): String = makeFunCall("putGlobal", listOf(strStr(name), value))
+fun appendGlobalStr(name: String, value: String): String = makeFunCall("appendGlobal", listOf(strStr(name), value))
 fun getInScopeStr(name: String): String = makeFunCall("getInScope", listOf("frame", strStr(name)))
 fun putInScopeStr(name: String, value: String): String = makeFunCall("putInScope", listOf("frame", strStr(name), value))
 

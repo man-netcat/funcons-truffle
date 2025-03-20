@@ -29,13 +29,14 @@ abstract class IntegersNode : ValueTypesNode(), IntegersInterface
 abstract class CharactersNode : ValueTypesNode(), CharactersInterface
 
 @CBSType
+abstract class MapsNode : ValueTypesNode(), MapsInterface
+
+@CBSType
 abstract class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
 
 @CBSFuncon
 class StuckNode() : TermNode(), StuckInterface {
-    override fun reduce(frame: VirtualFrame): TermNode {
-        abort("stuck")
-    }
+    override fun reduce(frame: VirtualFrame): TermNode = abort("stuck")
 }
 
 @CBSFuncon
@@ -129,12 +130,33 @@ class EmptySequenceNode() : ValuesNode()
 
 @Builtin
 class ValueTupleNode(@Child var p0: SequenceNode) : TuplesNode() {
-    override val value = "tuple(${p0.value})"
+    override val value get() = "tuple(${p0.value})"
 }
 
 @Builtin
 class ValueListNode(@Child var p0: SequenceNode) : TuplesNode() {
-    override val value = "[${p0.value}]"
+    override val value get() = "[${p0.value}]"
+}
+
+@CBSFuncon
+class MapNode(@Child override var p0: SequenceNode) : TermNode(), MapInterface {
+    override fun reduce(frame: VirtualFrame): TermNode {
+        reduceComputations(frame, listOf(0))?.let { reduced -> return replace(reduced) }
+        val new = ValueMapNode(p0)
+        return replace(new)
+    }
+}
+
+@Builtin
+class ValueMapNode(@Child var p0: SequenceNode) : ValuesNode() {
+    override val value
+        get() = "{${
+            p0.elements.joinToString { tuple ->
+                tuple as ValueTupleNode
+                require(tuple.p0.size == 2) { "Invalid map" }
+                "${tuple.p0.elements[0].value} -> ${tuple.p0.elements[1].value}"
+            }
+        }}"
 }
 
 @Builtin

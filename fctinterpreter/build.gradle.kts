@@ -33,7 +33,7 @@ dependencies {
 tasks.register("testFilesRun") {
     group = "application"
     description = "Runs the interpreter for a list of test files"
-    dependsOn(":fctlang:jar", ":fctinterpreter:build") // Ensure both modules are built
+    dependsOn(":fctlang:jar", ":fctinterpreter:build")
     doLast {
         // List of file names containing your fctlang code.
         val testFiles = Vars.configFiles

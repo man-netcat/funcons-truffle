@@ -189,7 +189,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
                 val condition = when {
                     rhs is VariableContext -> {
-                        "$rewriteLhs !is ValuesNode"
+                        "$rewriteLhs.isReducible()"
                     }
 
                     lhs is FunconExpressionContext -> {

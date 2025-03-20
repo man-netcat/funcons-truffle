@@ -26,6 +26,7 @@ open class EntityObject(
 
     val putFunc = when (entityType) {
         EntityType.CONTEXTUAL -> ::putInScopeStr
+        EntityType.OUTPUT -> ::appendGlobalStr
         else -> ::putGlobalStr
     }
 

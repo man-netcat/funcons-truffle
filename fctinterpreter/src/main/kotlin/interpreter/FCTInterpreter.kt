@@ -31,7 +31,14 @@ fun main(args: Array<String>) {
         .newBuilder("fctlang", code, filePath.pathString)
         .build()
 
-    print("standard-out: ")
     val result = context.eval(source)
-    println("\nresult-term: $result")
+
+    if (result.hasArrayElements()) {
+        val resultTerm = result.getArrayElement(0)
+        val standardOut = (1 until result.arraySize).map { i ->
+            result.getArrayElement(i)
+        }
+        println("result-term: $resultTerm")
+        println("standard-out: $standardOut")
+    }
 }

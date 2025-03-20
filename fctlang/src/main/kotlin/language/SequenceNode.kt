@@ -34,10 +34,7 @@ open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
         return replace(new)
     }
 
-    val size: Int
-        get() {
-            return elements.size
-        }
+    val size: Int get() = elements.size
 
     fun isEmpty(): Boolean {
         return elements.isEmpty()
@@ -73,5 +70,12 @@ open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
 
     override fun toString(): String {
         return elements.joinToString("") { it.value.toString() }
+    }
+
+    fun append(other: SequenceNode): SequenceNode {
+        val newElements = mutableListOf<TermNode>()
+        newElements.addAll(elements)
+        newElements.addAll(other.elements)
+        return SequenceNode(*newElements.toTypedArray())
     }
 }

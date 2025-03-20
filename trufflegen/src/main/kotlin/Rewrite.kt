@@ -19,26 +19,43 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
         fun rewriteFunconExpr(ctx: ParseTree): String {
             val obj = getObject(ctx)
             val args = extractArgs(ctx)
-            val params = obj.params
 
-            val argStrs = args.mapIndexed { index, arg ->
-                val rewrittenArg = rewriteRecursive(arg)
-                val isSequence = params.getOrNull(index)?.type?.isSequence == true
-                if (isSequence) "$rewrittenArg.toSequence()" else rewrittenArg
+            val argStrs = args.map { rewriteRecursive(it) }
+
+            val nonSequence: List<String>
+            val sequence: List<String>
+            val postSequence: List<String>
+
+            if (obj.sequenceIndex >= 0) {
+                val postSequenceCount = obj.params.size - obj.sequenceIndex - 1
+                nonSequence = argStrs.take(obj.sequenceIndex)
+                postSequence = argStrs.takeLast(postSequenceCount)
+                sequence = argStrs.drop(obj.sequenceIndex).dropLast(postSequenceCount)
+            } else {
+                nonSequence = argStrs
+                sequence = emptyList()
+                postSequence = emptyList()
             }
+
+            val parts = mutableListOf<String>()
+            if (nonSequence.isNotEmpty()) {
+                parts.add(nonSequence.joinToString(", "))
+            }
+            if (sequence.isNotEmpty()) {
+                parts.add("SequenceNode(${sequence.joinToString(", ")})")
+            }
+            if (postSequence.isNotEmpty()) {
+                parts.add(postSequence.joinToString(", "))
+            }
+            val argStr = parts.joinToString(", ")
 
             val isNullArg = obj.hasNullable && args.isEmpty()
             val isEmptyArg = obj.params.size == 1 && obj.sequenceIndex == 0 && args.isEmpty()
 
-            return if (isNullArg) {
-                "${obj.nodeName}()"
-            } else if (isEmptyArg) {
-                "${obj.nodeName}(SequenceNode())"
-            } else {
-                "${obj.nodeName}(${argStrs.joinToString()})"
-            }
+            return if (isNullArg) "${obj.nodeName}()"
+            else if (isEmptyArg) "${obj.nodeName}(SequenceNode())"
+            else "${obj.nodeName}($argStr)"
         }
-
 
         return when (toRewrite) {
             is FunconExpressionContext -> rewriteFunconExpr(toRewrite)
@@ -47,11 +64,11 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
             is LabelContext -> rewriteFunconExpr(toRewrite)
             is MapExpressionContext -> {
                 val pairStr = toRewrite.pairs().pair().joinToString { pair -> rewriteRecursive(pair) }
-                "MapNode($pairStr)"
+                "MapNode(SequenceNode($pairStr))"
             }
 
             is TupleExpressionContext -> {
-                val pairStr = toRewrite.exprs()?.expr()?.joinToString(", ") { expr ->
+                val pairStr = toRewrite.exprs()?.expr()?.joinToString { expr ->
                     rewriteRecursive(expr)
                 }
                 if (pairStr != null) "sequenceOf(${pairStr})" else "emptySequence()"
@@ -77,7 +94,7 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
             is PairContext -> {
                 val key = rewriteRecursive(toRewrite.key)
                 val value = rewriteRecursive(toRewrite.value)
-                "TupleNode($key, $value)"
+                "TupleNode(SequenceNode($key, $value))"
             }
 
             else -> throw IllegalArgumentException("Unsupported context type: ${toRewrite::class.simpleName}, ${toRewrite.text}")

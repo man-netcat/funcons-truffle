@@ -4,6 +4,7 @@ import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
 import generated.FalseNode
 import generated.NullValueNode
+import generated.StandardOutNode
 import generated.TrueNode
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
@@ -27,28 +28,39 @@ abstract class TermNode : Node() {
             }
     }
 
-    fun getContext(): FCTContext {
+    private fun getContext(): FCTContext {
         return FCTContext.get(this)!!
     }
 
-    protected fun getInScope(frame: VirtualFrame, key: String): Entity? {
+    fun getInScope(frame: VirtualFrame, key: String): Entity? {
         return getLocalContext(frame)[key]
     }
 
-    protected fun putInScope(frame: VirtualFrame, key: String, value: Entity?) {
+    fun putInScope(frame: VirtualFrame, key: String, value: Entity?) {
         getLocalContext(frame)[key] = value
     }
 
-    protected fun isInScope(frame: VirtualFrame, key: String): Boolean {
+    fun isInScope(frame: VirtualFrame, key: String): Boolean {
         return getLocalContext(frame).containsKey(key)
     }
 
-    protected fun getGlobal(key: String): Entity? {
+    fun getGlobal(key: String): Entity? {
         return getContext().globalVariables.getEntity(key)
     }
 
-    protected fun putGlobal(key: String, value: Entity) {
-        getContext().globalVariables.putEntity(key, value)
+    fun putGlobal(key: String, entity: Entity) {
+        getContext().globalVariables.putEntity(key, entity)
+    }
+
+    fun appendGlobal(key: String, entity: StandardOutNode) {
+        val existing = getContext().globalVariables.getEntity(key) as StandardOutNode?
+        if (existing != null) {
+            val newElements = mutableListOf<TermNode>()
+            newElements.addAll(existing.value.elements)
+            newElements.addAll(entity.value.elements)
+            val newSequence = SequenceNode(*newElements.toTypedArray())
+            getContext().globalVariables.putEntity(key, StandardOutNode(newSequence))
+        } else getContext().globalVariables.putEntity(key, entity)
     }
 
     open val value: Any

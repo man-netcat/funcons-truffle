@@ -1,6 +1,6 @@
 package language
 
-abstract class Entity() {
+abstract class Entity {
     abstract val value: TermNode?
 }
 

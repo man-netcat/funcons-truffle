@@ -11,6 +11,26 @@ class FCTDependencyVisitor : FCTBaseVisitor<Unit>() {
         super.visitFunconExpression(ctx)
     }
 
+    override fun visitMapExpression(ctx: MapExpressionContext) {
+        dependencies.add("map")
+        super.visitMapExpression(ctx)
+    }
+
+    override fun visitSetExpression(ctx: SetExpressionContext) {
+        dependencies.add("set")
+        return super.visitSetExpression(ctx)
+    }
+
+    override fun visitListExpression(ctx: ListExpressionContext) {
+        dependencies.add("list")
+        return super.visitListExpression(ctx)
+    }
+
+    override fun visitTupleExpression(ctx: TupleExpressionContext) {
+        dependencies.add("tuple")
+        return super.visitTupleExpression(ctx)
+    }
+
     override fun visitNumber(ctx: NumberContext) {
         dependencies.add("natural-numbers")
         super.visitNumber(ctx)

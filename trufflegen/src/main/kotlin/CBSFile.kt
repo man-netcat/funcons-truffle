@@ -4,8 +4,6 @@ import cbs.CBSBaseVisitor
 import cbs.CBSParser.*
 import main.dataclasses.Type
 import main.exceptions.DetailedException
-import main.exceptions.EmptyConditionException
-import main.exceptions.StringNotFoundException
 import main.objects.*
 import main.visitors.MetaVariableVisitor
 import objects.DatatypeFunconObject
@@ -153,15 +151,15 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
 
         toProcess.forEach { obj ->
             println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $fileName)")
-            try {
-                val code = obj.makeCode()
-                stringBuilder.appendLine()
-                stringBuilder.appendLine(code)
-            } catch (e: StringNotFoundException) {
-                println(e)
-            } catch (e: EmptyConditionException) {
-                println(e)
-            }
+//            try {
+            val code = obj.makeCode()
+            stringBuilder.appendLine()
+            stringBuilder.appendLine(code)
+//            } catch (e: StringNotFoundException) {
+//                println(e)
+//            } catch (e: EmptyConditionException) {
+//                println(e)
+//            }
         }
 
         return stringBuilder.toString().trim()
