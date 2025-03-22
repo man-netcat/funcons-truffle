@@ -1,7 +1,9 @@
 package main
 
 import cbs.CBSParser.*
+import main.dataclasses.Param
 import main.exceptions.DetailedException
+import main.objects.Object
 import org.antlr.v4.runtime.tree.ParseTree
 
 fun toClassName(input: String): String {
@@ -59,7 +61,7 @@ fun makeFunction(
 }
 
 fun makeReduceFunction(content: String, returns: String): String =
-    makeFunction("reduce", returns, listOf(makeParam("VirtualFrame", "frame", "")), content, listOf("override"))
+    makeFunction("reduceRules", returns, listOf(makeParam("VirtualFrame", "frame", "")), content, listOf("override"))
 
 fun todoReduce(name: String, returnStr: String) = makeReduceFunction("TODO(\"Implement me: $name\")", returnStr)
 
@@ -154,7 +156,7 @@ fun makeClass(
     keywords: List<String> = emptyList(),
     annotations: List<String> = emptyList(),
     constructorArgs: List<String> = emptyList(),
-    properties: List<Pair<String, String>> = emptyList(),
+    properties: List<String> = emptyList(),
     typeParams: Set<Pair<String, String?>> = emptySet(),
     superClass: String = "",
     interfaces: List<String> = emptyList(),
@@ -204,8 +206,8 @@ fun makeClass(
     if (properties.isNotEmpty() || content.isNotBlank()) {
         result.append(" {\n")
         if (properties.isNotEmpty()) {
-            properties.forEach {
-                result.append("    val ${it.first}: ${it.second}\n")
+            properties.forEach { prop ->
+                result.append("    $prop")
             }
             if (content.isNotBlank()) result.append("\n")
         }
@@ -324,14 +326,90 @@ fun makeAnnotation(isVararg: Boolean = false, isOverride: Boolean = false, isEnt
     return annotationBuilder.toString()
 }
 
-fun <A, B, C> combineLists(pairs: List<Pair<A, B>>, thirdList: List<C>): List<Triple<A, B, C>> {
-    return pairs.zip(thirdList) { pair, third ->
-        Triple(pair.first, pair.second, third)
+fun extractParams(obj: ParseTree): List<Param> {
+    fun paramHelper(params: ParamsContext?): List<Param> =
+        params?.param()?.mapIndexed { i, param -> Param(i, param.value, param.type) } ?: emptyList()
+
+    return when (obj) {
+        is FunconDefinitionContext -> paramHelper(obj.params())
+        is TypeDefinitionContext -> paramHelper(obj.params())
+        is DatatypeDefinitionContext -> paramHelper(obj.params())
+        is ControlEntityDefinitionContext -> paramHelper(obj.params())
+        is ContextualEntityDefinitionContext -> paramHelper(obj.params())
+        is MutableEntityDefinitionContext -> paramHelper(obj.lhs)
+
+        else -> throw DetailedException("Unexpected funcon type: ${obj::class.simpleName}, ${obj.text}")
     }
 }
 
-fun <A, B : Comparable<B>, C> sortAndExtract(pairs: List<Triple<A, B, C>>): List<Pair<A, C>> {
-    return pairs
-        .sortedBy { it.second }
-        .map { Pair(it.first, it.third) }
+fun extractArgs(expr: ParseTree): List<ExprContext> {
+    return when (expr) {
+        is FunconExpressionContext -> makeArgList(expr.args())
+        is ListExpressionContext -> expr.elements?.expr() ?: emptyList()
+        is SetExpressionContext -> expr.elements?.expr() ?: emptyList()
+        is LabelContext -> if (expr.value != null) listOf(expr.value) else emptyList()
+        else -> throw DetailedException("Unexpected expression type: ${expr::class.simpleName}, ${expr.text}")
+    }
+}
+
+fun argsToParams(expr: ParseTree): List<Param> {
+    val args = extractArgs(expr)
+    return args.mapIndexed { i, arg ->
+        when (arg) {
+            is TypeExpressionContext -> Param(i, arg.value, arg.type)
+            else -> Param(i, arg, null)
+        }
+    }
+}
+
+fun makeArgList(args: ArgsContext): List<ExprContext> {
+    return when (args) {
+        is NoArgsContext -> emptyList()
+        is SingleArgsContext -> {
+            if (args.expr() !is TupleExpressionContext) {
+                listOf(args.expr())
+            } else emptyList()
+        }
+
+        is MultipleArgsContext -> args.exprs()?.expr() ?: emptyList()
+        else -> throw DetailedException("Unexpected args type: ${args::class.simpleName}, ${args.text}")
+    }
+}
+
+fun partitionArgs(args: List<ExprContext?>): Pair<List<ExprContext>, List<ExprContext>> {
+    return args.filterNotNull().partition { arg ->
+        arg is SuffixExpressionContext || (arg is TypeExpressionContext && arg.value is SuffixExpressionContext)
+    }
+}
+
+fun getParams(definition: ParseTree) = when (definition) {
+    is FunconDefinitionContext,
+    is TypeDefinitionContext,
+    is ControlEntityDefinitionContext,
+    is ContextualEntityDefinitionContext,
+    is MutableEntityDefinitionContext,
+    is DatatypeDefinitionContext,
+        -> extractParams(definition)
+
+    is FunconExpressionContext,
+    is ListExpressionContext,
+    is SetExpressionContext,
+    is LabelContext,
+        -> argsToParams(definition)
+
+    else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
+}
+
+fun getObject(definition: ParseTree): Object {
+    val name = when (definition) {
+        is FunconDefinitionContext -> definition.name.text
+        is TypeDefinitionContext -> definition.name.text
+        is DatatypeDefinitionContext -> definition.name.text
+        is FunconExpressionContext -> definition.name.text
+        is ListExpressionContext -> "list"
+        is SetExpressionContext -> "set"
+        is LabelContext -> definition.name.text
+        else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
+    }
+    return globalObjects[name]!!
 }

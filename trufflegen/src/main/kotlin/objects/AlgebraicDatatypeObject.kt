@@ -13,7 +13,7 @@ class AlgebraicDatatypeObject(
     override val annotations: List<String>
         get() = listOf("CBSDataType")
     override val keyWords: List<String>
-        get() = listOf("abstract")
+        get() = listOf("open")
     override val superClassStr: String
         get() = makeFunCall(toClassName("datatype-values"))
 }

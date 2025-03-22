@@ -10,7 +10,7 @@ open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
         }.toTypedArray()
     }
 
-    fun reduceReverse(frame: VirtualFrame): SequenceNode {
+    fun reduceRulesReversed(frame: VirtualFrame): SequenceNode {
         val i = elements.indexOfLast { it !is ValuesNode }
         val newElements = elements.mapIndexed { index, node ->
             if (index == i) node.reduce(frame) else node
@@ -22,7 +22,7 @@ open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
         return replace(new)
     }
 
-    override fun reduce(frame: VirtualFrame): SequenceNode {
+    override fun reduceRules(frame: VirtualFrame): SequenceNode {
         val i = elements.indexOfFirst { it !is ValuesNode }
         val newElements = elements.mapIndexed { index, node ->
             if (index == i) node.reduce(frame) else node

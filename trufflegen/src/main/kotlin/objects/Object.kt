@@ -39,6 +39,7 @@ abstract class Object(
     open val annotations: List<String> = emptyList()
     open val superClassStr: String = emptySuperClass(TERMNODE)
     open val keyWords: List<String> = listOf("open")
+    open val properties: List<String> = listOf()
 
     val sequenceIndex: Int get() = params.indexOfFirst { it.type.isSequence }
     val hasSequence: Boolean get() = sequenceIndex >= 0
@@ -73,7 +74,7 @@ abstract class Object(
                 val paramTypeStr = (
                         if (param.type.isSequence) SEQUENCE else TERMNODE) +
                         if (param.type.isNullable) "?" else ""
-                makeVariable(param.name, type = paramTypeStr)
+                makeVariable("p${param.index}", type = paramTypeStr)
             }
         }
 
@@ -87,10 +88,11 @@ abstract class Object(
             content = listOf(
                 contentStr
             ).joinToString("\n"),
-            constructorArgs = valueParamStrs,
+            constructorArgs = if (this !is TypeObject) valueParamStrs else emptyList(),
             superClass = superClassStr,
             annotations = annotations,
             keywords = keyWords,
+            properties = properties,
         ) else makeInterface(
             interfaceName,
             properties = interfaceProperties,

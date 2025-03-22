@@ -1,7 +1,6 @@
 package main
 
 import cbs.CBSParser.*
-import main.dataclasses.Param
 import main.dataclasses.RewriteData
 import main.exceptions.DetailedException
 import main.exceptions.StringNotFoundException
@@ -39,157 +38,70 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
 
             val parts = mutableListOf<String>()
             if (nonSequence.isNotEmpty()) {
-                parts.add(nonSequence.joinToString(", "))
+                parts.add(nonSequence.joinToString())
             }
             if (sequence.isNotEmpty()) {
-                parts.add("SequenceNode(${sequence.joinToString(", ")})")
+                parts.add("SequenceNode(${sequence.joinToString()})")
             }
             if (postSequence.isNotEmpty()) {
-                parts.add(postSequence.joinToString(", "))
+                parts.add(postSequence.joinToString())
             }
-            val argStr = parts.joinToString(", ")
+            val argStr = parts.joinToString()
 
             val isNullArg = obj.hasNullable && args.isEmpty()
             val isEmptyArg = obj.params.size == 1 && obj.sequenceIndex == 0 && args.isEmpty()
 
-            return if (isNullArg) "${obj.nodeName}()"
+            return if (isNullArg) "${obj.nodeName}(NullValueNode())"
             else if (isEmptyArg) "${obj.nodeName}(SequenceNode())"
             else "${obj.nodeName}($argStr)"
         }
 
-        return when (toRewrite) {
-            is FunconExpressionContext -> rewriteFunconExpr(toRewrite)
-            is ListExpressionContext -> rewriteFunconExpr(toRewrite)
-            is SetExpressionContext -> rewriteFunconExpr(toRewrite)
-            is LabelContext -> rewriteFunconExpr(toRewrite)
-            is MapExpressionContext -> {
-                val pairStr = toRewrite.pairs().pair().joinToString { pair -> rewriteRecursive(pair) }
-                "MapNode(SequenceNode($pairStr))"
-            }
-
-            is TupleExpressionContext -> {
-                val pairStr = toRewrite.exprs()?.expr()?.joinToString { expr ->
-                    rewriteRecursive(expr)
+        fun rewriteExpression(toRewrite: ParseTree): String {
+            return when (toRewrite) {
+                is FunconExpressionContext -> rewriteFunconExpr(toRewrite)
+                is ListExpressionContext -> rewriteFunconExpr(toRewrite)
+                is SetExpressionContext -> rewriteFunconExpr(toRewrite)
+                is LabelContext -> rewriteFunconExpr(toRewrite)
+                is MapExpressionContext -> {
+                    val pairStr = toRewrite.pairs().pair().joinToString { pair -> rewriteRecursive(pair) }
+                    "MapNode(SequenceNode($pairStr))"
                 }
-                if (pairStr != null) "sequenceOf(${pairStr})" else "emptySequence()"
-            }
 
-            is SuffixExpressionContext -> {
-                val nullableStr = if (toRewrite.op.text == "?") "?" else ""
-                mapParamString(toRewrite.text) + nullableStr
-            }
-
-            is VariableContext -> mapParamString(toRewrite.text)
-            is NumberContext -> {
-                if ('-' in toRewrite.text) {
-                    "IntegerNode(${toRewrite.text})"
-                } else {
-                    "NaturalNumberNode(${toRewrite.text})"
+                is TupleExpressionContext -> {
+                    val pairStr = toRewrite.exprs()?.expr()?.joinToString { expr ->
+                        rewriteRecursive(expr)
+                    }
+                    if (pairStr != null) "sequenceOf(${pairStr})" else "emptySequence()"
                 }
-            }
 
-            is StringContext -> "StringNode(${toRewrite.text})"
-            is TypeExpressionContext -> rewriteRecursive(toRewrite.value)
-            is NestedExpressionContext -> rewriteRecursive(toRewrite.expr())
-            is PairContext -> {
-                val key = rewriteRecursive(toRewrite.key)
-                val value = rewriteRecursive(toRewrite.value)
-                "TupleNode(SequenceNode($key, $value))"
-            }
+                is SuffixExpressionContext -> {
+                    val nullableStr = if (toRewrite.op.text == "?") "?" else ""
+                    mapParamString(toRewrite.text) + nullableStr
+                }
 
-            else -> throw IllegalArgumentException("Unsupported context type: ${toRewrite::class.simpleName}, ${toRewrite.text}")
+                is VariableContext -> mapParamString(toRewrite.text)
+                is NumberContext -> {
+                    val nodeName = if ('-' in toRewrite.text) "IntegerNode" else "NaturalNumberNode"
+                    "$nodeName(${toRewrite.text})"
+                }
+
+                is StringContext -> "StringNode(${toRewrite.text})"
+                is TypeExpressionContext -> rewriteRecursive(toRewrite.value)
+                is NestedExpressionContext -> rewriteRecursive(toRewrite.expr())
+                is PairContext -> {
+                    val key = rewriteRecursive(toRewrite.key)
+                    val value = rewriteRecursive(toRewrite.value)
+                    "TupleNode(SequenceNode($key, $value))"
+                }
+
+                else -> throw IllegalArgumentException("Unsupported context type: ${toRewrite::class.simpleName}, ${toRewrite.text}")
+            }
         }
+
+        return rewriteExpression(toRewrite)
     }
 
     return rewriteRecursive(toRewrite)
-}
-
-fun extractParams(obj: ParseTree): List<Param> {
-    fun paramHelper(params: ParamsContext?): List<Param> =
-        params?.param()?.mapIndexed { i, param -> Param(i, param.value, param.type) } ?: emptyList()
-
-    return when (obj) {
-        is FunconDefinitionContext -> paramHelper(obj.params())
-        is TypeDefinitionContext -> paramHelper(obj.params())
-        is DatatypeDefinitionContext -> paramHelper(obj.params())
-        is ControlEntityDefinitionContext -> paramHelper(obj.params())
-        is ContextualEntityDefinitionContext -> paramHelper(obj.params())
-        is MutableEntityDefinitionContext -> paramHelper(obj.lhs)
-
-        else -> throw DetailedException("Unexpected funcon type: ${obj::class.simpleName}, ${obj.text}")
-    }
-}
-
-fun extractArgs(expr: ParseTree): List<ExprContext> {
-    return when (expr) {
-        is FunconExpressionContext -> makeArgList(expr.args())
-        is ListExpressionContext -> expr.elements?.expr() ?: emptyList()
-        is SetExpressionContext -> expr.elements?.expr() ?: emptyList()
-        is LabelContext -> if (expr.value != null) listOf(expr.value) else emptyList()
-        else -> throw DetailedException("Unexpected expression type: ${expr::class.simpleName}, ${expr.text}")
-    }
-}
-
-fun argsToParams(expr: ParseTree): List<Param> {
-    val args = extractArgs(expr)
-    return args.mapIndexed { i, arg ->
-        when (arg) {
-            is TypeExpressionContext -> Param(i, arg.value, arg.type)
-            else -> Param(i, arg, null)
-        }
-    }
-}
-
-fun makeArgList(args: ArgsContext): List<ExprContext> {
-    return when (args) {
-        is NoArgsContext -> emptyList()
-        is SingleArgsContext -> {
-            if (args.expr() !is TupleExpressionContext) {
-                listOf(args.expr())
-            } else emptyList()
-        }
-
-        is MultipleArgsContext -> args.exprs()?.expr() ?: emptyList()
-        else -> throw DetailedException("Unexpected args type: ${args::class.simpleName}, ${args.text}")
-    }
-}
-
-fun partitionArgs(args: List<ExprContext?>): Pair<List<ExprContext>, List<ExprContext>> {
-    return args.filterNotNull().partition { arg ->
-        arg is SuffixExpressionContext || (arg is TypeExpressionContext && arg.value is SuffixExpressionContext)
-    }
-}
-
-fun getParams(definition: ParseTree) = when (definition) {
-    is FunconDefinitionContext,
-    is TypeDefinitionContext,
-    is ControlEntityDefinitionContext,
-    is ContextualEntityDefinitionContext,
-    is MutableEntityDefinitionContext,
-    is DatatypeDefinitionContext,
-        -> extractParams(definition)
-
-    is FunconExpressionContext,
-    is ListExpressionContext,
-    is SetExpressionContext,
-    is LabelContext,
-        -> argsToParams(definition)
-
-    else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
-}
-
-fun getObject(definition: ParseTree): Object {
-    val name = when (definition) {
-        is FunconDefinitionContext -> definition.name.text
-        is TypeDefinitionContext -> definition.name.text
-        is DatatypeDefinitionContext -> definition.name.text
-        is FunconExpressionContext -> definition.name.text
-        is ListExpressionContext -> "list"
-        is SetExpressionContext -> "set"
-        is LabelContext -> definition.name.text
-        else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
-    }
-    return globalObjects[name]!!
 }
 
 fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> {
@@ -202,7 +114,8 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
 
         // Utility function to build parameter string based on provided condition
         fun buildParamString(paramIndex: Int, suffix: String = ""): String {
-            return listOf(parentStr, "p$paramIndex").filterNot { it.isEmpty() }.joinToString(".") + suffix
+            val prefix = if (parentStr.isEmpty()) "l" else "p"
+            return listOf(parentStr, "$prefix$paramIndex").filterNot { it.isEmpty() }.joinToString(".") + suffix
         }
 
         return when {
@@ -214,13 +127,14 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
             // Case for an actual sequence range
             argIndex in obj.sequenceIndex until obj.sequenceIndex + nSequenceArgs -> {
                 val sequenceRelativeIndex = argIndex - obj.sequenceIndex
+                assert(sequenceRelativeIndex >= 0) { "Index out of bounds" }
 
                 if (argIsSequence) {
-                    when {
-                        sequenceRelativeIndex == 0 -> buildParamString(obj.sequenceIndex)
-                        sequenceRelativeIndex == 1 -> "${buildParamString(obj.sequenceIndex)}.tail"
-                        sequenceRelativeIndex > 1 -> "${buildParamString(obj.sequenceIndex)}.sliceFrom($sequenceRelativeIndex)"
-                        else -> throw IndexOutOfBoundsException(sequenceRelativeIndex)
+                    val base = buildParamString(obj.sequenceIndex)
+                    when (sequenceRelativeIndex) {
+                        0 -> base
+                        1 -> "$base.tail"
+                        else -> "$base.sliceFrom($sequenceRelativeIndex)"
                     }
                 } else {
                     when (sequenceRelativeIndex) {
@@ -234,7 +148,10 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
         }
     }
 
-    fun extractArgsRecursive(definition: ParseTree, parentStr: String = prefix): List<RewriteData> {
+    fun extractArgsRecursive(
+        definition: ParseTree,
+        parentStr: String = prefix,
+    ): List<RewriteData> {
         val obj = getObject(definition)
         val args = getParams(definition)
 
@@ -259,7 +176,8 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
 
                 is SuffixExpressionContext, is VariableContext, is NumberContext -> {
                     val argIsSequence = (arg is SuffixExpressionContext && arg.op.text in listOf("+", "*"))
-                    val newStr = makeParamStr(argIndex, args.size, obj, parentStr, argIsSequence = argIsSequence)
+                    val newStr =
+                        makeParamStr(argIndex, args.size, obj, parentStr, argIsSequence = argIsSequence)
                     listOf(RewriteData(arg, type, newStr))
                 }
 

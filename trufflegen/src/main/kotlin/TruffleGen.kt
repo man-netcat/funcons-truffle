@@ -181,15 +181,35 @@ class TruffleGen(
         val stringBuilder = StringBuilder()
 
         stringBuilder.appendLine("package generated")
+        stringBuilder.appendLine("import language.*")
         stringBuilder.appendLine()
 
         stringBuilder.appendLine("val aliasMap: Map<String, String> = mapOf(")
-        globalObjects.flatMap { (name, obj) ->
-            obj!!.aliases
-                .filter { alias -> alias != name }
-                .map { alias -> "\"$alias\" to \"$name\"" }
-        }.joinToString(",\n    ").let { stringBuilder.appendLine("    $it") }
-        stringBuilder.appendLine(")")
+        globalObjects
+            .values.distinct()
+            .filter { obj -> obj in generatedDependencies }
+            .flatMap { obj ->
+                obj!!.aliases
+                    .asSequence()
+                    .filterNot { alias -> alias == obj.name }
+                    .map { alias -> "\"$alias\" to \"${obj.name}\"" }
+            }
+            .joinToString(",\n    ", prefix = "    ", postfix = "\n)")
+            .let(stringBuilder::append)
+
+
+        stringBuilder.appendLine()
+        globalObjects
+            .values.distinct()
+            .filter { obj -> obj in generatedDependencies }
+            .flatMap { obj ->
+                obj!!.aliases
+                    .asSequence()
+                    .filterNot { alias -> alias == obj.name }
+                    .map { alias -> makeTypeAlias(toClassName(alias), toClassName(obj.name)) }
+            }
+            .joinToString("\n")
+            .let(stringBuilder::appendLine)
 
         aliasFilePath.writeText(stringBuilder.toString())
     }

@@ -4,6 +4,7 @@ import com.oracle.truffle.api.frame.FrameDescriptor
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.RootNode
 import generated.StandardOutNode
+import language.Util.DEBUG
 
 class FCTRootNode(
     language: FCTLanguage,
@@ -14,9 +15,11 @@ class FCTRootNode(
         var iterationCount = 0
 
         while (rootExpr !is ValuesNode) {
-//            println("------------------")
-//            println("Iteration $iterationCount: Current result is ${rootExpr::class.simpleName}")
-//            rootExpr.printTree()
+            if (DEBUG) {
+                println("------------------")
+                println("Iteration $iterationCount: Current result is ${rootExpr::class.simpleName}")
+                rootExpr.printTree()
+            }
 //            println(rootExpr.getContext().globalVariables)
             rootExpr = rootExpr.reduce(frame)
             iterationCount++
