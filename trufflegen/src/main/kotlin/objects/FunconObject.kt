@@ -5,6 +5,7 @@ import main.*
 import main.dataclasses.Rule
 import main.dataclasses.Type
 import main.exceptions.DetailedException
+import main.exceptions.EmptyConditionException
 import main.objects.AlgebraicDatatypeObject
 import main.objects.EntityObject
 import main.objects.Object
@@ -14,16 +15,21 @@ abstract class AbstractFunconObject(
     ctx: ParseTree,
     metaVariables: Set<Pair<String, String>>,
 ) : Object(ctx, metaVariables) {
+    val reducibleIndices = computeReducibles()
+    override val properties = if (reducibleIndices.isNotEmpty()) {
+        listOf(
+            makeVariable(
+                "reducibles",
+                value = "listOf(${reducibleIndices.joinToString()})",
+                override = true
+            )
+        )
+    } else emptyList()
 
     protected val returnStr = "return replace(new)"
 
     protected fun computeReducibles(): List<Int> =
         params.mapIndexedNotNull { index, param -> if (!param.type.computes) index else null }
-
-    protected fun generateReduceComputations(reducibles: List<Int>): String =
-        if (reducibles.isNotEmpty()) {
-            "reduceComputations(frame, listOf(${reducibles.joinToString()}))?.let { reduced -> return replace(reduced) }"
-        } else ""
 
     protected fun generateEntityVariables(ruleObjs: List<Rule>): String =
         buildString {
@@ -32,6 +38,10 @@ abstract class AbstractFunconObject(
                 appendLine(makeVariable(entityObj.asVarName, entityObj.getStr()))
             }
         }
+
+    protected fun generateLocalVariables(): String = params.joinToString("\n") { param ->
+        makeVariable("l${param.index}", value = "p${param.index}")
+    }
 }
 
 class FunconObject(
@@ -43,8 +53,6 @@ class FunconObject(
 ) : AbstractFunconObject(ctx, metaVariables) {
     override val contentStr: String
         get() {
-            val reducibles = computeReducibles()
-            val reduceComputations = generateReduceComputations(reducibles)
             val stringBuilder = StringBuilder()
 
             val new = when {
@@ -61,14 +69,20 @@ class FunconObject(
 
                     if (entityVars.isNotEmpty()) stringBuilder.appendLine(entityVars)
 
-                    makeWhenStatement(emptyPairs + pairs, elseBranch = "abort(\"$name\")")
+                    val allPairs = emptyPairs + pairs
+
+                    if (allPairs.any { pair -> pair.second.isEmpty() }) throw EmptyConditionException("Empty condition found in $name")
+
+                    makeWhenStatement(allPairs, elseBranch = "abort(\"$name\")")
                 }
 
                 else -> throw DetailedException("Funcon $name does not have any associated rules.")
             }
 
-            if (reduceComputations.isNotEmpty()) stringBuilder.appendLine(reduceComputations)
             val newVar = makeVariable("new", new)
+            val localVariables = generateLocalVariables()
+
+            stringBuilder.appendLine(localVariables)
             stringBuilder.appendLine(newVar)
             stringBuilder.appendLine(returnStr)
             return makeReduceFunction(stringBuilder.toString(), TERMNODE)
@@ -83,26 +97,22 @@ class DatatypeFunconObject(
     metaVariables: Set<Pair<String, String>>,
     private val superclass: AlgebraicDatatypeObject,
 ) : AbstractFunconObject(ctx, metaVariables) {
-    val reducibles = computeReducibles()
-
     override val annotations: List<String> get() = listOf("CBSFuncon")
-    override val superClassStr: String get() = makeFunCall(if (reducibles.isEmpty()) superclass.nodeName else TERMNODE)
+    override val superClassStr: String get() = makeFunCall(if (reducibleIndices.isEmpty()) superclass.nodeName else TERMNODE)
     override val keyWords: List<String> = emptyList()
 
     override val contentStr: String
         get() {
-            return if (reducibles.isNotEmpty()) {
-                val reduceComputations = generateReduceComputations(reducibles)
-                val new = "Value$nodeName(${params.joinToString { it.name }})"
+            return if (reducibleIndices.isNotEmpty()) {
+                val new = "Value$nodeName(${params.joinToString { param -> "l${param.index}" }})"
+                val localVariables = generateLocalVariables()
                 val newVar = makeVariable("new", new)
 
-                val stringBuilder = StringBuilder()
-
-                if (reduceComputations.isNotEmpty()) stringBuilder.appendLine(reduceComputations)
-
-                stringBuilder.appendLine(newVar)
-                stringBuilder.appendLine(returnStr)
-                makeReduceFunction(stringBuilder.toString(), TERMNODE)
+                val reduceBuilder = StringBuilder()
+                reduceBuilder.appendLine(localVariables)
+                reduceBuilder.appendLine(newVar)
+                reduceBuilder.appendLine(returnStr)
+                makeReduceFunction(reduceBuilder.toString(), TERMNODE)
             } else ""
         }
 }

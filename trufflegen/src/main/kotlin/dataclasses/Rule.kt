@@ -32,9 +32,9 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         val args = extractArgs(funconExpr)
         if (obj.params.size == 1 && args.isEmpty()) {
             if (obj.params[0].type.isSequence) {
-                emptyConditions.add("p0.isEmpty()")
+                emptyConditions.add("l0.isEmpty()")
             } else {
-                conditions.add("p0 == null")
+                conditions.add("l0 == null")
             }
         } else {
             val paramStrs = getParamStrs(funconExpr)
@@ -86,7 +86,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 processArg(arg)
             }
 
-            val sequenceParamStr = obj.sequenceParam!!.name
+            val sequenceParamStr = "l${obj.sequenceIndex}"
             val offsetValue = sumVarargMin + nonSequenceArgs.size - (obj.params.size - 1)
             val condition = if (sequenceArgs.isNotEmpty()) {
                 "$sequenceParamStr.size >= $offsetValue"

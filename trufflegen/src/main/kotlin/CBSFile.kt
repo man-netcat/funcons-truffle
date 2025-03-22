@@ -136,8 +136,6 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
         val imports = listOf(
             "language.*",
             "com.oracle.truffle.api.frame.VirtualFrame",
-            "com.oracle.truffle.api.nodes.Node.Child",
-            "com.oracle.truffle.api.nodes.Node.Children"
         )
         imports.forEach { stringBuilder.appendLine("import $it") }
         stringBuilder.appendLine()

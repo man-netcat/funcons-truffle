@@ -22,44 +22,20 @@ object FCTNodeFactory {
             }
             .firstOrNull() ?: throw ClassNotFoundException("No class found for $funconName")
 
-//        println("creating node: ${toNodeName(funconName)} with children ${children.map { it::class.simpleName }}")
+//        println("creating node: ${toNodeName(funconName)} with children ${args.map { it::class.simpleName }}")
         return instantiate(clazz, args) as TermNode
     }
 
-
     private fun instantiate(clazz: KClass<out Any>, args: List<Any>): Any {
-        val constructor = findMatchingConstructor(clazz, args)
-            ?: throw IllegalArgumentException("No suitable constructor found for class: ${clazz.qualifiedName}")
-
-        val argsMap = prepareArguments(constructor, args)
-        return constructor.callBy(argsMap)
-    }
-
-    private fun findMatchingConstructor(
-        clazz: KClass<out Any>,
-        args: List<Any>,
-    ): KFunction<Any>? {
         val totalArgs = args.size
 
 //        clazz.constructors.forEach { constructor ->
 //            println("Constructor for ${clazz.simpleName}: ${constructor.parameters.joinToString { it.type.toString() }}")
 //        }
 
-        return clazz.constructors.find { constructor ->
-            val parameters = constructor.parameters
-            val isVararg = parameters.any { it.isVararg }
-            val isSequence = parameters.any { it.type.classifier == SequenceNode::class }
-
-            if (isVararg) {
-                val fixedParamCount = parameters.size - 1
-                totalArgs >= fixedParamCount
-            } else if (isSequence) {
-                val fixedParamCount = parameters.size - 1
-                totalArgs >= fixedParamCount
-            } else {
-                totalArgs == parameters.size
-            }
-        }
+        val constructor = clazz.constructors.first()
+        val argsMap = prepareArguments(constructor, args)
+        return constructor.callBy(argsMap)
     }
 
     private fun prepareArguments(
@@ -91,9 +67,7 @@ object FCTNodeFactory {
                         Array.set(array, arg.index, value)
                     }
                 }
-            } else {
-                Array.newInstance(componentType, 0)
-            }
+            } else Array.newInstance(componentType, 0)
 
             beforeVararg.zip(beforeArgs).toMap() +
                     mapOf(varargParam to varargArray) +
@@ -112,6 +86,29 @@ object FCTNodeFactory {
             beforeSequence.zip(beforeArgs).toMap() +
                     (sequenceParam to sequence) +
                     afterSequence.zip(afterArgs).toMap()
+        } else if (args.size != parameters.size) {
+            val updatedArgs = mutableListOf<Any?>()
+
+            for (i in parameters.indices) {
+                val param = parameters[i]
+
+                // If there's a corresponding argument, use it.
+                if (i < args.size) {
+                    updatedArgs.add(args[i])
+                } else {
+                    // If there's no argument for the parameter:
+                    if (param.type.isMarkedNullable) {
+                        // Insert `null` if the parameter is nullable
+                        updatedArgs.add(createNode("null-value", emptyList()))
+                    } else {
+                        // Otherwise, find a value from the already existing arguments (this part could be customized based on your needs)
+                        val fallbackArgument = args.firstOrNull() // You can define the fallback argument as needed.
+                        updatedArgs.add(fallbackArgument)
+                    }
+                }
+            }
+
+            parameters.zip(updatedArgs).toMap()
         } else {
             parameters.zip(args).toMap()
         }

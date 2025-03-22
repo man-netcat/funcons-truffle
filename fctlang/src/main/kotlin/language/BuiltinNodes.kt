@@ -4,48 +4,49 @@ import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
 
 @CBSType
-abstract class ValuesNode : TermNode(), ValuesInterface {
-    override fun reduce(frame: VirtualFrame): TermNode {
-        return this
-    }
+open class ValuesNode : TermNode(), ValuesInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode = this
 }
 
 @CBSType
-abstract class GroundValuesNode : ValuesNode(), GroundValuesInterface
+open class GroundValuesNode : ValueTypesNode(), GroundValuesInterface
 
 @CBSType
-abstract class ValueTypesNode : ValuesNode(), ValueTypesInterface
+open class ValueTypesNode : ValuesNode(), ValueTypesInterface
 
 @CBSType
 final class EmptyTypeNode : ValuesNode(), EmptyTypeInterface
 
 @CBSType
-abstract class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
+open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
 
 @CBSType
-abstract class IntegersNode : ValueTypesNode(), IntegersInterface
+open class IntegersNode : GroundValuesNode(), IntegersInterface
 
 @CBSType
-abstract class CharactersNode : ValueTypesNode(), CharactersInterface
+open class CharactersNode : GroundValuesNode(), CharactersInterface
 
 @CBSType
-abstract class MapsNode : ValueTypesNode(), MapsInterface
+open class MapsNode : ValueTypesNode(), MapsInterface
 
 @CBSType
-abstract class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
+open class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
+
+//@CBSFuncon
+//class AbstractionNode(@Child override var p0: TermNode) : AbstractionsNode(), AbstractionInterface
 
 @CBSFuncon
 class StuckNode() : TermNode(), StuckInterface {
-    override fun reduce(frame: VirtualFrame): TermNode = abort("stuck")
+    override fun reduceRules(frame: VirtualFrame): TermNode = abort("stuck")
 }
 
 @CBSFuncon
 class LeftToRightNode(@Child override var p0: SequenceNode) : TermNode(), LeftToRightInterface {
-    override fun reduce(frame: VirtualFrame): TermNode {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = when {
             p0.size == 0 -> SequenceNode()
             p0.isReducible() -> {
-                val r = p0.reduce(frame)
+                val r = p0.reduce(frame).toSequence()
                 LeftToRightNode(r)
             }
 
@@ -59,11 +60,11 @@ class LeftToRightNode(@Child override var p0: SequenceNode) : TermNode(), LeftTo
 
 @CBSFuncon
 class RightToLeftNode(@Child override var p0: SequenceNode) : TermNode(), RightToLeftInterface {
-    override fun reduce(frame: VirtualFrame): TermNode {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = when {
             p0.size == 0 -> SequenceNode()
             p0.isReducible() -> {
-                val r = p0.reduceReverse(frame)
+                val r = p0.reduceRulesReversed(frame)
                 RightToLeftNode(r)
             }
 
@@ -78,11 +79,11 @@ class RightToLeftNode(@Child override var p0: SequenceNode) : TermNode(), RightT
 @CBSFuncon
 class SequentialNode(@Child override var p0: SequenceNode, @Child override var p1: TermNode) : TermNode(),
     SequentialInterface {
-    override fun reduce(frame: VirtualFrame): TermNode {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = when {
             p0.size == 0 -> p1
             p0.isReducible() -> {
-                val r = p0.reduce(frame)
+                val r = p0.reduce(frame).toSequence()
                 SequentialNode(r, p1)
             }
 
@@ -95,7 +96,9 @@ class SequentialNode(@Child override var p0: SequenceNode, @Child override var p
 
 @CBSFuncon
 class ChoiceNode(@Child override var p0: SequenceNode) : TermNode(), ChoiceInterface {
-    override fun reduce(frame: VirtualFrame): TermNode {
+    override val reducibles = listOf(0)
+
+    override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = when {
             p0.size >= 1 -> p0.random()
             else -> abort("choice")
@@ -106,13 +109,9 @@ class ChoiceNode(@Child override var p0: SequenceNode) : TermNode(), ChoiceInter
 
 @CBSFuncon
 class IntegerAddNode(@Child override var p0: SequenceNode) : TermNode(), IntegerAddInterface {
-    override fun reduce(frame: VirtualFrame): TermNode {
+    override val reducibles = listOf(0)
+    override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = when {
-            p0.isReducible() -> {
-                val r = p0.reduce(frame)
-                IntegerAddNode(r)
-            }
-
             p0.size >= 0 -> {
                 val sum = p0.elements.fold(0) { acc, node -> node.value as Int }
                 IntegerNode(sum)
@@ -140,8 +139,8 @@ class ValueListNode(@Child var p0: SequenceNode) : TuplesNode() {
 
 @CBSFuncon
 class MapNode(@Child override var p0: SequenceNode) : TermNode(), MapInterface {
-    override fun reduce(frame: VirtualFrame): TermNode {
-        reduceComputations(frame, listOf(0))?.let { reduced -> return replace(reduced) }
+    override val reducibles = listOf(0)
+    override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = ValueMapNode(p0)
         return replace(new)
     }
@@ -188,4 +187,3 @@ data class StringNode(override val value: String) : StringsNode() {
         else -> false
     }
 }
-
