@@ -6,6 +6,7 @@ import generated.*
 @CBSType
 open class ValuesNode : TermNode(), ValuesInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = this
+    override fun isReducible(): Boolean = false
 }
 
 @CBSType
@@ -67,7 +68,7 @@ class LeftToRightNode(@Children override vararg var p0: SequenceNode) : Directio
 }
 
 @CBSFuncon
-class RightToLeftNode(@Children override vararg var p0: SequenceNode) : DirectionalNode(*p0), LeftToRightInterface {
+class RightToLeftNode(@Children override vararg var p0: SequenceNode) : DirectionalNode(*p0), RightToLeftInterface {
     override fun findReducibleIndex(vararg terms: SequenceNode) = terms.indexOfLast { it.isReducible() }
     override fun createNewNode(vararg newTerms: SequenceNode) = RightToLeftNode(*newTerms)
 }
@@ -92,7 +93,7 @@ class SequentialNode(@Child override var p0: SequenceNode, @Child override var p
 
 @CBSFuncon
 class ChoiceNode(@Child override var p0: SequenceNode) : TermNode(), ChoiceInterface {
-    override val reducibles = listOf(0)
+    override val nonLazy = listOf(0)
 
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = when {
@@ -105,7 +106,7 @@ class ChoiceNode(@Child override var p0: SequenceNode) : TermNode(), ChoiceInter
 
 @CBSFuncon
 class IntegerAddNode(@Child override var p0: SequenceNode) : TermNode(), IntegerAddInterface {
-    override val reducibles = listOf(0)
+    override val nonLazy = listOf(0)
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = when {
             p0.size >= 0 -> {
@@ -135,7 +136,7 @@ class ValueListNode(@Child var p0: SequenceNode) : TuplesNode() {
 
 @CBSFuncon
 class MapNode(@Child override var p0: SequenceNode) : TermNode(), MapInterface {
-    override val reducibles = listOf(0)
+    override val nonLazy = listOf(0)
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = ValueMapNode(p0)
         return replace(new)
@@ -183,3 +184,6 @@ data class StringNode(override val value: String) : StringsNode() {
         else -> false
     }
 }
+
+
+class ValueSequenceNode(vararg val elements: TermNode) : ValuesNode()

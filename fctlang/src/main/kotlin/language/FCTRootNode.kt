@@ -14,7 +14,7 @@ class FCTRootNode(
     override fun execute(frame: VirtualFrame): ResultArray {
         var iterationCount = 0
 
-        while (rootExpr !is ValuesNode) {
+        while (rootExpr.isReducible()) {
             if (DEBUG) {
                 println("------------------")
                 println("Iteration $iterationCount: Current result is ${rootExpr::class.simpleName}")

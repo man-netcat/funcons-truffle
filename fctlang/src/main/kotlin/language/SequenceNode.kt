@@ -4,33 +4,42 @@ import com.oracle.truffle.api.frame.VirtualFrame
 
 @Builtin
 open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
+    override val nonLazy: List<Int>
+        get() = elements.indices.toList()
+
     init {
         elements = elements.flatMap {
             if (it is SequenceNode) it.elements.toList() else listOf(it)
         }.toTypedArray()
     }
 
-    fun reduceRulesReversed(frame: VirtualFrame): SequenceNode {
-        val i = elements.indexOfLast { it !is ValuesNode }
-        val newElements = elements.mapIndexed { index, node ->
-            if (index == i) node.reduce(frame) else node
-        }.toTypedArray()
+    override fun reduceComputations(frame: VirtualFrame): TermNode? {
+        val newParams = elements.toMutableList()
+        var attemptedReduction = false
 
-        val new = SequenceNode(*newElements)
+        for (index in nonLazy) {
+            if (newParams[index].isReducible()) {
+                try {
+                    attemptedReduction = true
+                    newParams[index] = newParams[index].reduce(frame)
+                    val new = SequenceNode(*newParams.toTypedArray())
+                    return replace(new)
+                } catch (e: Exception) {
+                    println(e)
+                }
+            }
+        }
 
-
-        return replace(new)
+        return if (!attemptedReduction) null
+        else throw IllegalStateException("All reductions failed")
     }
 
-    override fun reduceRules(frame: VirtualFrame): SequenceNode {
-        val i = elements.indexOfFirst { it !is ValuesNode }
-        val newElements = elements.mapIndexed { index, node ->
-            if (index == i) node.reduce(frame) else node
-        }.toTypedArray()
+    override fun isReducible(): Boolean {
+        return elements.any { it.isReducible() }
+    }
 
-        val new = SequenceNode(*newElements)
-
-
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        val new = ValueSequenceNode(*elements)
         return replace(new)
     }
 

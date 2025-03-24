@@ -17,14 +17,25 @@ abstract class TermNode : Node() {
     }
 
     // Indices for parameters that are not lazily evaluated
-    open val reducibles = emptyList<Int>()
+    open val nonLazy = emptyList<Int>()
+    val primaryConstructor = this::class.primaryConstructor!!
+    val memberProperties = this::class.memberProperties
+    val members = this::class.members
+    val params: List<TermNode>
+        get() {
+            return primaryConstructor.parameters.mapNotNull { param ->
+                memberProperties.first { it.name == param.name }.getter.call(this) as? TermNode
+            }
+        }
+    val nonLazyParams: List<TermNode>
+        get() = nonLazy.map { index -> params[index] }
 
     open val value: Any
         get() = when (this) {
             is FalseNode -> false
             is TrueNode -> true
             is NullValueNode -> "null-value"
-            else -> this::class.simpleName!!
+            else -> abort("Not fully reduced")
         }
 
     private fun getLanguage(): FCTLanguage {
@@ -74,46 +85,34 @@ abstract class TermNode : Node() {
         }
     }
 
-    internal fun reduce(frame: VirtualFrame): TermNode {
+    open fun isReducible(): Boolean = true
+
+    internal open fun reduce(frame: VirtualFrame): TermNode {
         reduceComputations(frame)?.let { new -> return replace(new) }
         return reduceRules(frame)
     }
 
     abstract fun reduceRules(frame: VirtualFrame): TermNode
 
-    fun isReducible(): Boolean {
-        return when (this) {
-            is SequenceNode -> elements.any { it.isReducible() }
-            else -> this !is ValuesNode
-        }
-    }
-
-    fun reduceComputations(frame: VirtualFrame): TermNode? {
-        val primaryConstructor = this::class.primaryConstructor!!
-        val memberProperties = this::class.memberProperties
-        val params = primaryConstructor.parameters.mapNotNull { param ->
-            memberProperties.first { it.name == param.name }.getter.call(this) as? TermNode
-        }
-
+    open fun reduceComputations(frame: VirtualFrame): TermNode? {
         val newParams = params.toMutableList()
-        var lastException: Exception? = null
         var attemptedReduction = false
 
-        reducibles.forEach { index ->
-            if (index in newParams.indices && newParams[index].isReducible()) {
-                attemptedReduction = true
+        for (index in nonLazy) {
+            if (newParams[index].isReducible()) {
                 try {
+                    attemptedReduction = true
                     newParams[index] = newParams[index].reduce(frame)
-                    return primaryConstructor.call(*newParams.toTypedArray())
+                    val new = primaryConstructor.call(*newParams.toTypedArray())
+                    return replace(new)
                 } catch (e: Exception) {
-                    lastException = e
+                    println(e)
                 }
             }
         }
 
-        return if (attemptedReduction) {
-            throw lastException ?: IllegalStateException("All reductions failed")
-        } else null
+        return if (!attemptedReduction) null
+        else throw IllegalStateException("All reductions failed")
     }
 
     fun instanceOf(other: ValueTypesNode): Boolean {
@@ -130,8 +129,8 @@ abstract class TermNode : Node() {
         val value = if (this is ValuesNode) ": ${this.value}" else ""
         println("$indent${this::class.simpleName}$value")
 
-        this::class.primaryConstructor!!.parameters.forEach { param ->
-            val member = this::class.members.firstOrNull { it.name == param.name }
+        primaryConstructor.parameters.forEach { param ->
+            val member = members.firstOrNull { it.name == param.name }
             val res = member!!.call(this)
             when (res) {
                 is Array<*> -> res.forEach { (it as TermNode).printTree("$indent  ") }
