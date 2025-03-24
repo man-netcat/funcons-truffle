@@ -40,40 +40,36 @@ class StuckNode() : TermNode(), StuckInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = abort("stuck")
 }
 
-@CBSFuncon
-class LeftToRightNode(@Child override var p0: SequenceNode) : TermNode(), LeftToRightInterface {
-    override fun reduceRules(frame: VirtualFrame): TermNode {
-        val new = when {
-            p0.size == 0 -> SequenceNode()
-            p0.isReducible() -> {
-                val r = p0.reduce(frame).toSequence()
-                LeftToRightNode(r)
-            }
+abstract class DirectionalNode(@Children open vararg var p0: SequenceNode) : TermNode() {
+    protected abstract fun findReducibleIndex(vararg terms: SequenceNode): Int
 
-            !p0.isReducible() -> p0
-            else -> abort("left-to-right")
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        val reducibleIndex = findReducibleIndex(*p0)
+        val newTerms = p0.toMutableList()
+
+        if (reducibleIndex == -1) {
+            val flattenedElements = p0.flatMap { it.elements.asList() }.toTypedArray()
+            return replace(SequenceNode(*flattenedElements))
         }
 
+        newTerms[reducibleIndex] = newTerms[reducibleIndex].reduce(frame) as SequenceNode
+        val new = createNewNode(*newTerms.toTypedArray())
         return replace(new)
     }
+
+    protected abstract fun createNewNode(vararg newTerms: SequenceNode): DirectionalNode
 }
 
 @CBSFuncon
-class RightToLeftNode(@Child override var p0: SequenceNode) : TermNode(), RightToLeftInterface {
-    override fun reduceRules(frame: VirtualFrame): TermNode {
-        val new = when {
-            p0.size == 0 -> SequenceNode()
-            p0.isReducible() -> {
-                val r = p0.reduceRulesReversed(frame)
-                RightToLeftNode(r)
-            }
+class LeftToRightNode(@Children override vararg var p0: SequenceNode) : DirectionalNode(*p0), LeftToRightInterface {
+    override fun findReducibleIndex(vararg terms: SequenceNode) = terms.indexOfFirst { it.isReducible() }
+    override fun createNewNode(vararg newTerms: SequenceNode) = LeftToRightNode(*newTerms)
+}
 
-            !p0.isReducible() -> p0
-            else -> abort("left-to-right")
-        }
-
-        return replace(new)
-    }
+@CBSFuncon
+class RightToLeftNode(@Children override vararg var p0: SequenceNode) : DirectionalNode(*p0), LeftToRightInterface {
+    override fun findReducibleIndex(vararg terms: SequenceNode) = terms.indexOfLast { it.isReducible() }
+    override fun createNewNode(vararg newTerms: SequenceNode) = RightToLeftNode(*newTerms)
 }
 
 @CBSFuncon
