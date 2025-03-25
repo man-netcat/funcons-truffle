@@ -4,6 +4,9 @@ object Vars {
     const val GENERATEDPATHSTR = "../fctlang/src/main/kotlin/generated"
     const val CBSFILEPATH = "../../CBS-beta/Funcons-beta/"
     val configFiles = listOf<String>(
+        "Computations/Normal/Flowing/tests/do-while.config",
+        "Computations/Normal/Flowing/tests/while.config",
+//        "Values/Composite/Lists/tests/lists.config",
 //        "Values/Value-Types/tests/is-equal.config",
 //        "Values/Value-Types/tests/is-value.config",
 //        "Values/Value-Types/tests/is-in-type.config",
@@ -19,8 +22,6 @@ object Vars {
         "Computations/Normal/Flowing/tests/left-to-right.config",
         "Computations/Normal/Flowing/tests/right-to-left.config",
         "Computations/Normal/Flowing/tests/choice.config",
-        "Computations/Normal/Flowing/tests/do-while.config",
-        "Computations/Normal/Flowing/tests/while.config",
         "Computations/Normal/Flowing/tests/if-true-else.config",
         "Computations/Normal/Flowing/tests/sequential.config",
         "Computations/Normal/Interacting/tests/print-1.config",

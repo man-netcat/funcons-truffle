@@ -6,7 +6,6 @@ import generated.*
 @CBSType
 open class ValuesNode : TermNode(), ValuesInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = this
-    override fun isReducible(): Boolean = false
 }
 
 @CBSType
@@ -77,6 +76,9 @@ class RightToLeftNode(@Children override vararg var p0: SequenceNode) : Directio
 class SequentialNode(@Child override var p0: SequenceNode, @Child override var p1: TermNode) : TermNode(),
     SequentialInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
+//        println(p0.elements.map { it::class.simpleName })
+//        println(p0::class.simpleName)
+
         val new = when {
             p0.size == 0 -> p1
             p0.isReducible() -> {
@@ -93,8 +95,6 @@ class SequentialNode(@Child override var p0: SequenceNode, @Child override var p
 
 @CBSFuncon
 class ChoiceNode(@Child override var p0: SequenceNode) : TermNode(), ChoiceInterface {
-    override val nonLazy = listOf(0)
-
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = when {
             p0.size >= 1 -> p0.random()
@@ -183,7 +183,6 @@ data class StringNode(override val value: String) : StringsNode() {
         is StringNode -> this.value == other.value
         else -> false
     }
+
+    override fun hashCode(): Int = value.hashCode()
 }
-
-
-class ValueSequenceNode(vararg val elements: TermNode) : ValuesNode()

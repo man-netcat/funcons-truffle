@@ -2,10 +2,7 @@ package language
 
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
-import generated.FalseNode
-import generated.NullValueNode
-import generated.StandardOutNode
-import generated.TrueNode
+import generated.*
 import language.Util.DEBUG
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
@@ -35,7 +32,8 @@ abstract class TermNode : Node() {
             is FalseNode -> false
             is TrueNode -> true
             is NullValueNode -> "null-value"
-            else -> abort("Not fully reduced")
+            is FailedNode -> "failed"
+            else -> this::class.simpleName!!
         }
 
     private fun getLanguage(): FCTLanguage {
@@ -85,7 +83,11 @@ abstract class TermNode : Node() {
         }
     }
 
-    open fun isReducible(): Boolean = true
+    open fun isReducible(): Boolean = when (this) {
+        is SequenceNode -> elements.any { it !is ValuesNode }
+        !is ValuesNode -> true
+        else -> false
+    }
 
     internal open fun reduce(frame: VirtualFrame): TermNode {
         reduceComputations(frame)?.let { new -> return replace(new) }
@@ -100,13 +102,14 @@ abstract class TermNode : Node() {
 
         for (index in nonLazy) {
             if (newParams[index].isReducible()) {
+                if (DEBUG) println("attempting to reduce ${newParams[index]::class.simpleName} in ${this::class.simpleName}")
                 try {
                     attemptedReduction = true
                     newParams[index] = newParams[index].reduce(frame)
                     val new = primaryConstructor.call(*newParams.toTypedArray())
                     return replace(new)
                 } catch (e: Exception) {
-                    println(e)
+                    if (DEBUG) println("stuck in ${this::class.simpleName} with error $e")
                 }
             }
         }

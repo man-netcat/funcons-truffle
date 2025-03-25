@@ -19,7 +19,7 @@ abstract class AbstractFunconObject(
     override val properties = if (reducibleIndices.isNotEmpty()) {
         listOf(
             makeVariable(
-                "reducibles",
+                "nonLazy",
                 value = "listOf(${reducibleIndices.joinToString()})",
                 override = true
             )
@@ -63,17 +63,14 @@ class FunconObject(
                     }
                     val entityVars = generateEntityVariables(ruleObjs)
 
-                    val (ruleWithEmpty, rule) = ruleObjs.partition { it.emptyConditions.isNotEmpty() }
-                    val emptyPairs = ruleWithEmpty.map { it.emptyConditions.joinToString(" && ") to it.bodyStr }
-                    val pairs = rule.map { it.conditions.joinToString(" && ") to it.bodyStr }
+                    val pairs =
+                        ruleObjs.sortedBy { it.priority }.map { it.conditions.joinToString(" && ") to it.bodyStr }
 
                     if (entityVars.isNotEmpty()) stringBuilder.appendLine(entityVars)
 
-                    val allPairs = emptyPairs + pairs
+                    if (pairs.any { pair -> pair.second.isEmpty() }) throw EmptyConditionException("Empty condition found in $name")
 
-                    if (allPairs.any { pair -> pair.second.isEmpty() }) throw EmptyConditionException("Empty condition found in $name")
-
-                    makeWhenStatement(allPairs, elseBranch = "abort(\"$name\")")
+                    makeWhenStatement(pairs, elseBranch = "abort(\"$name\")")
                 }
 
                 else -> throw DetailedException("Funcon $name does not have any associated rules.")

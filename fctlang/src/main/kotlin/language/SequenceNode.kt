@@ -1,6 +1,8 @@
 package language
 
 import com.oracle.truffle.api.frame.VirtualFrame
+import generated.NullValueNode
+import language.Util.DEBUG
 
 @Builtin
 open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
@@ -15,32 +17,25 @@ open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
 
     override fun reduceComputations(frame: VirtualFrame): TermNode? {
         val newParams = elements.toMutableList()
-        var attemptedReduction = false
 
         for (index in nonLazy) {
             if (newParams[index].isReducible()) {
+                if (DEBUG) println("attempting to reduce ${newParams[index]::class.simpleName} in ${this::class.simpleName}")
                 try {
-                    attemptedReduction = true
                     newParams[index] = newParams[index].reduce(frame)
                     val new = SequenceNode(*newParams.toTypedArray())
                     return replace(new)
                 } catch (e: Exception) {
-                    println(e)
+                    if (DEBUG) println("stuck in ${this::class.simpleName} with error $e")
                 }
             }
         }
 
-        return if (!attemptedReduction) null
-        else throw IllegalStateException("All reductions failed")
-    }
-
-    override fun isReducible(): Boolean {
-        return elements.any { it.isReducible() }
+        return null
     }
 
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val new = ValueSequenceNode(*elements)
-        return replace(new)
+        abort("sequence")
     }
 
     val size: Int get() = elements.size
@@ -50,7 +45,11 @@ open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
     }
 
     operator fun get(index: Int): TermNode {
-        return elements[index]
+        return try {
+            elements[index]
+        } catch (e: ArrayIndexOutOfBoundsException) {
+            NullValueNode()
+        }
     }
 
     fun sliceFrom(startIndex: Int, endIndexOffset: Int = 0): SequenceNode {
@@ -63,7 +62,10 @@ open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
         return SequenceNode(*sliced)
     }
 
-    val head: TermNode get() = get(0)
+    val head: TermNode = get(0)
+    val second: TermNode = get(1)
+    val third: TermNode = get(2)
+    val fourth: TermNode = get(3)
     val tail: SequenceNode get() = sliceFrom(1)
 
 

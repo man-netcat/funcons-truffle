@@ -72,7 +72,11 @@ abstract class Object(
 
             return valueParams.map { param ->
                 val paramTypeStr = (
-                        if (param.type.isSequence) SEQUENCE else TERMNODE) +
+                        if (param.type.isSequence) {
+                            if (param.type.isVararg) {
+                                "Array<out $SEQUENCE>"
+                            } else SEQUENCE
+                        } else TERMNODE) +
                         if (param.type.isNullable) "?" else ""
                 makeVariable("p${param.index}", type = paramTypeStr)
             }

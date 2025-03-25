@@ -9,11 +9,11 @@ import main.objects.Object
 
 class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, returns: Type) {
     val conditions = mutableListOf<String>()
-    val emptyConditions = mutableListOf<String>()
     val entityVars = mutableSetOf<Object>()
     private val assignments = mutableListOf<String>()
     private val rewriteStr: String
     private var intermediateCounter = 0
+    var priority = 1 // Set to 0 if rule has higher priority
 
     val bodyStr: String
         get() = (assignments + rewriteStr).joinToString("\n")
@@ -32,43 +32,45 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         val args = extractArgs(funconExpr)
         if (obj.params.size == 1 && args.isEmpty()) {
             if (obj.params[0].type.isSequence) {
-                emptyConditions.add("l0.isEmpty()")
+                priority = 0
+                conditions.addFirst("l0.isEmpty()")
             } else {
                 conditions.add("l0 == null")
             }
-        } else {
-            val paramStrs = getParamStrs(funconExpr)
-            (paramStrs + rewriteData).forEach { data ->
-                val (argValue, argType, paramStr) = data
+        }
 
-                if (argType == null && argValue == null) {
-                    emptyConditions.add("${paramStr}.isEmpty()")
+        val paramStrs = getParamStrs(funconExpr)
+        (paramStrs + rewriteData).forEach { data ->
+            val (argValue, argType, paramStr) = data
+
+            if (argType == null && argValue == null) {
+                priority = 0
+                conditions.add("${paramStr}.isEmpty()")
+            }
+
+            when (argType) {
+                is SuffixExpressionContext -> if (argType.op.text == "+") {
+                    // If it's an expression of the type "X+" it cannot be empty.
+                    val typeCondition = "${paramStr}.isNotEmpty()"
+                    conditions.add(typeCondition)
                 }
 
-                when (argType) {
-                    is SuffixExpressionContext -> if (argType.op.text == "+") {
-                        // If it's an expression of the type "X+" it cannot be empty.
-                        val typeCondition = "${paramStr}.isNotEmpty()"
-                        conditions.add(typeCondition)
-                    }
-
-                    is FunconExpressionContext,
-                    is ListExpressionContext,
-                    is SetExpressionContext,
-                    is ComplementExpressionContext,
-                        -> {
-                        val typeCondition = makeTypeCondition(paramStr, argType)
-                        conditions.add(typeCondition)
-                    }
-
-                    is VariableContext -> {}
+                is FunconExpressionContext,
+                is ListExpressionContext,
+                is SetExpressionContext,
+                is ComplementExpressionContext,
+                    -> {
+                    val typeCondition = makeTypeCondition(paramStr, argType)
+                    conditions.add(typeCondition)
                 }
 
-                when (argValue) {
-                    is NumberContext -> conditions.add("$paramStr == ${argValue.text}")
-                    is TupleExpressionContext -> conditions.add("${paramStr}.isEmpty()")
-                    is SuffixExpressionContext -> {}
-                }
+                is VariableContext -> {}
+            }
+
+            when (argValue) {
+                is NumberContext -> conditions.add("$paramStr == ${argValue.text}")
+                is TupleExpressionContext -> conditions.add("${paramStr}.isEmpty()")
+                is SuffixExpressionContext -> {}
             }
         }
 
@@ -275,7 +277,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
             try {
                 val valueStr = if (label.value != null) {
                     rewrite(ruleDef, label.value, rewriteData)
-                } else "EmptySequenceNode()"
+                } else "SequenceNode()"
                 val newEntityStr = "${labelObj.nodeName}($valueStr)"
                 val assignment = labelObj.putStr(newEntityStr)
                 assignments.addFirst(assignment)
@@ -319,29 +321,27 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
     init {
         val (ruleDef, toRewrite) = extractLhsRhs(conclusion)
-        rewriteStr = if (toRewrite is TupleExpressionContext && toRewrite.exprs() == null) {
-            if (returns.isNullable) "null" else "emptyArray()"
-        } else {
-            val rewriteData = mutableListOf<RewriteData>()
+        println("ruleDef: ${ruleDef.text}, toRewrite: ${toRewrite.text}")
 
-            // Add values for entities
-            rewriteData.addAll((premises).flatMap { premise -> processEntities(premise) })
+        val rewriteData = mutableListOf<RewriteData>()
+
+        // Add values for entities
+        rewriteData.addAll((premises).flatMap { premise -> processEntities(premise) })
 //            rewriteData.addAll(processEntities(conclusion))
 
-            // Process all intermediate values
-            // TODO: Identify common intermediates, maybe outside the scope of a single Rule
-            premises.forEach { premise -> rewriteData.addAll(processIntermediates(ruleDef, premise, rewriteData)) }
+        // Process all intermediate values
+        // TODO: Identify common intermediates, maybe outside the scope of a single Rule
+        premises.forEach { premise -> rewriteData.addAll(processIntermediates(ruleDef, premise, rewriteData)) }
 
-            // Add the type checking conditions
-            if (ruleDef is FunconExpressionContext) argsConditions(ruleDef, rewriteData)
+        // Add the type checking conditions
+        if (ruleDef is FunconExpressionContext) argsConditions(ruleDef, rewriteData)
 
-            // Add data for premises and build conclusions
-            premises.forEach { premise -> processPremises(ruleDef, premise, rewriteData) }
+        // Add data for premises and build conclusions
+        premises.forEach { premise -> processPremises(ruleDef, premise, rewriteData) }
 
-            // build rewrites from conclusions
-            processConclusion(ruleDef, conclusion, rewriteData)
+        // build rewrites from conclusions
+        processConclusion(ruleDef, conclusion, rewriteData)
 
-            rewrite(ruleDef, toRewrite, rewriteData)
-        }
+        rewriteStr = rewrite(ruleDef, toRewrite, rewriteData)
     }
 }

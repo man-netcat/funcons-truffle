@@ -71,7 +71,7 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
                     val pairStr = toRewrite.exprs()?.expr()?.joinToString { expr ->
                         rewriteRecursive(expr)
                     }
-                    if (pairStr != null) "sequenceOf(${pairStr})" else "emptySequence()"
+                    if (pairStr != null) "SequenceNode(${pairStr})" else "SequenceNode()"
                 }
 
                 is SuffixExpressionContext -> {
@@ -129,8 +129,8 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
                 val sequenceRelativeIndex = argIndex - obj.sequenceIndex
                 assert(sequenceRelativeIndex >= 0) { "Index out of bounds" }
 
+                val base = buildParamString(obj.sequenceIndex)
                 if (argIsSequence) {
-                    val base = buildParamString(obj.sequenceIndex)
                     when (sequenceRelativeIndex) {
                         0 -> base
                         1 -> "$base.tail"
@@ -138,8 +138,11 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
                     }
                 } else {
                     when (sequenceRelativeIndex) {
-                        0 -> "${buildParamString(obj.sequenceIndex)}.head"
-                        else -> buildParamString(obj.sequenceIndex, "[$sequenceRelativeIndex]")
+                        0 -> "$base.head"
+                        1 -> "$base.second"
+                        2 -> "$base.third"
+                        3 -> "$base.fourth"
+                        else -> throw IndexOutOfBoundsException("sequenceRelativeIndex $sequenceRelativeIndex out of bounds.")
                     }
                 }
             }
