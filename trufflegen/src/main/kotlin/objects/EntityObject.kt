@@ -26,18 +26,15 @@ open class EntityObject(
 
     val putFunc = when (entityType) {
         EntityType.CONTEXTUAL -> ::putInScopeStr
-        EntityType.OUTPUT -> ::appendGlobalStr
+        EntityType.OUTPUT, EntityType.INPUT -> ::appendGlobalStr
         else -> ::putGlobalStr
     }
 
     fun getStr(): String {
-        val qmark = if (entityType == EntityType.CONTROL) "?" else ""
-        return "${getFunc(name)} as $nodeName$qmark"
+        return "${getFunc(name)} as? $nodeName ?: $nodeName(SequenceNode())"
     }
 
     fun putStr(value: String) = putFunc(name, value)
-
-    val isIOEntity get() = entityType in listOf(EntityType.INPUT, EntityType.OUTPUT)
 
     override val annotations: List<String>
         get() = listOf("CBSEntity")

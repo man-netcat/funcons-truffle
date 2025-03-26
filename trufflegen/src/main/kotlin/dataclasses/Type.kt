@@ -11,17 +11,14 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
     var isStarExpr = false
     var isPlusExpr = false
     var isPower = false
+    var isOptional = false
     var isNullable = false
     var isSequence = false
     var isVararg = false
 
     private fun handleUnaryComputesExpression(expr: UnaryComputesExpressionContext) {
         computes = true
-        val unaryComputesExpression = expr.operand
-        if (unaryComputesExpression is SuffixExpressionContext) {
-            if (unaryComputesExpression.op.text == "?") {
-                isNullable = true
-            }
+        if (expr.operand is SuffixExpressionContext) {
             isVararg = true
         }
     }
@@ -31,18 +28,11 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
             when (expr) {
                 is SuffixExpressionContext -> {
                     val op = expr.op.text
+                    if (isParam) isSequence = true else isVararg = true
                     when (op) {
-                        "*" -> {
-                            if (isParam) isSequence = true else isVararg = true
-                            isStarExpr = true
-                        }
-
-                        "+" -> {
-                            if (isParam) isSequence = true else isVararg = true
-                            isPlusExpr = true
-                        }
-
-                        "?" -> isNullable = true
+                        "*" -> isStarExpr = true
+                        "+" -> isPlusExpr = true
+                        "?" -> isOptional = true
                     }
                     val operand = expr.operand
                     if (operand is NestedExpressionContext) {
@@ -72,19 +62,16 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
 
     override fun toString(): String = expr?.text ?: "null"
 
-    fun rewrite(
-        inNullableExpr: Boolean = false,
-        full: Boolean = false,
-    ): String {
+    fun rewrite(full: Boolean = false): String {
         var isArrayCounter = 0
-        fun rewriteTypeRecursive(toRewrite: ExprContext?, isNullable: Boolean): String {
+        fun rewriteTypeRecursive(toRewrite: ExprContext?): String {
             return when (toRewrite) {
                 is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext -> {
                     val args = extractArgs(toRewrite)
 
                     val argStr = if (args.isNotEmpty() && full) {
                         "<" + args.joinToString { arg ->
-                            rewriteTypeRecursive(arg, isNullable = true)
+                            rewriteTypeRecursive(arg)
                         } + ">"
                     } else ""
                     when (toRewrite) {
@@ -96,21 +83,13 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
                 }
 
                 is SuffixExpressionContext -> {
-                    val baseType = rewriteTypeRecursive(toRewrite.expr(), isNullable)
-                    when (val op = toRewrite.op.text) {
-                        "?" -> if (isNullable) "$baseType?" else baseType
-                        "*", "+" -> {
-                            isArrayCounter++
-                            baseType
-                        }
-
-                        else -> throw DetailedException("Unexpected operator: $op, full context: ${toRewrite.text}")
-                    }
+                    isArrayCounter++
+                    rewriteTypeRecursive(toRewrite.expr())
                 }
 
                 is PowerExpressionContext -> {
                     isArrayCounter++
-                    rewriteTypeRecursive(toRewrite.operand, isNullable)
+                    rewriteTypeRecursive(toRewrite.operand)
                 }
 
                 is TupleExpressionContext -> {
@@ -122,19 +101,19 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
                         3 -> "TupleNode"
                         else -> throw DetailedException("Unexpected tuple length: $tupleLength")
                     }
-                    val clsParams = toRewrite.exprs().expr().joinToString { rewriteTypeRecursive(it, isNullable) }
+                    val clsParams = toRewrite.exprs().expr().joinToString { rewriteTypeRecursive(it) }
                     "$clsName<$clsParams>"
                 }
 
                 is BinaryComputesExpressionContext -> {
-                    "(" + rewriteTypeRecursive(toRewrite.lhs, isNullable) + ") -> " + rewriteTypeRecursive(
-                        toRewrite.rhs, isNullable
+                    "(" + rewriteTypeRecursive(toRewrite.lhs) + ") -> " + rewriteTypeRecursive(
+                        toRewrite.rhs
                     )
                 }
 
                 is OrExpressionContext -> {
                     if (toRewrite.rhs.text == toRewrite.rhs.text) {
-                        rewriteTypeRecursive(toRewrite.lhs, isNullable) + "?"
+                        rewriteTypeRecursive(toRewrite.lhs)
                     } else {
                         throw DetailedException("Unexpected return type: ${toRewrite.text}")
                     }
@@ -144,21 +123,20 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
                     toRewrite.varname.text + "p".repeat(toRewrite.squote().size)
                 } else "*"
 
-                is NestedExpressionContext -> rewriteTypeRecursive(toRewrite.expr(), isNullable)
-                is UnaryComputesExpressionContext -> rewriteTypeRecursive(toRewrite.expr(), isNullable)
+                is NestedExpressionContext -> rewriteTypeRecursive(toRewrite.expr())
+                is UnaryComputesExpressionContext -> rewriteTypeRecursive(toRewrite.expr())
                 is NumberContext -> toRewrite.text
-                is TypeExpressionContext -> rewriteTypeRecursive(toRewrite.type, isNullable)
-                is ComplementExpressionContext -> rewriteTypeRecursive(toRewrite.expr(), isNullable)
+                is TypeExpressionContext -> rewriteTypeRecursive(toRewrite.type)
+                is ComplementExpressionContext -> rewriteTypeRecursive(toRewrite.expr())
                 else -> throw DetailedException("Unsupported context type: ${toRewrite?.javaClass?.simpleName}")
             }
         }
 
-        val rewrite = rewriteTypeRecursive(expr, inNullableExpr)
+        val rewrite = rewriteTypeRecursive(expr)
         return if (isArrayCounter == 2 && isParam) {
             "Sequence<in $rewrite>"
         } else if (isArrayCounter == 1 && !isParam) {
             "Sequence<out $rewrite>"
         } else rewrite
-//        return if (inNullableExpr && isNullable) "$res?" else res
     }
 }

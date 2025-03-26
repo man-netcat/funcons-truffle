@@ -184,7 +184,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                     labels.forEach { (label, obj) ->
                         println(label.text)
                         if (label.value == null) {
-                            conditions.add("${obj.asVarName}?.p0 == null")
+                            conditions.add("${obj.asVarName}.emptyValue()")
                         }
                     }
                 }
@@ -276,7 +276,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         labels.forEach { (label, labelObj) ->
             try {
                 val valueStr = if (label.value != null) {
-                    rewrite(ruleDef, label.value, rewriteData)
+                    "${rewrite(ruleDef, label.value, rewriteData)}.toSequence()"
                 } else "SequenceNode()"
                 val newEntityStr = "${labelObj.nodeName}($valueStr)"
                 val assignment = labelObj.putStr(newEntityStr)
@@ -314,8 +314,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
         return labels.flatMap { (label, labelObj) ->
             entityVars.add(labelObj)
-            val qmark = if (labelObj.entityType == EntityType.CONTROL) "?" else ""
-            getParamStrs(label, prefix = labelObj.asVarName + qmark)
+            getParamStrs(label, prefix = labelObj.asVarName)
         }
     }
 

@@ -1,11 +1,11 @@
 package language
 
-abstract class Entity {
-    abstract val value: TermNode?
+abstract class Entity(val value: SequenceNode) {
+    fun emptyValue() = value.isEmpty()
 }
 
-abstract class ContextualEntity(override val value: TermNode) : Entity()
-abstract class MutableEntity(override val value: TermNode) : Entity()
-abstract class InputEntity(override val value: SequenceNode) : Entity()
-abstract class OutputEntity(override val value: SequenceNode) : Entity()
-abstract class ControlEntity(override val value: TermNode?) : Entity()
+abstract class ContextualEntity(value: SequenceNode) : Entity(value)
+abstract class MutableEntity(value: SequenceNode) : Entity(value)
+abstract class InputEntity(value: SequenceNode) : Entity(value)
+abstract class OutputEntity(value: SequenceNode) : Entity(value)
+abstract class ControlEntity(value: SequenceNode) : Entity(value)

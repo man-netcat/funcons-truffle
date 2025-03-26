@@ -74,10 +74,7 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
                     if (pairStr != null) "SequenceNode(${pairStr})" else "SequenceNode()"
                 }
 
-                is SuffixExpressionContext -> {
-                    val nullableStr = if (toRewrite.op.text == "?") "?" else ""
-                    mapParamString(toRewrite.text) + nullableStr
-                }
+                is SuffixExpressionContext -> mapParamString(toRewrite.text)
 
                 is VariableContext -> mapParamString(toRewrite.text)
                 is NumberContext -> {

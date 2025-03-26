@@ -3,7 +3,6 @@ package main.objects
 import cbs.CBSParser.*
 import main.*
 import main.dataclasses.Param
-import objects.AbstractFunconObject
 import org.antlr.v4.runtime.tree.ParseTree
 
 abstract class Object(
@@ -46,9 +45,7 @@ abstract class Object(
     val sequenceParam: Param? get() = if (hasSequence) params[sequenceIndex] else null
     val paramsAfterSequence: Int get() = if (hasSequence) params.size - (sequenceIndex + 1) else 0
 
-    private val isFuncon get() = this is AbstractFunconObject
-    private val isEntity get() = this is EntityObject
-    val hasNullable get() = params.size == 1 && params[0].type.isNullable
+    val hasNullable get() = params.size == 1 && params[0].type.isOptional
 
     private val valueParamStrs: List<String>
         get() {
@@ -59,9 +56,7 @@ abstract class Object(
                     isVararg = param.type.isVararg,
                     isEntity = this !is EntityObject
                 )
-                val paramTypeStr = (
-                        if (param.type.isSequence) SEQUENCE else TERMNODE) +
-                        if (param.type.isNullable) "?" else ""
+                val paramTypeStr = if (param.type.isSequence) SEQUENCE else TERMNODE
                 makeParam(paramTypeStr, param.name, annotation)
             }
         }
@@ -71,13 +66,11 @@ abstract class Object(
             val valueParams = params.filterNot { param -> param.valueExpr == null }
 
             return valueParams.map { param ->
-                val paramTypeStr = (
-                        if (param.type.isSequence) {
-                            if (param.type.isVararg) {
-                                "Array<out $SEQUENCE>"
-                            } else SEQUENCE
-                        } else TERMNODE) +
-                        if (param.type.isNullable) "?" else ""
+                val paramTypeStr = if (param.type.isSequence) {
+                    if (param.type.isVararg) {
+                        "Array<out $SEQUENCE>"
+                    } else SEQUENCE
+                } else TERMNODE
                 makeVariable("p${param.index}", type = paramTypeStr)
             }
         }
