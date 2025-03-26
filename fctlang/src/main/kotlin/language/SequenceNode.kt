@@ -6,36 +6,10 @@ import language.Util.DEBUG
 
 @Builtin
 open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
-    override val nonLazy: List<Int>
-        get() = elements.indices.toList()
-
     init {
         elements = elements.flatMap {
             if (it is SequenceNode) it.elements.toList() else listOf(it)
         }.toTypedArray()
-    }
-
-    override fun reduceComputations(frame: VirtualFrame): TermNode? {
-        val newParams = elements.toMutableList()
-
-        for (index in nonLazy) {
-            if (newParams[index].isReducible()) {
-                if (DEBUG) println("attempting to reduce ${newParams[index]::class.simpleName} in ${this::class.simpleName}")
-                try {
-                    newParams[index] = newParams[index].reduce(frame)
-                    val new = SequenceNode(*newParams.toTypedArray())
-                    return replace(new)
-                } catch (e: Exception) {
-                    if (DEBUG) println("stuck in ${this::class.simpleName} with error $e")
-                }
-            }
-        }
-
-        return null
-    }
-
-    override fun reduceRules(frame: VirtualFrame): TermNode {
-        abort("sequence")
     }
 
     val size: Int get() = elements.size
@@ -68,16 +42,35 @@ open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
     val fourth: TermNode = get(3)
     val tail: SequenceNode get() = sliceFrom(1)
 
-
     fun random(): TermNode {
         require(elements.isNotEmpty())
         return elements.random()
     }
 
-    override val value: Any
-        get() {
-            return elements.joinToString { it.value.toString() }
+    override fun reduceComputations(frame: VirtualFrame): TermNode? {
+        val newElements = elements.toMutableList()
+        var attemptedReduction = false
+
+        for (index in elements.indices) {
+            if (newElements[index].isReducible()) {
+                if (DEBUG) println("attempting to reduce ${newElements[index]::class.simpleName} in ${this::class.simpleName}")
+                try {
+                    attemptedReduction = true
+                    newElements[index] = newElements[index].reduce(frame)
+                    return SequenceNode(*newElements.toTypedArray())
+                } catch (e: Exception) {
+                    if (DEBUG) println("stuck in ${this::class.simpleName} with error $e")
+                }
+            }
         }
+        return null
+//        return if (!attemptedReduction) null
+//        else throw IllegalStateException("All reductions failed")
+    }
+
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        abort("stuck")
+    }
 
     override fun toString(): String {
         return elements.joinToString("") { it.value.toString() }

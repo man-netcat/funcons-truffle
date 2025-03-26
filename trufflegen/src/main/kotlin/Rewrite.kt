@@ -59,12 +59,12 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
         fun rewriteExpression(toRewrite: ParseTree): String {
             return when (toRewrite) {
                 is FunconExpressionContext -> rewriteFunconExpr(toRewrite)
-                is ListExpressionContext -> rewriteFunconExpr(toRewrite)
-                is SetExpressionContext -> rewriteFunconExpr(toRewrite)
+                is ListExpressionContext -> "Value" + rewriteFunconExpr(toRewrite)
+                is SetExpressionContext -> "Value" + rewriteFunconExpr(toRewrite)
                 is LabelContext -> rewriteFunconExpr(toRewrite)
                 is MapExpressionContext -> {
                     val pairStr = toRewrite.pairs().pair().joinToString { pair -> rewriteRecursive(pair) }
-                    "MapNode(SequenceNode($pairStr))"
+                    "ValueMapNode(SequenceNode($pairStr))"
                 }
 
                 is TupleExpressionContext -> {

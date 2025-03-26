@@ -89,8 +89,8 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
                     } else ""
                     when (toRewrite) {
                         is FunconExpressionContext -> "${toClassName(toRewrite.name.text)}$argStr"
-                        is ListExpressionContext -> "${toClassName("list")}$argStr"
-                        is SetExpressionContext -> "${toClassName("set")}$argStr"
+                        is ListExpressionContext -> "Value${toClassName("list")}$argStr"
+                        is SetExpressionContext -> "Value${toClassName("set")}$argStr"
                         else -> throw DetailedException("Unsupported context type: ${toRewrite::class.simpleName}, with text: $toRewrite")
                     }
                 }

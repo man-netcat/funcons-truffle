@@ -1,13 +1,7 @@
 find fix for BoundedIntegersNode
 
-types need complete overhaul, current implementation does not work (determine type parameters vs value parameters)
-
 figure out how frameslots work in truffle.
 
 Fix size discrepancy in case of expressions such as else(X, Y, Z+) with + (is now 2, must be 3)
 
 computation types are not ground values (abstractions)
-
-algebraic datatype funcons require reduction
-
-append to standardout instead of overwriting it

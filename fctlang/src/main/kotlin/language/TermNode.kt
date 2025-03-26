@@ -84,9 +84,14 @@ abstract class TermNode : Node() {
     }
 
     open fun isReducible(): Boolean = when (this) {
-        is SequenceNode -> elements.any { it !is ValuesNode }
+        is SequenceNode -> if (elements.isEmpty()) {
+            false
+        } else {
+            elements.any { it !is ValuesNode }
+        }
+
         !is ValuesNode -> true
-        else -> false
+        else -> nonLazyParams.any { it.isReducible() }
     }
 
     internal open fun reduce(frame: VirtualFrame): TermNode {
@@ -99,23 +104,23 @@ abstract class TermNode : Node() {
     open fun reduceComputations(frame: VirtualFrame): TermNode? {
         val newParams = params.toMutableList()
         var attemptedReduction = false
-
         for (index in nonLazy) {
-            if (newParams[index].isReducible()) {
-                if (DEBUG) println("attempting to reduce ${newParams[index]::class.simpleName} in ${this::class.simpleName}")
-                try {
-                    attemptedReduction = true
-                    newParams[index] = newParams[index].reduce(frame)
-                    val new = primaryConstructor.call(*newParams.toTypedArray())
-                    return replace(new)
-                } catch (e: Exception) {
-                    if (DEBUG) println("stuck in ${this::class.simpleName} with error $e")
-                }
+            val currentParam = newParams[index]
+            if (!currentParam.isReducible()) continue
+
+            if (DEBUG) println("attempting to reduce ${currentParam::class.simpleName} in ${this::class.simpleName}")
+
+            try {
+                attemptedReduction = true
+                newParams[index] = currentParam.reduce(frame)
+                return primaryConstructor.call(*newParams.toTypedArray())
+            } catch (e: Exception) {
+                if (DEBUG) println("stuck in ${this::class.simpleName} with error $e")
             }
         }
-
-        return if (!attemptedReduction) null
-        else throw IllegalStateException("All reductions failed")
+        return null
+//        return if (!attemptedReduction) null
+//        else throw IllegalStateException("All reductions failed")
     }
 
     fun instanceOf(other: ValueTypesNode): Boolean {
@@ -145,10 +150,10 @@ abstract class TermNode : Node() {
     override fun equals(other: Any?): Boolean {
         return when {
             this === other -> true
-            other !is Node -> false
+            other !is TermNode -> false
             this is FalseNode && other is FalseNode -> true
             this is TrueNode && other is TrueNode -> true
-            else -> false
+            else -> this.params == other.params
         }
     }
 

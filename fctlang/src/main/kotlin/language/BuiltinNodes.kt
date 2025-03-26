@@ -122,15 +122,12 @@ class IntegerAddNode(@Child override var p0: SequenceNode) : TermNode(), Integer
 }
 
 @Builtin
-class EmptySequenceNode() : ValuesNode()
-
-@Builtin
 class ValueTupleNode(@Child var p0: SequenceNode) : TuplesNode() {
     override val value get() = "tuple(${p0.value})"
 }
 
 @Builtin
-class ValueListNode(@Child var p0: SequenceNode) : TuplesNode() {
+class ValueListNode(@Child var p0: SequenceNode) : ListsNode() {
     override val value get() = "[${p0.value}]"
 }
 
