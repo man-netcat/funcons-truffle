@@ -33,7 +33,7 @@ open class MapsNode : ValueTypesNode(), MapsInterface
 open class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
 
 //@CBSFuncon
-//class AbstractionNode(@Child override var p0: TermNode) : AbstractionsNode(), AbstractionInterface
+class AbstractionNode(@Child override var p0: TermNode) : AbstractionsNode(), AbstractionInterface
 
 @CBSFuncon
 class StuckNode() : TermNode(), StuckInterface {

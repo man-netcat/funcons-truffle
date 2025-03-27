@@ -148,13 +148,16 @@ abstract class TermNode : Node() {
     }
 
     override fun equals(other: Any?): Boolean {
-        return when {
-            this === other -> true
-            other !is TermNode -> false
-            this is FalseNode && other is FalseNode -> true
-            this is TrueNode && other is TrueNode -> true
-            else -> this.params == other.params
-        }
+        if (this === other) return true
+        if (other !is TermNode) return false
+        if (this::class != other::class) return false
+
+        val thisParams = this.params
+        val otherParams = other.params
+
+        if (thisParams.size != otherParams.size) return false
+
+        return thisParams.zip(otherParams).all { (a, b) -> a == b }
     }
 
     override fun hashCode(): Int {
