@@ -5,3 +5,6 @@ figure out how frameslots work in truffle.
 Fix size discrepancy in case of expressions such as else(X, Y, Z+) with + (is now 2, must be 3)
 
 computation types are not ground values (abstractions)
+
+require optionals to have either 0 or 1
+require plus expressions to have either 1 or more

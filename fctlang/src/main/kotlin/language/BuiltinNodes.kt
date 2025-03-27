@@ -147,7 +147,7 @@ class ValueMapNode(@Child var p0: SequenceNode) : ValuesNode() {
             p0.elements.joinToString { tuple ->
                 tuple as ValueTupleNode
                 require(tuple.p0.size == 2) { "Invalid map" }
-                "${tuple.p0.elements[0].value} -> ${tuple.p0.elements[1].value}"
+                "${tuple.p0.elements[0].value} |-> ${tuple.p0.elements[1].value}"
             }
         }}"
 }

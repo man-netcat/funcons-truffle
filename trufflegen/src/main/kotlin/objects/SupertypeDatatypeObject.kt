@@ -7,9 +7,8 @@ import main.rewrite
 
 class SupertypeDatatypeObject(
     ctx: DatatypeDefinitionContext,
-    metaVariables: Set<Pair<String, String>>,
     private val definitions: List<ExprContext>
-) : Object(ctx, metaVariables) {
+) : Object(ctx) {
     override val annotations: List<String>
         get() = listOf("CBSDataType")
     override val superClassStr: String

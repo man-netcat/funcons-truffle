@@ -5,9 +5,8 @@ import org.antlr.v4.runtime.tree.ParseTree
 
 open class EntityObject(
     ctx: ParseTree,
-    metaVariables: Set<Pair<String, String>>,
     val entityType: EntityType,
-) : Object(ctx, metaVariables) {
+) : Object(ctx) {
     private val entityClassMap = mapOf(
         EntityType.CONTEXTUAL to CONTEXTUALENTITY,
         EntityType.CONTROL to CONTROLENTITY,

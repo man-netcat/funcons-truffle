@@ -82,4 +82,7 @@ open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
         newElements.addAll(other.elements)
         return SequenceNode(*newElements.toTypedArray())
     }
+
+    override val value: Any
+        get() = elements.joinToString { it.value.toString() }
 }

@@ -56,46 +56,42 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
             else "${obj.nodeName}($argStr)"
         }
 
-        fun rewriteExpression(toRewrite: ParseTree): String {
-            return when (toRewrite) {
-                is FunconExpressionContext -> rewriteFunconExpr(toRewrite)
-                is ListExpressionContext -> "Value" + rewriteFunconExpr(toRewrite)
-                is SetExpressionContext -> "Value" + rewriteFunconExpr(toRewrite)
-                is LabelContext -> rewriteFunconExpr(toRewrite)
-                is MapExpressionContext -> {
-                    val pairStr = toRewrite.pairs().pair().joinToString { pair -> rewriteRecursive(pair) }
-                    "ValueMapNode(SequenceNode($pairStr))"
-                }
-
-                is TupleExpressionContext -> {
-                    val pairStr = toRewrite.exprs()?.expr()?.joinToString { expr ->
-                        rewriteRecursive(expr)
-                    }
-                    if (pairStr != null) "SequenceNode(${pairStr})" else "SequenceNode()"
-                }
-
-                is SuffixExpressionContext -> mapParamString(toRewrite.text)
-
-                is VariableContext -> mapParamString(toRewrite.text)
-                is NumberContext -> {
-                    val nodeName = if ('-' in toRewrite.text) "IntegerNode" else "NaturalNumberNode"
-                    "$nodeName(${toRewrite.text})"
-                }
-
-                is StringContext -> "StringNode(${toRewrite.text})"
-                is TypeExpressionContext -> rewriteRecursive(toRewrite.value)
-                is NestedExpressionContext -> rewriteRecursive(toRewrite.expr())
-                is PairContext -> {
-                    val key = rewriteRecursive(toRewrite.key)
-                    val value = rewriteRecursive(toRewrite.value)
-                    "TupleNode(SequenceNode($key, $value))"
-                }
-
-                else -> throw IllegalArgumentException("Unsupported context type: ${toRewrite::class.simpleName}, ${toRewrite.text}")
+        return when (toRewrite) {
+            is FunconExpressionContext -> rewriteFunconExpr(toRewrite)
+            is ListExpressionContext -> "Value${rewriteFunconExpr(toRewrite)}"
+            is SetExpressionContext -> "Value${rewriteFunconExpr(toRewrite)}"
+            is LabelContext -> rewriteFunconExpr(toRewrite)
+            is MapExpressionContext -> {
+                val pairStr = toRewrite.pairs().pair().joinToString { pair -> rewriteRecursive(pair) }
+                "ValueMapNode(SequenceNode($pairStr))"
             }
-        }
 
-        return rewriteExpression(toRewrite)
+            is TupleExpressionContext -> {
+                val pairStr = toRewrite.exprs()?.expr()?.joinToString { expr ->
+                    rewriteRecursive(expr)
+                }
+                if (pairStr != null) "SequenceNode(${pairStr})" else "SequenceNode()"
+            }
+
+            is SuffixExpressionContext -> mapParamString(toRewrite.text)
+
+            is VariableContext -> mapParamString(toRewrite.text)
+            is NumberContext -> {
+                val nodeName = if ('-' in toRewrite.text) "IntegerNode" else "NaturalNumberNode"
+                "$nodeName(${toRewrite.text})"
+            }
+
+            is StringContext -> "StringNode(${toRewrite.text})"
+            is TypeExpressionContext -> rewriteRecursive(toRewrite.value)
+            is NestedExpressionContext -> rewriteRecursive(toRewrite.expr())
+            is PairContext -> {
+                val key = rewriteRecursive(toRewrite.key)
+                val value = rewriteRecursive(toRewrite.value)
+                "ValueTupleNode(SequenceNode($key, $value))"
+            }
+
+            else -> throw IllegalArgumentException("Unsupported context type: ${toRewrite::class.simpleName}, ${toRewrite.text}")
+        }
     }
 
     return rewriteRecursive(toRewrite)

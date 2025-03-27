@@ -5,10 +5,7 @@ import main.*
 import main.dataclasses.Param
 import org.antlr.v4.runtime.tree.ParseTree
 
-abstract class Object(
-    val ctx: ParseTree,
-    val metaVariables: Set<Pair<String, String>>,
-) {
+abstract class Object(val ctx: ParseTree) {
     private val skipCriteria: Boolean
         get() = listOf(
             builtin,                                    // Builtins should be implemented manually

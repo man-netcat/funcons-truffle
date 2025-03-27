@@ -5,21 +5,13 @@ import cbs.CBSParser.*
 import main.dataclasses.Type
 import main.exceptions.DetailedException
 import main.objects.*
-import main.visitors.MetaVariableVisitor
 import objects.DatatypeFunconObject
 import objects.FunconObject
 import org.antlr.v4.runtime.ParserRuleContext
-import org.antlr.v4.runtime.tree.ParseTree
 
 class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
     val objects = mutableMapOf<String, Object?>()
     private var fileMetavariables: Set<Pair<ExprContext, ExprContext>> = emptySet()
-
-    private fun identifyMetavariables(ctx: ParseTree): MutableSet<Pair<String, String>> {
-        val visitor = MetaVariableVisitor(fileMetavariables)
-        visitor.visit(ctx)
-        return visitor.objectMetaVariables
-    }
 
     private fun addObjectReference(obj: Object) {
         objects[obj.name] = obj
@@ -34,11 +26,9 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
 
     override fun visitFunconDefinition(ctx: FunconDefinitionContext) {
         val returns = Type(ctx.returnType)
-        val metaVariables = identifyMetavariables(ctx)
 
         val dataContainer = FunconObject(
             ctx,
-            metaVariables,
             returns,
             rules = ctx.ruleDefinition(),
             rewritesTo = ctx.rewritesTo
@@ -50,18 +40,17 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
     override fun visitDatatypeDefinition(ctx: DatatypeDefinitionContext) {
         val operator = ctx.op?.text ?: ""
         val definitions = extractAndOrExprs(ctx.definition)
-        val metaVariables = identifyMetavariables(ctx)
 
         when (operator) {
             "<:" -> {
                 val datatypeDataContainer =
-                    SupertypeDatatypeObject(ctx, metaVariables, definitions)
+                    SupertypeDatatypeObject(ctx, definitions)
                 addObjectReference(datatypeDataContainer)
 
             }
 
             "::=" -> {
-                val datatypeDataContainer = AlgebraicDatatypeObject(ctx, metaVariables)
+                val datatypeDataContainer = AlgebraicDatatypeObject(ctx)
                 addObjectReference(datatypeDataContainer)
 
 
@@ -71,7 +60,6 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
                             val dataContainer =
                                 DatatypeFunconObject(
                                     funcon,
-                                    metaVariables,
                                     datatypeDataContainer
                                 )
                             addObjectReference(dataContainer)
@@ -92,14 +80,12 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
     }
 
     override fun visitTypeDefinition(ctx: TypeDefinitionContext) {
-        val metaVariables = identifyMetavariables(ctx)
-        val dataContainer = TypeObject(ctx, metaVariables)
+        val dataContainer = TypeObject(ctx)
         addObjectReference(dataContainer)
     }
 
     private fun processEntityDefinition(ctx: ParserRuleContext, entityType: EntityType) {
-        val metaVariables = identifyMetavariables(ctx)
-        val dataContainer = EntityObject(ctx, metaVariables, entityType)
+        val dataContainer = EntityObject(ctx, entityType)
         addObjectReference(dataContainer)
     }
 

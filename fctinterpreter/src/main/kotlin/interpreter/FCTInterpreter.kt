@@ -33,6 +33,7 @@ fun main(args: Array<String>) {
 
     val result = context.eval(source)
 
+    println("result:")
     if (result.hasArrayElements()) {
         val resultTerm = result.getArrayElement(0)
         val standardOut = (1 until result.arraySize).map { i ->

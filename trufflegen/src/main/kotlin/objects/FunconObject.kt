@@ -11,10 +11,7 @@ import main.objects.EntityObject
 import main.objects.Object
 import org.antlr.v4.runtime.tree.ParseTree
 
-abstract class AbstractFunconObject(
-    ctx: ParseTree,
-    metaVariables: Set<Pair<String, String>>,
-) : Object(ctx, metaVariables) {
+abstract class AbstractFunconObject(ctx: ParseTree) : Object(ctx) {
     val reducibleIndices = computeReducibles()
     override val properties = if (reducibleIndices.isNotEmpty()) {
         listOf(
@@ -46,11 +43,10 @@ abstract class AbstractFunconObject(
 
 class FunconObject(
     ctx: FunconDefinitionContext,
-    metaVariables: Set<Pair<String, String>>,
     val returns: Type,
     val rules: List<RuleDefinitionContext> = emptyList(),
     val rewritesTo: ExprContext? = null,
-) : AbstractFunconObject(ctx, metaVariables) {
+) : AbstractFunconObject(ctx) {
     override val contentStr: String
         get() {
             val stringBuilder = StringBuilder()
@@ -91,9 +87,8 @@ class FunconObject(
 
 class DatatypeFunconObject(
     ctx: FunconExpressionContext,
-    metaVariables: Set<Pair<String, String>>,
     private val superclass: AlgebraicDatatypeObject,
-) : AbstractFunconObject(ctx, metaVariables) {
+) : AbstractFunconObject(ctx) {
     override val annotations: List<String> get() = listOf("CBSFuncon")
     override val superClassStr: String get() = makeFunCall(if (reducibleIndices.isEmpty()) superclass.nodeName else TERMNODE)
     override val keyWords: List<String> = emptyList()

@@ -6,12 +6,10 @@ import main.exceptions.DetailedException
 
 class TypeObject(
     ctx: TypeDefinitionContext,
-    metaVariables: Set<Pair<String, String>>,
-) : Object(ctx, metaVariables) {
+) : Object(ctx) {
     override val keyWords: List<String> = listOf("open")
     override val annotations: List<String> = listOf("CBSType")
     private val definitions = if (ctx.definition != null) extractAndOrExprs(ctx.definition) else emptyList()
-    val operator = ctx.op?.text
     override val superClassStr: String
         get() {
             return when (definitions.size) {

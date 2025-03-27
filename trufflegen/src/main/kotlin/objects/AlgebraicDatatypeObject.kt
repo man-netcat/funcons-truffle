@@ -5,10 +5,7 @@ import main.makeFunCall
 import main.toClassName
 import objects.DatatypeFunconObject
 
-class AlgebraicDatatypeObject(
-    ctx: DatatypeDefinitionContext,
-    metaVariables: Set<Pair<String, String>>,
-) : Object(ctx, metaVariables) {
+class AlgebraicDatatypeObject(ctx: DatatypeDefinitionContext) : Object(ctx) {
     val definitions = mutableListOf<DatatypeFunconObject>()
     override val annotations: List<String>
         get() = listOf("CBSDataType")

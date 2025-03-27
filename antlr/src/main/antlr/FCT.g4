@@ -100,21 +100,7 @@ input
    ;
 
 tests
-   : resultTerm
-   | standardOut
-   | store
-   ;
-
-resultTerm
-   : 'result-term' ':' expr ';'
-   ;
-
-store
-   : 'store' ':' expr ';'
-   ;
-
-standardOut
-   : 'standard-out' ':' '[' sequenceExpr ']' ';'
+   : name=IDENTIFIER ':' expr ';'
    ;
 
 binOp
