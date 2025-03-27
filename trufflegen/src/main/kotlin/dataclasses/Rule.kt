@@ -108,7 +108,6 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
         return when (premise) {
             is RewritePremiseContext -> {
-                // TODO: Verify
                 if (lhs is VariableContext && rhs !is VariableContext) {
                     val string = rewrite(ruleDef, lhs, rewriteData)
                     getParamStrs(rhs, prefix = string)

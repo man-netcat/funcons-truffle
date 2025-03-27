@@ -14,7 +14,10 @@ class TypeObject(
         get() {
             return when (definitions.size) {
                 0 -> {
-                    val superClassName = toClassName("ground-values")
+                    val superClassName = when (name) {
+                        "abstractions" -> toClassName("value-types")
+                        else -> toClassName("ground-values")
+                    }
                     emptySuperClass(superClassName)
                 }
 

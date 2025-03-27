@@ -33,7 +33,7 @@ open class MapsNode : ValueTypesNode(), MapsInterface
 open class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
 
 //@CBSFuncon
-//class AbstractionNode(@Child override var p0: TermNode) : AbstractionsNode(), AbstractionInterface
+class AbstractionNode(@Child override var p0: TermNode) : AbstractionsNode(), AbstractionInterface
 
 @CBSFuncon
 class StuckNode() : TermNode(), StuckInterface {
@@ -76,9 +76,6 @@ class RightToLeftNode(@Children override vararg var p0: SequenceNode) : Directio
 class SequentialNode(@Child override var p0: SequenceNode, @Child override var p1: TermNode) : TermNode(),
     SequentialInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-//        println(p0.elements.map { it::class.simpleName })
-//        println(p0::class.simpleName)
-
         val new = when {
             p0.size == 0 -> p1
             p0.isReducible() -> {

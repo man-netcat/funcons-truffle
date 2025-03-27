@@ -86,29 +86,6 @@ object FCTNodeFactory {
             beforeSequence.zip(beforeArgs).toMap() +
                     (sequenceParam to sequence) +
                     afterSequence.zip(afterArgs).toMap()
-        } else if (args.size != parameters.size) {
-            val updatedArgs = mutableListOf<Any?>()
-
-            for (i in parameters.indices) {
-                val param = parameters[i]
-
-                // If there's a corresponding argument, use it.
-                if (i < args.size) {
-                    updatedArgs.add(args[i])
-                } else {
-                    // If there's no argument for the parameter:
-                    if (param.type.isMarkedNullable) {
-                        // Insert `null` if the parameter is nullable
-                        updatedArgs.add(createNode("null-value", emptyList()))
-                    } else {
-                        // Otherwise, find a value from the already existing arguments (this part could be customized based on your needs)
-                        val fallbackArgument = args.firstOrNull() // You can define the fallback argument as needed.
-                        updatedArgs.add(fallbackArgument)
-                    }
-                }
-            }
-
-            parameters.zip(updatedArgs).toMap()
         } else {
             parameters.zip(args).toMap()
         }
