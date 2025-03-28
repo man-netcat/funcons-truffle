@@ -4,6 +4,9 @@ object Vars {
     const val GENERATEDPATHSTR = "../fctlang/src/main/kotlin/generated"
     const val CBSFILEPATH = "../../CBS-beta/Funcons-beta/"
     val configFiles = listOf<String>(
+        "Computations/Normal/Interacting/tests/read-1.config",
+        "Computations/Normal/Interacting/tests/read-2.config",
+        "Computations/Normal/Interacting/tests/read-3.config",
 //        "Values/Composite/Classes/tests/class.config",
         "Values/Value-Types/tests/is-equal.config",
         "Values/Composite/Lists/tests/lists.config",
@@ -27,8 +30,5 @@ object Vars {
         "Computations/Normal/Flowing/tests/sequential.config",
         "Computations/Normal/Interacting/tests/print-1.config",
         "Computations/Normal/Interacting/tests/print-2.config",
-//        "Computations/Normal/Interacting/tests/read-1.config",
-//        "Computations/Normal/Interacting/tests/read-2.config",
-//        "Computations/Normal/Interacting/tests/read-3.config",
     ).map { "$CBSFILEPATH$it" }.toTypedArray()
 }

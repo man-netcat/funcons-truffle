@@ -71,7 +71,7 @@ abstract class TermNode : Node() {
         getContext().globalVariables.putEntity(key, entity)
     }
 
-    fun appendGlobal(key: String, entity: StandardOutNode) {
+    fun appendGlobal(key: String, entity: Entity) {
         val existing = getContext().globalVariables.getEntity(key) as StandardOutNode?
         if (existing != null) {
             val newElements = existing.value.elements.toMutableList()

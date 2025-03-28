@@ -5,23 +5,39 @@ grammar FCT;
 }
 
 root
-   : generalBlock inputsBlock? testsBlock? EOF
+   : generalBlock (inputsBlock)? (testsBlock)? EOF
    ;
 
 generalBlock
-   : 'general' '{' funconTerm '}'
+   : GENERAL '{' funconTerm '}'
    ;
 
 testsBlock
-   : 'tests' '{' tests+ '}'
+   : TESTS '{' resultTerm standardOut? store? '}'
    ;
 
 inputsBlock
-   : 'inputs' '{' standardIn+ '}'
+   : INPUTS '{' standardIn '}'
    ;
 
 funconTerm
-   : 'funcon-term' ':' expr ';'
+   : FUNCON_TERM ':' expr ';'
+   ;
+
+resultTerm
+   : RESULT_TERM ':' expr ';'
+   ;
+
+standardOut
+   : STANDARD_OUT ':' expr ';'
+   ;
+
+standardIn
+   : STANDARD_IN ':' input ';'
+   ;
+
+store
+   : STORE ':' expr ';'
    ;
 
 args
@@ -87,20 +103,12 @@ tupleExpr
    : 'tuple(' sequenceExpr ')'
    ;
 
-standardIn
-   : 'standard-in' ':' input ';'
-   ;
-
 input
    : '(' terminals ')' # InputTuple
    | '[' terminals ']' # InputList
    | '{' termPairs '}' # InputMap
    | '{' terminals '}' # InputSet
    | terminalValue # InputValue
-   ;
-
-tests
-   : name=IDENTIFIER ':' expr ';'
    ;
 
 binOp
@@ -113,6 +121,15 @@ unOp
    : NOT
    | COMPUTE
    ;
+
+GENERAL: 'general';
+INPUTS: 'inputs';
+TESTS: 'tests';
+FUNCON_TERM: 'funcon-term';
+STANDARD_IN: 'standard-in';
+RESULT_TERM: 'result-term';
+STANDARD_OUT: 'standard-out';
+STORE: 'store';
 
 NOT
    : '~'
@@ -149,4 +166,3 @@ NUMBER
 WS
    : [ \t\r\n]+ -> skip
    ;
-

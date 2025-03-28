@@ -14,7 +14,7 @@ abstract class Object(val ctx: ParseTree) {
                 "choice",                               // Utilises random
                 "sequential",                           // Param after sequence
                 "some-element", "stuck", "abstraction", // No rules, implement manually
-
+                "read",                                 // Annoying
             )
         ).contains(true)
 
@@ -42,8 +42,6 @@ abstract class Object(val ctx: ParseTree) {
     val sequenceParam: Param? get() = if (hasSequence) params[sequenceIndex] else null
     val paramsAfterSequence: Int get() = if (hasSequence) params.size - (sequenceIndex + 1) else 0
 
-    val hasNullable get() = params.size == 1 && params[0].type.isOptional
-
     private val valueParamStrs: List<String>
         get() {
             val valueParams = params.filterNot { param -> param.valueExpr == null }
@@ -54,7 +52,8 @@ abstract class Object(val ctx: ParseTree) {
                     isEntity = this !is EntityObject
                 )
                 val paramTypeStr = if (param.type.isSequence) SEQUENCE else TERMNODE
-                makeParam(paramTypeStr, param.name, annotation)
+                val default = if (param.type.isOptional || param.type.isSequence) "SequenceNode()" else ""
+                makeParam(paramTypeStr, param.name, annotation, default)
             }
         }
 

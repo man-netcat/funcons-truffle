@@ -9,8 +9,8 @@ import fct.FCTLexer
 import fct.FCTParser
 import fct.FCTParser.*
 import language.Util.DEBUG
-import org.antlr.v4.runtime.CharStreams
-import org.antlr.v4.runtime.CommonTokenStream
+import org.antlr.v4.runtime.*
+import org.antlr.v4.runtime.misc.ParseCancellationException
 import org.antlr.v4.runtime.tree.ParseTree
 
 @TruffleLanguage.Registration(
@@ -37,17 +37,38 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
         val lexer = FCTLexer(charStream)
         val tokens = CommonTokenStream(lexer)
         val parser = FCTParser(tokens)
-        val mainContext = parser.generalBlock()
-        val tests = parser.testsBlock()
+
+        // Remove default error listeners
+        lexer.removeErrorListeners()
+        parser.removeErrorListeners()
+
+        parser.addErrorListener(object : BaseErrorListener() {
+            override fun syntaxError(
+                recognizer: Recognizer<*, *>,
+                offendingSymbol: Any?,
+                line: Int,
+                charPositionInLine: Int,
+                msg: String,
+                e: RecognitionException?,
+            ) = throw ParseCancellationException("Syntax error at $line:$charPositionInLine: $msg")
+        })
+
+        val root = parser.root()
+
+        val mainContext = root.generalBlock()
+        val tests = root.testsBlock()
+        val inputs = root.inputsBlock()
 
         if (DEBUG) {
             println("expected:")
-            tests.tests().forEach { test -> println("${test.name.text}: ${test.expr().text}") }
+            println("result-term: ${tests.resultTerm().text}")
+            println("standard-out: ${tests.standardOut().text}")
             println()
         }
 
         val rootNode = convertToFCTNode(mainContext)
         val frameDescriptorBuilder = FrameDescriptor.newBuilder()
+        // TODO: 100 slots is probably too many
         frameDescriptorBuilder.addSlots(100, FrameSlotKind.Object)
         val frameDescriptor = frameDescriptorBuilder.build()
         val fctRootNode = FCTRootNode(this, frameDescriptor, rootNode)
