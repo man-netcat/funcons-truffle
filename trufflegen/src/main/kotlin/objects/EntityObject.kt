@@ -30,7 +30,7 @@ open class EntityObject(
     }
 
     fun getStr(): String {
-        return "${getFunc(name)} as? $nodeName ?: $nodeName(SequenceNode())"
+        return "${getFunc(name)} as? $nodeName ?: $nodeName()"
     }
 
     fun putStr(value: String) = putFunc(name, value)

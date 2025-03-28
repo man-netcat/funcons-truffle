@@ -37,17 +37,23 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
         val lexer = FCTLexer(charStream)
         val tokens = CommonTokenStream(lexer)
         val parser = FCTParser(tokens)
-        val mainContext = parser.generalBlock()
-        val tests = parser.testsBlock()
+
+        val root = parser.root()
+
+        val mainContext = root.generalBlock()
+        val tests = root.testsBlock()
+        val inputs = root.inputsBlock()
 
         if (DEBUG) {
             println("expected:")
-            tests.tests().forEach { test -> println("${test.name.text}: ${test.expr().text}") }
+            println("result-term: ${tests.resultTerm().text}")
+            println("standard-out: ${tests.standardOut().text}")
             println()
         }
 
         val rootNode = convertToFCTNode(mainContext)
         val frameDescriptorBuilder = FrameDescriptor.newBuilder()
+        // TODO: 100 slots is probably too many
         frameDescriptorBuilder.addSlots(100, FrameSlotKind.Object)
         val frameDescriptor = frameDescriptorBuilder.build()
         val fctRootNode = FCTRootNode(this, frameDescriptor, rootNode)

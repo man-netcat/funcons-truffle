@@ -73,7 +73,11 @@ class RightToLeftNode(@Children override vararg var p0: SequenceNode) : Directio
 }
 
 @CBSFuncon
-class SequentialNode(@Child override var p0: SequenceNode, @Child override var p1: TermNode) : TermNode(),
+class SequentialNode(
+    @Child override var p0: SequenceNode = SequenceNode(),
+    @Child override var p1: TermNode,
+) :
+    TermNode(),
     SequentialInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = when {
@@ -91,7 +95,7 @@ class SequentialNode(@Child override var p0: SequenceNode, @Child override var p
 }
 
 @CBSFuncon
-class ChoiceNode(@Child override var p0: SequenceNode) : TermNode(), ChoiceInterface {
+class ChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), ChoiceInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = when {
             p0.size >= 1 -> p0.random()
@@ -102,7 +106,7 @@ class ChoiceNode(@Child override var p0: SequenceNode) : TermNode(), ChoiceInter
 }
 
 @CBSFuncon
-class IntegerAddNode(@Child override var p0: SequenceNode) : TermNode(), IntegerAddInterface {
+class IntegerAddNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), IntegerAddInterface {
     override val nonLazy = listOf(0)
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = when {
@@ -119,17 +123,17 @@ class IntegerAddNode(@Child override var p0: SequenceNode) : TermNode(), Integer
 }
 
 @Builtin
-class ValueTupleNode(@Child var p0: SequenceNode) : TuplesNode() {
+class ValueTupleNode(@Child var p0: SequenceNode = SequenceNode()) : TuplesNode() {
     override val value get() = "tuple(${p0.value})"
 }
 
 @Builtin
-class ValueListNode(@Child var p0: SequenceNode) : ListsNode() {
+class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode() {
     override val value get() = "[${p0.value}]"
 }
 
 @CBSFuncon
-class MapNode(@Child override var p0: SequenceNode) : TermNode(), MapInterface {
+class MapNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), MapInterface {
     override val nonLazy = listOf(0)
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = ValueMapNode(p0)
@@ -138,7 +142,7 @@ class MapNode(@Child override var p0: SequenceNode) : TermNode(), MapInterface {
 }
 
 @Builtin
-class ValueMapNode(@Child var p0: SequenceNode) : ValuesNode() {
+class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : ValuesNode() {
     override val value
         get() = "{${
             p0.elements.joinToString { tuple ->
@@ -179,4 +183,19 @@ data class StringNode(override val value: String) : StringsNode() {
     }
 
     override fun hashCode(): Int = value.hashCode()
+}
+
+@Builtin
+class ReadNode : TermNode(), ReadInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        val standardIn = getGlobal("standard-in") as? StandardInNode ?: StandardInNode()
+
+        val new = when (standardIn.p0.head) {
+            !is NullTypeNode -> standardIn.p0.popFirst()
+            is NullValueNode -> FailNode()
+
+            else -> abort("read")
+        }
+        return replace(new)
+    }
 }

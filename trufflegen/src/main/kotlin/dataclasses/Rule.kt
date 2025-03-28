@@ -281,15 +281,8 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 val assignment = labelObj.putStr(newEntityStr)
                 assignments.addFirst(assignment)
             } catch (e: StringNotFoundException) {
-                // Likely a read-only entity
-                val condition = if (label.value == null) {
-                    "${labelObj.getStr()} == null"
-                } else {
-                    "${labelObj.getStr()} != null"
-                }
-                conditions.add(condition)
-                val getStr = labelObj.getStr()
-                rewriteData.addAll(getParamStrs(label, prefix = getStr))
+                entityVars.add(labelObj)
+                rewriteData.addAll(getParamStrs(label, prefix = labelObj.asVarName))
             }
         }
     }
@@ -331,14 +324,14 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         // TODO: Identify common intermediates, maybe outside the scope of a single Rule
         premises.forEach { premise -> rewriteData.addAll(processIntermediates(ruleDef, premise, rewriteData)) }
 
-        // Add the type checking conditions
-        if (ruleDef is FunconExpressionContext) argsConditions(ruleDef, rewriteData)
-
         // Add data for premises and build conclusions
         premises.forEach { premise -> processPremises(ruleDef, premise, rewriteData) }
 
         // build rewrites from conclusions
         processConclusion(ruleDef, conclusion, rewriteData)
+
+        // Add the type checking conditions
+        if (ruleDef is FunconExpressionContext) argsConditions(ruleDef, rewriteData)
 
         rewriteStr = rewrite(ruleDef, toRewrite, rewriteData)
     }

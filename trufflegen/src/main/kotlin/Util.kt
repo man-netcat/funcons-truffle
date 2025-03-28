@@ -30,14 +30,21 @@ fun makeBody(content: String, indentLevel: Int = 1): String {
     return content.lines().joinToString("\n") { "$indent$it" }
 }
 
-fun makeParam(type: String, name: String, annotation: String = ""): String {
+fun makeParam(type: String, name: String, annotation: String = "", default: String = ""): String {
     return if (annotation.isNotEmpty()) {
-        "$annotation $name: $type"
+        if (default.isNotEmpty()) {
+            "$annotation $name: $type = $default"
+        } else {
+            "$annotation $name: $type"
+        }
     } else {
-        "$name: $type"
+        if (default.isNotEmpty()) {
+            "$name: $type = $default"
+        } else {
+            "$name: $type"
+        }
     }
 }
-
 
 fun makeFunction(
     name: String,

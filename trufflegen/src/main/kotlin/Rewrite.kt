@@ -47,13 +47,8 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
                 parts.add(postSequence.joinToString())
             }
             val argStr = parts.joinToString()
-
-            val isNullArg = obj.hasNullable && args.isEmpty()
-            val isEmptyArg = obj.params.size == 1 && obj.sequenceIndex == 0 && args.isEmpty()
-
-            return if (isNullArg) "${obj.nodeName}(NullValueNode())"
-            else if (isEmptyArg) "${obj.nodeName}(SequenceNode())"
-            else "${obj.nodeName}($argStr)"
+            
+            return "${obj.nodeName}($argStr)"
         }
 
         return when (toRewrite) {
