@@ -8,6 +8,7 @@ import com.oracle.truffle.api.nodes.Node
 import fct.FCTLexer
 import fct.FCTParser
 import fct.FCTParser.*
+import generated.StandardInNode
 import language.Util.DEBUG
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
@@ -51,13 +52,36 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
             println()
         }
 
+
         val rootNode = convertToFCTNode(mainContext)
+
+        processInput(inputs, rootNode)
+
         val frameDescriptorBuilder = FrameDescriptor.newBuilder()
         // TODO: 100 slots is probably too many
         frameDescriptorBuilder.addSlots(100, FrameSlotKind.Object)
         val frameDescriptor = frameDescriptorBuilder.build()
         val fctRootNode = FCTRootNode(this, frameDescriptor, rootNode)
         return fctRootNode.callTarget
+    }
+
+    private fun processInput(inputs: InputsBlockContext?, rootNode: TermNode) {
+        if (inputs == null) return
+
+        val inputValue = inputs.standardIn().input()
+
+        val inputNodes = when (inputValue) {
+            is InputTupleContext -> inputValue.terminals().terminalValue().map { buildTree(it) }
+            is InputListContext -> inputValue.terminals().terminalValue().map { buildTree(it) }
+            is InputMapContext -> inputValue.termPairs().termPair().map { buildTree(it) }
+            is InputSetContext -> inputValue.terminals().terminalValue().map { buildTree(it) }
+            is InputValueContext -> listOf(buildTree(inputValue.terminalValue()))
+            else -> listOf()
+        }.toTypedArray()
+
+        val standardIn = StandardInNode(SequenceNode(*inputNodes))
+
+        rootNode.appendGlobal("standard-in", standardIn)
     }
 
     override fun createContext(env: Env): FCTContext {
@@ -120,21 +144,17 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
                 FCTNodeFactory.createNode("tuple", elements)
             }
 
-            is TerminalExpressionContext -> {
-                when (val terminal = parseTree.terminalValue()) {
-                    is StringContext -> {
-                        val str = terminal.STRING().text
-                        FCTNodeFactory.createNode("string", listOf(str))
-                    }
-
-                    is NumberContext -> {
-                        val num = terminal.NUMBER().text.toInt()
-                        FCTNodeFactory.createNode("integer", listOf(num))
-                    }
-
-                    else -> throw IllegalArgumentException("Unknown terminal value: ${terminal.text}")
-                }
+            is StringContext -> {
+                val str = parseTree.STRING().text
+                FCTNodeFactory.createNode("string", listOf(str))
             }
+
+            is NumberContext -> {
+                val num = parseTree.NUMBER().text.toInt()
+                FCTNodeFactory.createNode("integer", listOf(num))
+            }
+
+            is TerminalExpressionContext -> buildTree(parseTree.terminalValue())
 
             else -> throw IllegalArgumentException("Unsupported expression type: ${parseTree::class.simpleName}")
         }
