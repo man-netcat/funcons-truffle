@@ -189,9 +189,10 @@ data class StringNode(override val value: String) : StringsNode() {
 class ReadNode : TermNode(), ReadInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val standardIn = getGlobal("standard-in") as? StandardInNode ?: StandardInNode()
+        val stdInHead = standardIn.p0.popFirst()
 
-        val new = when (standardIn.p0.head) {
-            !is NullTypeNode -> standardIn.p0.popFirst()
+        val new = when (stdInHead) {
+            !is NullTypeNode -> stdInHead
             is NullValueNode -> FailNode()
 
             else -> abort("read")

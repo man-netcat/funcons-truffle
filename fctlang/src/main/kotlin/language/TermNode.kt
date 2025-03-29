@@ -78,17 +78,13 @@ abstract class TermNode : Node() {
             newElements.addAll(entity.value.elements)
             val newSequence = SequenceNode(*newElements.toTypedArray())
             getContext().globalVariables.putEntity(key, StandardOutNode(newSequence))
-        } else {
-            getContext().globalVariables.putEntity(key, entity)
-        }
+        } else putGlobal(key, entity)
     }
 
     open fun isReducible(): Boolean = when (this) {
-        is SequenceNode -> if (elements.isEmpty()) {
-            false
-        } else {
+        is SequenceNode -> if (elements.isNotEmpty()) {
             elements.any { it !is ValuesNode }
-        }
+        } else false
 
         !is ValuesNode -> true
         else -> nonLazyParams.any { it.isReducible() }

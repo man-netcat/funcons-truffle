@@ -8,3 +8,6 @@ computation types are not ground values (abstractions)
 
 require optionals to have either 0 or 1
 require plus expressions to have either 1 or more
+
+handle-abrupt difference between V:T'=>T and V:T (possibly lack of contextual entity?)
+same for give

@@ -1,6 +1,7 @@
 package language
 
 import generated.aliasMap
+import language.Util.DEBUG
 import java.lang.reflect.Array
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
@@ -22,20 +23,15 @@ object FCTNodeFactory {
             }
             .firstOrNull() ?: throw ClassNotFoundException("No class found for $funconName")
 
-//        println("creating node: ${toNodeName(funconName)} with children ${args.map { it::class.simpleName }}")
-        return instantiate(clazz, args) as TermNode
-    }
-
-    private fun instantiate(clazz: KClass<out Any>, args: List<Any>): Any {
-        val totalArgs = args.size
-
-//        clazz.constructors.forEach { constructor ->
-//            println("Constructor for ${clazz.simpleName}: ${constructor.parameters.joinToString { it.type.toString() }}")
-//        }
-
         val constructor = clazz.constructors.first()
+
+        if (DEBUG) {
+            println("creating node: ${toNodeName(funconName)} with children ${args.map { it::class.simpleName }}")
+            println("Constructor for ${clazz.simpleName}: ${constructor.parameters.map { it.type.toString() }}")
+        }
+
         val argsMap = prepareArguments(constructor, args)
-        return constructor.callBy(argsMap)
+        return constructor.callBy(argsMap) as TermNode
     }
 
     private fun prepareArguments(

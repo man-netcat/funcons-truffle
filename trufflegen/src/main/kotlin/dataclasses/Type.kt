@@ -16,6 +16,7 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
     var isNullable = false
     var isSequence = false
     var isVararg = false
+    var isBinaryComputes = false
 
     private fun handleUnaryComputesExpression(expr: UnaryComputesExpressionContext) {
         computes = true
@@ -55,6 +56,10 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
                 is UnaryComputesExpressionContext -> handleUnaryComputesExpression(expr)
                 is ComplementExpressionContext -> isComplement = true
                 is OrExpressionContext -> isNullable = true
+                is BinaryComputesExpressionContext -> {
+                    println("binary computes!")
+                    isBinaryComputes = true
+                }
             }
 
             if (isSequence && !isParam) throw IllegalStateException("A non-parameter type cannot be vararg")
@@ -82,47 +87,44 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
 
                 is TypeExpressionContext -> rewriteTypeRecursive(toRewrite.type)
                 is ComplementExpressionContext -> rewriteTypeRecursive(toRewrite.expr())
+                is SuffixExpressionContext -> {
+                    rewriteTypeRecursive(toRewrite.expr())
+                }
+
+                is PowerExpressionContext -> {
+                    rewriteTypeRecursive(toRewrite.operand)
+                }
+
+                is TupleExpressionContext -> {
+                    if (toRewrite.exprs() == null) return "Unit"
+
+                    val clsParams = toRewrite.exprs().expr().joinToString { rewriteTypeRecursive(it) }
+                    "Tuple<$clsParams>"
+                }
+
+                is BinaryComputesExpressionContext -> {
+                    "(" + rewriteTypeRecursive(toRewrite.lhs) + ") -> " + rewriteTypeRecursive(
+                        toRewrite.rhs
+                    )
+                }
+
+                is OrExpressionContext -> {
+                    if (toRewrite.rhs.text == toRewrite.rhs.text) {
+                        rewriteTypeRecursive(toRewrite.lhs)
+                    } else {
+                        throw DetailedException("Unexpected return type: ${toRewrite.text}")
+                    }
+                }
+
+                is VariableContext -> if (toRewrite.text != "_") {
+                    toRewrite.varname.text + "p".repeat(toRewrite.squote().size)
+                } else "*"
+
+                is NestedExpressionContext -> rewriteTypeRecursive(toRewrite.expr())
+                is UnaryComputesExpressionContext -> rewriteTypeRecursive(toRewrite.expr())
+                is NumberContext -> toRewrite.text
                 else -> throw DetailedException("Unsupported context type: ${toRewrite::class.simpleName}, with text: $toRewrite")
             }
-//
-//                is SuffixExpressionContext -> {
-//                    isArrayCounter++
-//                    rewriteTypeRecursive(toRewrite.expr())
-//                }
-//
-//                is PowerExpressionContext -> {
-//                    isArrayCounter++
-//                    rewriteTypeRecursive(toRewrite.operand)
-//                }
-//
-//                is TupleExpressionContext -> {
-//                    if (toRewrite.exprs() == null) return "Unit"
-//
-//                    val clsParams = toRewrite.exprs().expr().joinToString { rewriteTypeRecursive(it) }
-//                    "Tuple<$clsParams>"
-//                }
-//
-//                is BinaryComputesExpressionContext -> {
-//                    "(" + rewriteTypeRecursive(toRewrite.lhs) + ") -> " + rewriteTypeRecursive(
-//                        toRewrite.rhs
-//                    )
-//                }
-//
-//                is OrExpressionContext -> {
-//                    if (toRewrite.rhs.text == toRewrite.rhs.text) {
-//                        rewriteTypeRecursive(toRewrite.lhs)
-//                    } else {
-//                        throw DetailedException("Unexpected return type: ${toRewrite.text}")
-//                    }
-//                }
-//
-//                is VariableContext -> if (toRewrite.text != "_") {
-//                    toRewrite.varname.text + "p".repeat(toRewrite.squote().size)
-//                } else "*"
-//
-//                is NestedExpressionContext -> rewriteTypeRecursive(toRewrite.expr())
-//                is UnaryComputesExpressionContext -> rewriteTypeRecursive(toRewrite.expr())
-//                is NumberContext -> toRewrite.text
         }
         return rewriteTypeRecursive(expr)
     }

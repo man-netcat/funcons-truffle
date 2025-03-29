@@ -264,7 +264,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
             is TransitionPremiseWithMutableEntityContext -> listOf(premiseExpr.entityLhs to labelToObject(premiseExpr.entityLhs))
             is TransitionPremiseWithContextualEntityContext -> listOf(premiseExpr.context_ to labelToObject(premiseExpr.context_))
-            else -> listOf<Pair<LabelContext, EntityObject>>()
+            else -> emptyList()
         }
     }
 

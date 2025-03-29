@@ -1,7 +1,6 @@
 package language
 
 import com.oracle.truffle.api.frame.VirtualFrame
-import generated.NullTypeNode
 import generated.NullValueNode
 import language.Util.DEBUG
 
@@ -88,7 +87,7 @@ open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
         get() = elements.joinToString { it.value.toString() }
 
     fun popFirst(): TermNode {
-        if (elements.isEmpty()) return NullTypeNode()
+        if (elements.isEmpty()) return NullValueNode()
         val firstElement = elements[0]
         elements = elements.sliceArray(1 until elements.size)
         return firstElement

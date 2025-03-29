@@ -47,8 +47,8 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
 
         if (DEBUG) {
             println("expected:")
-            println("result-term: ${tests.resultTerm().text}")
-            println("standard-out: ${tests.standardOut().text}")
+            println("result-term: ${tests.resultTerm()?.text}")
+            println("standard-out: ${tests.standardOut()?.text}")
             println()
         }
 

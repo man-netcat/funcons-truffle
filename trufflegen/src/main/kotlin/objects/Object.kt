@@ -6,6 +6,10 @@ import main.dataclasses.Param
 import org.antlr.v4.runtime.tree.ParseTree
 
 abstract class Object(val ctx: ParseTree) {
+    init {
+        println("Generating object ${name}...")
+    }
+
     private val skipCriteria: Boolean
         get() = listOf(
             builtin,                                    // Builtins should be implemented manually
