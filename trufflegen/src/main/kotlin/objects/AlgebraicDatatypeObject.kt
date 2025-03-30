@@ -7,8 +7,6 @@ import objects.DatatypeFunconObject
 
 class AlgebraicDatatypeObject(ctx: DatatypeDefinitionContext) : Object(ctx) {
     val definitions = mutableListOf<DatatypeFunconObject>()
-    override val annotations: List<String>
-        get() = listOf("CBSDataType")
     override val keyWords: List<String>
         get() = listOf("open")
     override val superClassStr: String

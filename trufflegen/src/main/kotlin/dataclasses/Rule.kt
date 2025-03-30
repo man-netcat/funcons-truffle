@@ -92,12 +92,16 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
             val sequenceParamStr = "l${obj.sequenceIndex}"
             val offsetValue = sumVarargMin + nonSequenceArgs.size - (obj.params.size - 1)
-            val condition = if (sequenceArgs.isNotEmpty()) {
-                if (offsetValue == 1) "$sequenceParamStr.isNotEmpty()"
-                else "$sequenceParamStr.size >= $offsetValue"
-            } else {
-                if (offsetValue == 0) "$sequenceParamStr.isEmpty()"
-                else "$sequenceParamStr.size == $offsetValue"
+            val condition = when {
+                sequenceArgs.isNotEmpty() -> when (offsetValue) {
+                    1 -> "$sequenceParamStr.isNotEmpty()"
+                    else -> "$sequenceParamStr.size >= $offsetValue"
+                }
+
+                else -> when (offsetValue) {
+                    0 -> "$sequenceParamStr.isEmpty()"
+                    else -> "$sequenceParamStr.size == $offsetValue"
+                }
             }
             addCondition(condition, priority = 0)
         } else {

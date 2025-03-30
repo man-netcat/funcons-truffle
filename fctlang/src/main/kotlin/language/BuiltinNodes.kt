@@ -3,45 +3,50 @@ package language
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
 
-@CBSType
+open class ValueTypesNode : ValuesNode(), ValueTypesInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode = this
+}
+
 open class ValuesNode : TermNode(), ValuesInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = this
 }
 
-@CBSType
-open class GroundValuesNode : ValueTypesNode(), GroundValuesInterface
+open class GroundValuesNode : ValuesNode(), GroundValuesInterface
 
-@CBSType
-open class ValueTypesNode : ValuesNode(), ValueTypesInterface
+open class IntegersNode : GroundValuesNode(), IntegersInterface {
+    companion object {
+        fun contains(value: TermNode): Boolean {
+            return value is IntegerNode
+        }
+    }
+}
 
-@CBSType
-final class EmptyTypeNode : ValuesNode(), EmptyTypeInterface
-
-@CBSType
-open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
-
-@CBSType
-open class IntegersNode : GroundValuesNode(), IntegersInterface
-
-@CBSType
 open class CharactersNode : GroundValuesNode(), CharactersInterface
 
-@CBSType
-open class MapsNode : ValueTypesNode(), MapsInterface
+open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
 
-@CBSType
+open class MapsNode(tp0: TermNode, tp1: TermNode) : ValueTypesNode(), MapsInterface {
+    companion object {
+        fun contains(value: TermNode): Boolean {
+            return value is ValueMapNode
+        }
+    }
+}
+
+final class EmptyTypeNode : ValueTypesNode(), EmptyTypeInterface
+
 open class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
 
-//@CBSFuncon
-class AbstractionNode(@Child override var p0: TermNode) : AbstractionsNode(), AbstractionInterface
+class ComputationTypesNode() : ValueTypesNode(), ComputationTypesInterface
+class AbstractionNode(@Child override var p0: TermNode) : AbstractionsNode(ComputationTypesNode()), AbstractionInterface
 
-@CBSFuncon
 class StuckNode() : TermNode(), StuckInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = abort("stuck")
 }
 
 abstract class DirectionalNode(@Children open vararg var p0: SequenceNode) : TermNode() {
     protected abstract fun findReducibleIndex(vararg terms: SequenceNode): Int
+    protected abstract fun createNewNode(vararg newTerms: SequenceNode): DirectionalNode
 
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val reducibleIndex = findReducibleIndex(*p0)
@@ -56,23 +61,18 @@ abstract class DirectionalNode(@Children open vararg var p0: SequenceNode) : Ter
         val new = createNewNode(*newTerms.toTypedArray())
         return replace(new)
     }
-
-    protected abstract fun createNewNode(vararg newTerms: SequenceNode): DirectionalNode
 }
 
-@CBSFuncon
 class LeftToRightNode(@Children override vararg var p0: SequenceNode) : DirectionalNode(*p0), LeftToRightInterface {
     override fun findReducibleIndex(vararg terms: SequenceNode) = terms.indexOfFirst { it.isReducible() }
     override fun createNewNode(vararg newTerms: SequenceNode) = LeftToRightNode(*newTerms)
 }
 
-@CBSFuncon
 class RightToLeftNode(@Children override vararg var p0: SequenceNode) : DirectionalNode(*p0), RightToLeftInterface {
     override fun findReducibleIndex(vararg terms: SequenceNode) = terms.indexOfLast { it.isReducible() }
     override fun createNewNode(vararg newTerms: SequenceNode) = RightToLeftNode(*newTerms)
 }
 
-@CBSFuncon
 class SequentialNode(
     @Child override var p0: SequenceNode = SequenceNode(),
     @Child override var p1: TermNode,
@@ -94,7 +94,6 @@ class SequentialNode(
     }
 }
 
-@CBSFuncon
 class ChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), ChoiceInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = when {
@@ -105,7 +104,6 @@ class ChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNo
     }
 }
 
-@CBSFuncon
 class IntegerAddNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), IntegerAddInterface {
     override val nonLazy = listOf(0)
     override fun reduceRules(frame: VirtualFrame): TermNode {
@@ -122,17 +120,14 @@ class IntegerAddNode(@Child override var p0: SequenceNode = SequenceNode()) : Te
     }
 }
 
-@Builtin
 class ValueTupleNode(@Child var p0: SequenceNode = SequenceNode()) : TuplesNode() {
     override val value get() = "tuple(${p0.value})"
 }
 
-@Builtin
-class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode() {
+class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode(ValuesNode()) {
     override val value get() = "[${p0.value}]"
 }
 
-@CBSFuncon
 class MapNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), MapInterface {
     override val nonLazy = listOf(0)
     override fun reduceRules(frame: VirtualFrame): TermNode {
@@ -141,7 +136,6 @@ class MapNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(
     }
 }
 
-@Builtin
 class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : ValuesNode() {
     override val value
         get() = "{${
@@ -153,7 +147,6 @@ class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : ValuesNode() 
         }}"
 }
 
-@Builtin
 data class NaturalNumberNode(override val value: Int) : NaturalNumbersNode() {
     override fun equals(other: Any?): Boolean = when (other) {
         is NaturalNumberNode -> this.value == other.value
@@ -164,7 +157,6 @@ data class NaturalNumberNode(override val value: Int) : NaturalNumbersNode() {
     override fun hashCode(): Int = value.hashCode()
 }
 
-@Builtin
 data class IntegerNode(override val value: Int) : IntegersNode() {
     override fun equals(other: Any?): Boolean = when (other) {
         is NaturalNumberNode -> this.value == other.value
@@ -175,7 +167,6 @@ data class IntegerNode(override val value: Int) : IntegersNode() {
     override fun hashCode(): Int = value.hashCode()
 }
 
-@Builtin
 data class StringNode(override val value: String) : StringsNode() {
     override fun equals(other: Any?): Boolean = when (other) {
         is StringNode -> this.value == other.value
@@ -185,7 +176,6 @@ data class StringNode(override val value: String) : StringsNode() {
     override fun hashCode(): Int = value.hashCode()
 }
 
-@Builtin
 class ReadNode : TermNode(), ReadInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val standardIn = getGlobal("standard-in") as? StandardInNode ?: StandardInNode()
@@ -201,23 +191,14 @@ class ReadNode : TermNode(), ReadInterface {
     }
 }
 
-@Builtin
 class UnionTypeNode(@Children vararg var types: TermNode) : ValueTypesNode() {
-    override fun isTypeOf(other: TermNode): Boolean {
-        return types.any { it.isTypeOf(other) }
-    }
+    override fun isTypeOf(other: TermNode): Boolean = types.any { it.isTypeOf(other) }
 }
 
-@Builtin
-class IntersectionTypeNode(@Children vararg var types: TermNode) : ValueTypesNode() {
-    override fun isTypeOf(other: TermNode): Boolean {
-        return types.all { it.isTypeOf(other) }
-    }
+open class IntersectionTypeNode(@Children vararg var types: TermNode) : ValueTypesNode() {
+    override fun isTypeOf(other: TermNode): Boolean = types.all { it.isTypeOf(other) }
 }
 
-@Builtin
 class ComplementTypeNode(@Child var type: TermNode) : ValueTypesNode() {
-    override fun isTypeOf(other: TermNode): Boolean {
-        return !type.isTypeOf(other)
-    }
+    override fun isTypeOf(other: TermNode): Boolean = !type.isTypeOf(other)
 }

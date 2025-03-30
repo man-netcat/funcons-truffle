@@ -8,10 +8,24 @@ class TypeObject(
     ctx: TypeDefinitionContext,
 ) : Object(ctx) {
     override val keyWords: List<String> = listOf("open")
-    override val annotations: List<String> = listOf("CBSType")
-    private val definitions = if (ctx.definition != null) extractAndOrExprs(ctx.definition) else emptyList()
+    private val definitionExpr = ctx.definition
     override val superClassStr: String
         get() {
+            fun makeTypeDef(definition: ExprContext): String {
+                return if (definition is FunconExpressionContext) {
+                    val defType = getObject(definition)
+                    val args = extractArgs(definition)
+                    val valueArgStrs = args.map { arg ->
+                        println(arg.text)
+                        val x = rewrite(ctx, arg)
+                        println(x)
+                        x
+                    }
+                    makeFunCall(defType.nodeName, args = valueArgStrs)
+                } else throw DetailedException("Unexpected definition ${definition.text}")
+            }
+
+            val definitions = if (definitionExpr != null) extractAndOrExprs(definitionExpr) else emptyList()
             return when (definitions.size) {
                 0 -> {
                     val superClassName = when (name) {
@@ -21,20 +35,15 @@ class TypeObject(
                     emptySuperClass(superClassName)
                 }
 
-                1 -> {
-                    val definition = definitions[0]
-                    if (definition is FunconExpressionContext) {
-                        val defType = getObject(definition)
-                        val args = extractArgs(definition)
-                        val (valueArgs, typeArgs) = args.partition { arg -> arg is TypeExpressionContext || arg is NumberContext }
-                        val valueArgStrs = valueArgs.map { arg -> rewrite(ctx, arg) }
-                        //                    val typeArgStrs = typeArgs.map { arg -> Type(arg).rewrite(inNullableExpr = true) }
-                        makeFunCall(defType.nodeName, args = valueArgStrs)
-                    } else throw DetailedException("Unexpected definition ${definition.text}")
+                1 -> makeTypeDef(definitions[0])
+                else -> {
+                    val nodeType = when (definitionExpr) {
+                        is AndExpressionContext -> "IntersectionTypeNode"
+                        is OrExpressionContext -> "UnionTypeNode"
+                        else -> throw DetailedException("Unexpected expression type: ${definitionExpr::class.simpleName}, ${definitionExpr.text}")
+                    }
+                    "$nodeType(${definitions.joinToString { definition -> makeTypeDef(definition) }})"
                 }
-
-                2 -> "" // TODO: Fix this edge case
-                else -> throw DetailedException("Unexpected amount of definitions, ${definitions.joinToString()} has ${definitions.size} items")
             }
         }
 }

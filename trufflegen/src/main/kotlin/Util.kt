@@ -225,6 +225,35 @@ fun makeClass(
     return result.toString()
 }
 
+fun makeValueTypesCompanionObject(funBody: String): String {
+    return makeCompanionObject(listOf(makeContainsFunction(funBody)))
+}
+
+fun makeCompanionObject(
+    functions: List<String>,
+): String {
+    val result = StringBuilder()
+
+    result.append("companion object")
+
+    result.append(" {\n")
+    functions.forEach { func ->
+        result.append("    $func")
+    }
+    result.append("\n}")
+
+    return result.toString()
+}
+
+fun makeContainsFunction(body: String): String {
+    return makeFunction(
+        "contains", returnType = "Bool", parameters = listOf(
+            makeParam(name = "value", type = "TermNode")
+        ),
+        body = body
+    )
+}
+
 fun makeWhenStatement(cases: List<Pair<String, String>>, elseBranch: String? = null): String {
     val result = StringBuilder("when {\n")
 

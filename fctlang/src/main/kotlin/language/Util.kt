@@ -1,5 +1,5 @@
 package language
 
 object Util {
-    var DEBUG = true
+    var DEBUG = false
 }

@@ -132,9 +132,7 @@ abstract class TermNode : Node() {
         }
     }
 
-    fun toSequence(): SequenceNode {
-        return this as? SequenceNode ?: SequenceNode(this)
-    }
+    fun toSequence(): SequenceNode = this as? SequenceNode ?: SequenceNode(this)
 
     fun abort(reason: String = ""): Nothing = throw RuntimeException(reason)
 

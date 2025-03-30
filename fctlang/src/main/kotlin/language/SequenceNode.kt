@@ -4,8 +4,7 @@ import com.oracle.truffle.api.frame.VirtualFrame
 import generated.NullValueNode
 import language.Util.DEBUG
 
-@Builtin
-open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
+class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
     init {
         elements = elements.flatMap {
             if (it is SequenceNode) it.elements.toList() else listOf(it)

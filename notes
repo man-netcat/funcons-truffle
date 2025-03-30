@@ -1,8 +1,4 @@
-find fix for BoundedIntegersNode
-
 figure out how frameslots work in truffle.
-
-Fix size discrepancy in case of expressions such as else(X, Y, Z+) with + (is now 2, must be 3)
 
 computation types are not ground values (abstractions)
 
@@ -11,3 +7,5 @@ require plus expressions to have either 1 or more
 
 handle-abrupt difference between V:T'=>T and V:T (possibly lack of contextual entity?)
 same for give
+
+ask about literature study. topic about performance in operational semantics and modelling thereof

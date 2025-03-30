@@ -35,9 +35,6 @@ open class EntityObject(
 
     fun putStr(value: String) = putFunc(name, value)
 
-    override val annotations: List<String>
-        get() = listOf("CBSEntity")
-
     override val superClassStr: String
         get() {
             return makeFunCall(entityClassName, listOf("p0"))

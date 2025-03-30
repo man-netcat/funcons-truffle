@@ -13,6 +13,7 @@ import org.antlr.v4.runtime.tree.ParseTree
 
 abstract class AbstractFunconObject(ctx: ParseTree) : Object(ctx) {
     val reducibleIndices = computeReducibles()
+    override val keyWords: List<String> = listOf()
     override val properties = if (reducibleIndices.isNotEmpty()) {
         listOf(
             makeVariable(
@@ -39,6 +40,7 @@ abstract class AbstractFunconObject(ctx: ParseTree) : Object(ctx) {
     protected fun generateLocalVariables(metaVariables: Set<Pair<ExprContext, ExprContext>>): String {
         val metaVariableMap =
             metaVariables.associate { (varName, typeName) -> varName.text to Type(typeName).rewrite() }
+        // TODO: Give local variables a direct cast to remove need for checking in conditional statements
         return params.joinToString("\n") { param ->
             val typeRewrite = param.type.rewrite()
 //            val typeCast = if (typeRewrite in metaVariableMap.keys) {
@@ -100,7 +102,6 @@ class FunconObject(
             return makeReduceFunction(stringBuilder.toString(), TERMNODE)
         }
 
-    override val annotations: List<String> get() = listOf("CBSFuncon")
     override val keyWords: List<String> = emptyList()
 }
 
@@ -109,7 +110,6 @@ class DatatypeFunconObject(
     private val superclass: AlgebraicDatatypeObject,
     val metaVariables: Set<Pair<ExprContext, ExprContext>>,
 ) : AbstractFunconObject(ctx) {
-    override val annotations: List<String> get() = listOf("CBSFuncon")
     override val superClassStr: String get() = makeFunCall(if (reducibleIndices.isEmpty()) superclass.nodeName else TERMNODE)
     override val keyWords: List<String> = emptyList()
 

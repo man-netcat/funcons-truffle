@@ -48,16 +48,16 @@ abstract class Object(val ctx: ParseTree) {
 
     private val valueParamStrs: List<String>
         get() {
-            val valueParams = params.filterNot { param -> param.valueExpr == null }
-
-            return valueParams.map { param ->
+            return params.map { param ->
                 val annotation = makeAnnotation(
                     isVararg = param.type.isVararg,
                     isEntity = this !is EntityObject
                 )
                 val paramTypeStr = if (param.type.isSequence) SEQUENCE else TERMNODE
                 val default = if (param.type.isOptional || param.type.isSequence) "SequenceNode()" else ""
-                makeParam(paramTypeStr, param.name, annotation, default)
+                val paramName =
+                    if (this is TypeObject || this is AlgebraicDatatypeObject) "tp${param.index}" else "p${param.index}"
+                makeParam(paramTypeStr, paramName, annotation, default)
             }
         }
 
@@ -85,7 +85,7 @@ abstract class Object(val ctx: ParseTree) {
             content = listOf(
                 contentStr
             ).joinToString("\n"),
-            constructorArgs = if (this !is TypeObject) valueParamStrs else emptyList(),
+            constructorArgs = valueParamStrs,
             superClass = superClassStr,
             annotations = annotations,
             keywords = keyWords,
