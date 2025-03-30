@@ -14,28 +14,34 @@ class FCTRootNode(
     val inputNodes: Array<TermNode>,
 ) : RootNode(language, frameDescriptor) {
     override fun execute(frame: VirtualFrame): ResultArray {
-        val standardIn = StandardInNode(SequenceNode(*inputNodes))
-        rootTerm.appendGlobal("standard-in", standardIn)
+        val standardInNode = StandardInNode(SequenceNode(*inputNodes))
+        rootTerm.appendGlobal("standard-in", standardInNode)
 
-        var iterationCount = 0
-        while (rootTerm.isReducible()) {
+        try {
+            var iterationCount = 0
+            while (rootTerm.isReducible()) {
+                if (DEBUG) {
+                    println("------------------")
+                    println("Iteration $iterationCount: Current result is ${rootTerm::class.simpleName}")
+                    rootTerm.printTree()
+                }
+                //            println(rootExpr.getContext().globalVariables)
+                rootTerm = rootTerm.reduce(frame)
+                iterationCount++
+            }
+        } catch (e: RuntimeException) {
+            println("Failed to properly execute.")
             if (DEBUG) {
                 println("------------------")
-                println("Iteration $iterationCount: Current result is ${rootTerm::class.simpleName}")
                 rootTerm.printTree()
             }
-//            println(rootExpr.getContext().globalVariables)
-            rootTerm = rootTerm.reduce(frame)
-            iterationCount++
         }
-
         val resultTerm = listOf(rootTerm.value.toString())
-        val stdOut =
-            (rootTerm.getGlobal("standard-out") as StandardOutNode?)?.p0?.elements
-                ?.map { it.value.toString() } ?: emptyList()
+        val standardOutNode = rootTerm.getGlobal("standard-out") as? StandardOutNode
+        val elements = standardOutNode?.p0?.elements.orEmpty()
+        val standardOutValues = elements.map { it.value.toString() }
 
-        val res = (resultTerm + stdOut).toTypedArray()
-
+        val res = (resultTerm + standardOutValues).toTypedArray()
         return ResultArray(res)
     }
 }

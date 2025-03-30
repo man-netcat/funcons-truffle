@@ -120,9 +120,6 @@ abstract class TermNode : Node() {
     }
 
     open fun isTypeOf(other: TermNode): Boolean {
-        println(this::class.simpleName)
-        println(other::class.simpleName)
-        println("----")
         if (this::class == ValuesNode::class) return true
         if (this::class == NullTypeNode::class) return true
         return when (this) {

@@ -87,7 +87,7 @@ class FunconObject(
 
                     if (pairs.any { pair -> pair.second.isEmpty() }) throw EmptyConditionException("Empty condition found in $name")
 
-                    makeWhenStatement(pairs, elseBranch = "abort(\"$name\")")
+                    makeWhenStatement(pairs, elseBranch = "FailNode()")
                 }
 
                 else -> throw DetailedException("Funcon $name does not have any associated rules.")

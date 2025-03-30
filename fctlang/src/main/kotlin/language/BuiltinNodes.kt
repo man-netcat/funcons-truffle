@@ -88,7 +88,7 @@ class SequentialNode(
             }
 
             p0.size >= 1 && p0.head is NullValueNode -> SequentialNode(p0.tail, p1)
-            else -> abort("sequential")
+            else -> FailNode()
         }
         return replace(new)
     }
@@ -98,7 +98,7 @@ class ChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNo
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = when {
             p0.size >= 1 -> p0.random()
-            else -> abort("choice")
+            else -> FailNode()
         }
         return replace(new)
     }
@@ -107,15 +107,8 @@ class ChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNo
 class IntegerAddNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), IntegerAddInterface {
     override val nonLazy = listOf(0)
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val new = when {
-            p0.size >= 0 -> {
-                val sum = p0.elements.fold(0) { acc, node -> node.value as Int }
-                IntegerNode(sum)
-            }
-
-            else -> abort("integer-add")
-        }
-
+        val sum = p0.elements.fold(0) { acc, node -> node.value as Int }
+        val new = IntegerNode(sum)
         return replace(new)
     }
 }
@@ -183,9 +176,7 @@ class ReadNode : TermNode(), ReadInterface {
 
         val new = when (stdInHead) {
             !is NullTypeNode -> stdInHead
-            is NullValueNode -> FailNode()
-
-            else -> abort("read")
+            else -> FailNode()
         }
         return replace(new)
     }
