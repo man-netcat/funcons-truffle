@@ -49,7 +49,7 @@ args
 expr
    : name = IDENTIFIER args # FunconExpression
    | '(' sequenceExpr ')' # SequenceExpression
-   | unOp expr # UnopExpression
+   | unOp operand = expr # UnopExpression
    | lhs = expr binOp rhs = expr # BinOpExpression
    | listExpr # ListExpression
    | mapExpr # MapExpression

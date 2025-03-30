@@ -36,8 +36,25 @@ abstract class AbstractFunconObject(ctx: ParseTree) : Object(ctx) {
             }
         }
 
-    protected fun generateLocalVariables(): String = params.joinToString("\n") { param ->
-        makeVariable("l${param.index}", value = "p${param.index}")
+    protected fun generateLocalVariables(metaVariables: Set<Pair<ExprContext, ExprContext>>): String {
+        val metaVariableMap =
+            metaVariables.associate { (varName, typeName) -> varName.text to Type(typeName).rewrite() }
+        return params.joinToString("\n") { param ->
+            val typeRewrite = param.type.rewrite()
+//            val typeCast = if (typeRewrite in metaVariableMap.keys) {
+//                metaVariableMap[typeRewrite]!!
+//            } else typeRewrite
+            val valueStr = "p${param.index}"
+//            + if (!param.type.isSequence) {
+//                " as $typeCast"
+//            } else ""
+
+            makeVariable(
+                "l${param.index}",
+                value = valueStr,
+//                type = if (!param.type.isSequence) typeCast else ""
+            )
+        }
     }
 }
 
@@ -46,6 +63,7 @@ class FunconObject(
     val returns: Type,
     val rules: List<RuleDefinitionContext> = emptyList(),
     val rewritesTo: ExprContext? = null,
+    val metaVariables: Set<Pair<ExprContext, ExprContext>>,
 ) : AbstractFunconObject(ctx) {
     override val contentStr: String
         get() {
@@ -60,7 +78,8 @@ class FunconObject(
                     val entityVars = generateEntityVariables(ruleObjs)
 
                     val pairs =
-                        ruleObjs.sortedBy { it.priority }.map { it.conditions.joinToString(" && ") to it.bodyStr }
+                        ruleObjs.sortedBy { it.rulePriority }
+                            .map { it.getSortedConditions().joinToString(" && ") to it.bodyStr }
 
                     if (entityVars.isNotEmpty()) stringBuilder.appendLine(entityVars)
 
@@ -73,7 +92,7 @@ class FunconObject(
             }
 
             val newVar = makeVariable("new", new)
-            val localVariables = generateLocalVariables()
+            val localVariables = generateLocalVariables(metaVariables)
 
             stringBuilder.appendLine(localVariables)
             stringBuilder.appendLine(newVar)
@@ -88,6 +107,7 @@ class FunconObject(
 class DatatypeFunconObject(
     ctx: FunconExpressionContext,
     private val superclass: AlgebraicDatatypeObject,
+    val metaVariables: Set<Pair<ExprContext, ExprContext>>,
 ) : AbstractFunconObject(ctx) {
     override val annotations: List<String> get() = listOf("CBSFuncon")
     override val superClassStr: String get() = makeFunCall(if (reducibleIndices.isEmpty()) superclass.nodeName else TERMNODE)
@@ -97,7 +117,7 @@ class DatatypeFunconObject(
         get() {
             return if (reducibleIndices.isNotEmpty()) {
                 val new = "Value$nodeName(${params.joinToString { param -> "l${param.index}" }})"
-                val localVariables = generateLocalVariables()
+                val localVariables = generateLocalVariables(metaVariables)
                 val newVar = makeVariable("new", new)
 
                 val reduceBuilder = StringBuilder()

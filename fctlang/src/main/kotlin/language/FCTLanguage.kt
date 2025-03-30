@@ -8,7 +8,6 @@ import com.oracle.truffle.api.nodes.Node
 import fct.FCTLexer
 import fct.FCTParser
 import fct.FCTParser.*
-import generated.StandardInNode
 import language.Util.DEBUG
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
@@ -55,22 +54,22 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
 
         val rootNode = convertToFCTNode(mainContext)
 
-        processInput(inputs, rootNode)
+        val inputNodes = processInput(inputs)
 
         val frameDescriptorBuilder = FrameDescriptor.newBuilder()
         // TODO: 100 slots is probably too many
         frameDescriptorBuilder.addSlots(100, FrameSlotKind.Object)
         val frameDescriptor = frameDescriptorBuilder.build()
-        val fctRootNode = FCTRootNode(this, frameDescriptor, rootNode)
+        val fctRootNode = FCTRootNode(this, frameDescriptor, rootNode, inputNodes)
         return fctRootNode.callTarget
     }
 
-    private fun processInput(inputs: InputsBlockContext?, rootNode: TermNode) {
-        if (inputs == null) return
+    private fun processInput(inputs: InputsBlockContext?): Array<TermNode> {
+        if (inputs == null) return emptyArray()
 
         val inputValue = inputs.standardIn().input()
 
-        val inputNodes = when (inputValue) {
+        return when (inputValue) {
             is InputTupleContext -> inputValue.terminals().terminalValue().map { buildTree(it) }
             is InputListContext -> inputValue.terminals().terminalValue().map { buildTree(it) }
             is InputMapContext -> inputValue.termPairs().termPair().map { buildTree(it) }
@@ -78,10 +77,6 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
             is InputValueContext -> listOf(buildTree(inputValue.terminalValue()))
             else -> listOf()
         }.toTypedArray()
-
-        val standardIn = StandardInNode(SequenceNode(*inputNodes))
-
-        rootNode.appendGlobal("standard-in", standardIn)
     }
 
     override fun createContext(env: Env): FCTContext {
@@ -155,8 +150,25 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
             }
 
             is TerminalExpressionContext -> buildTree(parseTree.terminalValue())
+            is BinOpExpressionContext -> {
+                val lhs = buildTree(parseTree.lhs)
+                val rhs = buildTree(parseTree.rhs)
+                when (parseTree.binOp().text) {
+                    "|" -> UnionTypeNode(lhs, rhs)
+                    "&" -> IntersectionTypeNode(lhs, rhs)
+                    else -> throw IllegalArgumentException("Unsupported operation: ${parseTree.binOp().text}")
+                }
+            }
 
-            else -> throw IllegalArgumentException("Unsupported expression type: ${parseTree::class.simpleName}")
+            is UnopExpressionContext -> {
+                val operand = buildTree(parseTree.operand)
+                when (parseTree.unOp().text) {
+                    "~" -> ComplementTypeNode(operand)
+                    else -> throw IllegalArgumentException("Unsupported operation: ${parseTree.unOp().text}")
+                }
+            }
+
+            else -> throw IllegalArgumentException("Unsupported expression type: ${parseTree::class.simpleName}: ${parseTree.text}")
         }
     }
 }

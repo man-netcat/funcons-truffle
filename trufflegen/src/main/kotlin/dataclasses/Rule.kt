@@ -8,15 +8,25 @@ import main.objects.EntityObject
 import main.objects.Object
 
 class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, returns: Type) {
-    val conditions = mutableListOf<String>()
+    data class Condition(val expr: String, val priority: Int = 1)
+
+    val conditions = mutableListOf<Condition>()
     val entityVars = mutableSetOf<Object>()
     private val assignments = mutableListOf<String>()
     private val rewriteStr: String
     private var intermediateCounter = 0
-    var priority = 1 // Set to 0 if rule has higher priority
+    var rulePriority = 1 // Rule priority (0 = higher priority)
 
     val bodyStr: String
         get() = (assignments + rewriteStr).joinToString("\n")
+
+    private fun addCondition(expr: String, priority: Int = 1) {
+        conditions.add(Condition(expr, priority))
+    }
+
+    internal fun getSortedConditions(): List<String> {
+        return conditions.sortedBy { it.priority }.map { it.expr }
+    }
 
     private fun newVar() = "i${intermediateCounter++}"
 
@@ -30,29 +40,21 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
     private fun argsConditions(funconExpr: FunconExpressionContext, rewriteData: MutableList<RewriteData>) {
         val obj = getObject(funconExpr)
         val args = extractArgs(funconExpr)
-        if (obj.params.size == 1 && args.isEmpty()) {
-            if (obj.params[0].type.isSequence) {
-                priority = 0
-                conditions.addFirst("l0.isEmpty()")
-            } else {
-                conditions.add("l0 == null")
-            }
-        }
 
         val paramStrs = getParamStrs(funconExpr)
         (paramStrs + rewriteData).forEach { data ->
             val (argValue, argType, paramStr) = data
 
             if (argType == null && argValue == null) {
-                priority = 0
-                conditions.add("${paramStr}.isEmpty()")
+                rulePriority = 0
+                addCondition("${paramStr}.isEmpty()")
             }
 
             when (argType) {
                 is SuffixExpressionContext -> if (argType.op.text == "+") {
                     // If it's an expression of the type "X+" it cannot be empty.
                     val typeCondition = "${paramStr}.isNotEmpty()"
-                    conditions.add(typeCondition)
+                    addCondition(typeCondition)
                 }
 
                 is FunconExpressionContext,
@@ -61,15 +63,15 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 is ComplementExpressionContext,
                     -> {
                     val typeCondition = makeTypeCondition(paramStr, argType)
-                    conditions.add(typeCondition)
+                    addCondition(typeCondition)
                 }
 
                 is VariableContext -> {}
             }
 
             when (argValue) {
-                is NumberContext -> conditions.add("$paramStr == ${argValue.text}")
-                is TupleExpressionContext -> conditions.add("${paramStr}.isEmpty()")
+                is NumberContext -> addCondition("$paramStr == ${argValue.text}")
+                is TupleExpressionContext -> addCondition("${paramStr}.isEmpty()")
                 is SuffixExpressionContext -> {}
             }
         }
@@ -91,11 +93,13 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
             val sequenceParamStr = "l${obj.sequenceIndex}"
             val offsetValue = sumVarargMin + nonSequenceArgs.size - (obj.params.size - 1)
             val condition = if (sequenceArgs.isNotEmpty()) {
-                "$sequenceParamStr.size >= $offsetValue"
+                if (offsetValue == 1) "$sequenceParamStr.isNotEmpty()"
+                else "$sequenceParamStr.size >= $offsetValue"
             } else {
-                "$sequenceParamStr.size == $offsetValue"
+                if (offsetValue == 0) "$sequenceParamStr.isEmpty()"
+                else "$sequenceParamStr.size == $offsetValue"
             }
-            conditions.addFirst(condition)
+            addCondition(condition, priority = 0)
         } else {
 //            println("funconExpr: ${funconExpr.text}, rewriteData: $rewriteData")
         }
@@ -183,7 +187,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                     labels.forEach { (label, obj) ->
                         println(label.text)
                         if (label.value == null) {
-                            conditions.add("${obj.asVarName}.emptyValue()")
+                            addCondition("${obj.asVarName}.emptyValue()")
                         }
                     }
                 }
@@ -201,7 +205,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
                     else -> throw DetailedException("Unexpected premise: ${premise.text}")
                 }
-                conditions.add(condition)
+                addCondition(condition)
                 if (premise is TransitionPremiseWithMutableEntityContext) {
                     val rewriteEntityLhs = rewrite(ruleDef, premise.entityLhs.value, rewriteData)
                     val rewriteEntityRhs = rewrite(ruleDef, premise.entityRhs.value, rewriteData)
@@ -224,7 +228,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                     }
                     "$rewriteLhs $op $rewriteRhs"
                 }
-                conditions.add(condition)
+                addCondition(condition, priority = 2)
             }
 
             is TypePremiseContext -> {
@@ -232,14 +236,14 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 val condition =
                     if (rhs is VariableContext) {
                         val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
-                        "${rewriteRhs}.instanceOf($rewriteLhs as TypesNode)"
+                        "${rewriteRhs}.isTypeOf($rewriteLhs)"
                     } else if (rhs is ComplementExpressionContext && rhs.operand is VariableContext) {
                         val rewriteRhs = rewrite(ruleDef, rhs.operand, rewriteData)
-                        "!${rewriteRhs}.instanceOf($rewriteLhs as TypesNode)"
+                        "!${rewriteRhs}.isTypeOf($rewriteLhs)"
                     } else {
                         makeTypeCondition(rewriteLhs, premise.type)
                     }
-                conditions.add(condition)
+                addCondition(condition, priority = 2)
             }
         }
     }

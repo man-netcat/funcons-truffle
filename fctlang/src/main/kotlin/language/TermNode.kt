@@ -119,8 +119,17 @@ abstract class TermNode : Node() {
 //        else throw IllegalStateException("All reductions failed")
     }
 
-    fun instanceOf(other: ValueTypesNode): Boolean {
-        return other::class.isInstance(this)
+    open fun isTypeOf(other: TermNode): Boolean {
+        println(this::class.simpleName)
+        println(other::class.simpleName)
+        println("----")
+        if (this::class == ValuesNode::class) return true
+        if (this::class == NullTypeNode::class) return true
+        return when (this) {
+            is NullTypeNode -> false
+            is NaturalNumbersNode -> other is NaturalNumberNode || (other is IntegerNode && other.value >= 0)
+            else -> this::class.isInstance(other)
+        }
     }
 
     fun toSequence(): SequenceNode {

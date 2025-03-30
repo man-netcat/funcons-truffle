@@ -200,3 +200,24 @@ class ReadNode : TermNode(), ReadInterface {
         return replace(new)
     }
 }
+
+@Builtin
+class UnionTypeNode(@Children vararg var types: TermNode) : ValueTypesNode() {
+    override fun isTypeOf(other: TermNode): Boolean {
+        return types.any { it.isTypeOf(other) }
+    }
+}
+
+@Builtin
+class IntersectionTypeNode(@Children vararg var types: TermNode) : ValueTypesNode() {
+    override fun isTypeOf(other: TermNode): Boolean {
+        return types.all { it.isTypeOf(other) }
+    }
+}
+
+@Builtin
+class ComplementTypeNode(@Child var type: TermNode) : ValueTypesNode() {
+    override fun isTypeOf(other: TermNode): Boolean {
+        return !type.isTypeOf(other)
+    }
+}

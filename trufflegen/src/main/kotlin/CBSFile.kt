@@ -32,7 +32,8 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
             ctx,
             returns,
             rules = ctx.ruleDefinition(),
-            rewritesTo = ctx.rewritesTo
+            rewritesTo = ctx.rewritesTo,
+            metaVariables = fileMetavariables
         )
 
         addObjectReference(dataContainer)
@@ -61,7 +62,8 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
                             val dataContainer =
                                 DatatypeFunconObject(
                                     funcon,
-                                    datatypeDataContainer
+                                    datatypeDataContainer,
+                                    metaVariables = fileMetavariables
                                 )
                             addObjectReference(dataContainer)
                             datatypeDataContainer.definitions.add(dataContainer)

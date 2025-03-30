@@ -14,9 +14,8 @@ open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
 
     val size: Int get() = elements.size
 
-    fun isEmpty(): Boolean {
-        return elements.isEmpty()
-    }
+    fun isEmpty(): Boolean = elements.isEmpty()
+    fun isNotEmpty(): Boolean = elements.isNotEmpty()
 
     operator fun get(index: Int): TermNode {
         return try {
@@ -68,9 +67,7 @@ open class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
 //        else throw IllegalStateException("All reductions failed")
     }
 
-    override fun reduceRules(frame: VirtualFrame): TermNode {
-        abort("stuck")
-    }
+    override fun reduceRules(frame: VirtualFrame): TermNode = abort("sequence")
 
     override fun toString(): String {
         return elements.joinToString("") { it.value.toString() }

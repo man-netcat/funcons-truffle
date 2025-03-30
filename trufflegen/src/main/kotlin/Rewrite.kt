@@ -47,7 +47,7 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
                 parts.add(postSequence.joinToString())
             }
             val argStr = parts.joinToString()
-            
+
             return "${obj.nodeName}($argStr)"
         }
 
@@ -71,11 +71,7 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
             is SuffixExpressionContext -> mapParamString(toRewrite.text)
 
             is VariableContext -> mapParamString(toRewrite.text)
-            is NumberContext -> {
-                val nodeName = if ('-' in toRewrite.text) "IntegerNode" else "NaturalNumberNode"
-                "$nodeName(${toRewrite.text})"
-            }
-
+            is NumberContext -> "IntegerNode(${toRewrite.text})"
             is StringContext -> "StringNode(${toRewrite.text})"
             is TypeExpressionContext -> rewriteRecursive(toRewrite.value)
             is NestedExpressionContext -> rewriteRecursive(toRewrite.expr())
