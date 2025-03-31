@@ -15,12 +15,7 @@ class TypeObject(
                 return if (definition is FunconExpressionContext) {
                     val defType = getObject(definition)
                     val args = extractArgs(definition)
-                    val valueArgStrs = args.map { arg ->
-                        println(arg.text)
-                        val x = rewrite(ctx, arg)
-                        println(x)
-                        x
-                    }
+                    val valueArgStrs = args.map { arg -> rewrite(ctx, arg) }
                     makeFunCall(defType.nodeName, args = valueArgStrs)
                 } else throw DetailedException("Unexpected definition ${definition.text}")
             }
@@ -29,7 +24,7 @@ class TypeObject(
             return when (definitions.size) {
                 0 -> {
                     val superClassName = when (name) {
-                        "abstractions" -> toClassName("value-types")
+                        "abstractions" -> toClassName("values")
                         else -> toClassName("ground-values")
                     }
                     emptySuperClass(superClassName)

@@ -240,10 +240,10 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 val condition =
                     if (rhs is VariableContext) {
                         val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
-                        "${rewriteRhs}.isTypeOf($rewriteLhs)"
+                        "${rewriteLhs}.isInType($rewriteRhs)"
                     } else if (rhs is ComplementExpressionContext && rhs.operand is VariableContext) {
                         val rewriteRhs = rewrite(ruleDef, rhs.operand, rewriteData)
-                        "!${rewriteRhs}.isTypeOf($rewriteLhs)"
+                        "!${rewriteLhs}.isInType($rewriteRhs)"
                     } else {
                         makeTypeCondition(rewriteLhs, premise.type)
                     }

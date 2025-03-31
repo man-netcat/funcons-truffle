@@ -51,13 +51,11 @@ class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
 
         for (index in elements.indices) {
             if (newElements[index].isReducible()) {
-                if (DEBUG) println("attempting to reduce ${newElements[index]::class.simpleName} in ${this::class.simpleName}")
                 try {
                     attemptedReduction = true
                     newElements[index] = newElements[index].reduce(frame)
                     return SequenceNode(*newElements.toTypedArray())
                 } catch (e: Exception) {
-                    if (DEBUG) println("stuck in ${this::class.simpleName} with error $e")
                 }
             }
         }

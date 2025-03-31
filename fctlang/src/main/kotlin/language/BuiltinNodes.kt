@@ -25,13 +25,7 @@ open class CharactersNode : GroundValuesNode(), CharactersInterface
 
 open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
 
-open class MapsNode(tp0: TermNode, tp1: TermNode) : ValueTypesNode(), MapsInterface {
-    companion object {
-        fun contains(value: TermNode): Boolean {
-            return value is ValueMapNode
-        }
-    }
-}
+open class MapsNode(var tp0: TermNode, var tp1: TermNode) : ValuesNode(), MapsInterface
 
 final class EmptyTypeNode : ValueTypesNode(), EmptyTypeInterface
 
@@ -105,7 +99,7 @@ class ChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNo
 }
 
 class IntegerAddNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), IntegerAddInterface {
-    override val nonLazy = listOf(0)
+    override val eager = listOf(0)
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val sum = p0.elements.fold(0) { acc, node -> node.value as Int }
         val new = IntegerNode(sum)
@@ -122,14 +116,14 @@ class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode(Va
 }
 
 class MapNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), MapInterface {
-    override val nonLazy = listOf(0)
+    override val eager = listOf(0)
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val new = ValueMapNode(p0)
         return replace(new)
     }
 }
 
-class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : ValuesNode() {
+class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : MapsNode(GroundValuesNode(), ValuesNode()) {
     override val value
         get() = "{${
             p0.elements.joinToString { tuple ->
@@ -160,6 +154,15 @@ data class IntegerNode(override val value: Int) : IntegersNode() {
     override fun hashCode(): Int = value.hashCode()
 }
 
+data class CharacterNode(override val value: Char) : CharactersNode() {
+    override fun equals(other: Any?): Boolean = when (other) {
+        is CharacterNode -> this.value == other.value
+        else -> false
+    }
+
+    override fun hashCode(): Int = value.hashCode()
+}
+
 data class StringNode(override val value: String) : StringsNode() {
     override fun equals(other: Any?): Boolean = when (other) {
         is StringNode -> this.value == other.value
@@ -182,14 +185,8 @@ class ReadNode : TermNode(), ReadInterface {
     }
 }
 
-class UnionTypeNode(@Children vararg var types: TermNode) : ValueTypesNode() {
-    override fun isTypeOf(other: TermNode): Boolean = types.any { it.isTypeOf(other) }
-}
+open class UnionTypeNode(@Children vararg var types: TermNode) : ValueTypesNode()
 
-open class IntersectionTypeNode(@Children vararg var types: TermNode) : ValueTypesNode() {
-    override fun isTypeOf(other: TermNode): Boolean = types.all { it.isTypeOf(other) }
-}
+open class IntersectionTypeNode(@Children vararg var types: TermNode) : ValueTypesNode()
 
-class ComplementTypeNode(@Child var type: TermNode) : ValueTypesNode() {
-    override fun isTypeOf(other: TermNode): Boolean = !type.isTypeOf(other)
-}
+open class ComplementTypeNode(@Child var type: TermNode) : ValueTypesNode()

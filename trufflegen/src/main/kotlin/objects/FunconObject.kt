@@ -17,7 +17,7 @@ abstract class AbstractFunconObject(ctx: ParseTree) : Object(ctx) {
     override val properties = if (reducibleIndices.isNotEmpty()) {
         listOf(
             makeVariable(
-                "nonLazy",
+                "eager",
                 value = "listOf(${reducibleIndices.joinToString()})",
                 override = true
             )

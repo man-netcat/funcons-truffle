@@ -14,7 +14,7 @@ abstract class TermNode : Node() {
     }
 
     // Indices for parameters that are not lazily evaluated
-    open val nonLazy = emptyList<Int>()
+    open val eager = emptyList<Int>()
     val primaryConstructor = this::class.primaryConstructor!!
     val memberProperties = this::class.memberProperties
     val members = this::class.members
@@ -25,7 +25,7 @@ abstract class TermNode : Node() {
             }
         }
     val nonLazyParams: List<TermNode>
-        get() = nonLazy.map { index -> params[index] }
+        get() = eager.map { index -> params[index] }
 
     open val value: Any
         get() = when (this) {
@@ -100,18 +100,15 @@ abstract class TermNode : Node() {
     open fun reduceComputations(frame: VirtualFrame): TermNode? {
         val newParams = params.toMutableList()
         var attemptedReduction = false
-        for (index in nonLazy) {
+        for (index in eager) {
             val currentParam = newParams[index]
             if (!currentParam.isReducible()) continue
-
-            if (DEBUG) println("attempting to reduce ${currentParam::class.simpleName} in ${this::class.simpleName}")
 
             try {
                 attemptedReduction = true
                 newParams[index] = currentParam.reduce(frame)
                 return primaryConstructor.call(*newParams.toTypedArray())
             } catch (e: Exception) {
-                if (DEBUG) println("stuck in ${this::class.simpleName} with error $e")
             }
         }
         return null
@@ -119,35 +116,50 @@ abstract class TermNode : Node() {
 //        else throw IllegalStateException("All reductions failed")
     }
 
-    open fun isTypeOf(other: TermNode): Boolean {
-        if (this::class == ValuesNode::class) return true
-        if (this::class == NullTypeNode::class) return true
-        return when (this) {
+    open fun isInType(type: TermNode): Boolean {
+        if (this::class == type::class) return true
+        if (type::class == ValuesNode::class) return true
+        if (type::class == NullTypeNode::class) return true
+        return when (type) {
+            is UnionTypeNode -> type.types.any { this.isInType(it) }
+            is IntersectionTypeNode -> type.types.all { this.isInType(it) }
+            is ComplementTypeNode -> !this.isInType(type.type)
             is NullTypeNode -> false
-            is NaturalNumbersNode -> other is NaturalNumberNode || (other is IntegerNode && other.value >= 0)
-            else -> this::class.isInstance(other)
+            is NaturalNumbersNode -> this is NaturalNumberNode || (this is IntegerNode && value >= 0)
+            is IntegersNode -> this is NaturalNumberNode || this is IntegerNode
+            is BooleansNode -> this is FalseNode || this is TrueNode
+            else -> type::class.isInstance(this)
         }
     }
 
     fun toSequence(): SequenceNode = this as? SequenceNode ?: SequenceNode(this)
 
-    fun abort(reason: String = ""): Nothing = throw RuntimeException(reason)
+    fun abort(reason: String = ""): Nothing = throw StuckException(reason)
 
-    fun printTree(indent: String = "") {
+    fun printTree(indent: String = "", prefix: String = "", hasMoreSiblings: Boolean = false) {
         val value = if (this is ValuesNode) ": ${this.value}" else ""
-        println("$indent${this::class.simpleName}$value")
+        println("$indent$prefix${this::class.simpleName}$value")
 
-        primaryConstructor.parameters.forEach { param ->
-            val member = members.firstOrNull { it.name == param.name }
-            val res = member!!.call(this)
-            when (res) {
-                is Array<*> -> res.forEach { (it as TermNode).printTree("$indent  ") }
-                is TermNode -> res.printTree("$indent  ")
+        val children = primaryConstructor.parameters.mapNotNull { param ->
+            members.firstOrNull { it.name == param.name }?.call(this)
+        }.flatMap {
+            when (it) {
+                is Array<*> -> it.toList()
+                is TermNode -> listOf(it)
+                else -> emptyList()
             }
+        }
+
+        for ((index, child) in children.withIndex()) {
+            val isLast = index == children.lastIndex
+            val newIndent = indent + if (hasMoreSiblings) "│   " else "    "
+            (child as TermNode).printTree(newIndent, if (isLast) "└── " else "├── ", hasMoreSiblings = !isLast)
         }
     }
 
+
     override fun equals(other: Any?): Boolean {
+        if (other == null) return false
         if (this === other) return true
         if (other !is TermNode) return false
         if (this::class != other::class) return false

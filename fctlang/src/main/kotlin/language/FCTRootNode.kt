@@ -28,13 +28,12 @@ class FCTRootNode(
                 //            println(rootExpr.getContext().globalVariables)
                 rootTerm = rootTerm.reduce(frame)
                 iterationCount++
+                if (iterationCount > 1000) throw InfiniteLoopException()
             }
-        } catch (e: RuntimeException) {
+        } catch (e: StuckException) {
             println("Failed to properly execute.")
-            if (DEBUG) {
-                println("------------------")
-                rootTerm.printTree()
-            }
+        } catch (e: InfiniteLoopException) {
+            println("Infinite loop detected")
         }
         val resultTerm = listOf(rootTerm.value.toString())
         val standardOutNode = rootTerm.getGlobal("standard-out") as? StandardOutNode
