@@ -31,7 +31,7 @@ class FCTRootNode(
                 if (iterationCount > 1000) throw InfiniteLoopException()
             }
         } catch (e: StuckException) {
-            println("Failed to properly execute.")
+            println("Failed to properly reduce.")
         } catch (e: InfiniteLoopException) {
             println("Infinite loop detected")
         }

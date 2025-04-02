@@ -101,6 +101,7 @@ class ChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNo
 class IntegerAddNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), IntegerAddInterface {
     override val eager = listOf(0)
     override fun reduceRules(frame: VirtualFrame): TermNode {
+        // TODO Check type
         val sum = p0.elements.fold(0) { acc, node -> node.value as Int }
         val new = IntegerNode(sum)
         return replace(new)
@@ -114,6 +115,10 @@ class ValueTupleNode(@Child var p0: SequenceNode = SequenceNode()) : TuplesNode(
 class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode(ValuesNode()) {
     override val value get() = "[${p0.value}]"
 }
+
+//class ValueFunctionNode(@Child var p0: TermNode) : FunctionsNode(ValuesNode(), ValuesNode()) {
+//    override val value get() = "fun ${p0.value}"
+//}
 
 class MapNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), MapInterface {
     override val eager = listOf(0)

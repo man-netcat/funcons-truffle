@@ -2,7 +2,6 @@ package language
 
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.NullValueNode
-import language.Util.DEBUG
 
 class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
     init {

@@ -56,10 +56,7 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
                 is UnaryComputesExpressionContext -> handleUnaryComputesExpression(expr)
                 is ComplementExpressionContext -> isComplement = true
                 is OrExpressionContext -> isNullable = true
-                is BinaryComputesExpressionContext -> {
-                    println("binary computes!")
-                    isBinaryComputes = true
-                }
+                is BinaryComputesExpressionContext -> isBinaryComputes = true
             }
 
             if (isSequence && !isParam) throw IllegalStateException("A non-parameter type cannot be vararg")

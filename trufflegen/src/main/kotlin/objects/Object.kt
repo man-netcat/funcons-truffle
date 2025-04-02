@@ -24,9 +24,9 @@ abstract class Object(val ctx: ParseTree) {
 
     val builtin
         get() = when (ctx) {
-            is FunconDefinitionContext -> ctx.modifier != null
-            is TypeDefinitionContext -> ctx.modifier != null
-            is DatatypeDefinitionContext -> ctx.modifier != null
+            is FunconDefinitionContext -> ctx.modifier?.text == "Built-in"
+            is TypeDefinitionContext -> ctx.modifier?.text == "Built-in"
+            is DatatypeDefinitionContext -> ctx.modifier?.text == "Built-in"
             else -> false
         }
 
@@ -46,7 +46,7 @@ abstract class Object(val ctx: ParseTree) {
     val sequenceParam: Param? get() = if (hasSequence) params[sequenceIndex] else null
     val paramsAfterSequence: Int get() = if (hasSequence) params.size - (sequenceIndex + 1) else 0
 
-    private val valueParamStrs: List<String>
+    private val paramStrs: List<String>
         get() {
             return params.map { param ->
                 val annotation = makeAnnotation(
@@ -85,7 +85,7 @@ abstract class Object(val ctx: ParseTree) {
             content = listOf(
                 contentStr
             ).joinToString("\n"),
-            constructorArgs = valueParamStrs,
+            constructorArgs = paramStrs,
             superClass = superClassStr,
             annotations = annotations,
             keywords = keyWords,

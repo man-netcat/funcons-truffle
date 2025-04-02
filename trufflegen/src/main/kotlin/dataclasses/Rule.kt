@@ -15,7 +15,6 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
     private val assignments = mutableListOf<String>()
     private val rewriteStr: String
     private var intermediateCounter = 0
-    var rulePriority = 1 // Rule priority (0 = higher priority)
 
     val bodyStr: String
         get() = (assignments + rewriteStr).joinToString("\n")
@@ -45,10 +44,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         (paramStrs + rewriteData).forEach { data ->
             val (argValue, argType, paramStr) = data
 
-            if (argType == null && argValue == null) {
-                rulePriority = 0
-                addCondition("${paramStr}.isEmpty()")
-            }
+            if (argType == null && argValue == null) addCondition("${paramStr}.isEmpty()")
 
             when (argType) {
                 is SuffixExpressionContext -> if (argType.op.text == "+") {
@@ -186,7 +182,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 val rewrite = "val $rewriteRhs = $rewriteLhs.reduce(frame)"
                 assignments.add(rewrite)
 
-                val labels = getEntities(premise)
+                val labels = readEntities(premise)
                 if (labels.isNotEmpty()) {
                     labels.forEach { (label, obj) ->
                         println(label.text)
@@ -252,7 +248,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         }
     }
 
-    private fun getEntities(premiseExpr: PremiseExprContext): List<Pair<LabelContext, EntityObject>> {
+    private fun readEntities(premiseExpr: PremiseExprContext): List<Pair<LabelContext, EntityObject>> {
         fun labelToObject(label: LabelContext): EntityObject {
             return if (label.name.text == "abrupt") {
                 // TODO: Edge case due to bug in CBS code for yield-on-value. Remove when fixed.
@@ -279,7 +275,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
     private fun processConclusion(
         ruleDef: ExprContext, conclusion: PremiseExprContext, rewriteData: MutableList<RewriteData>,
     ) {
-        val labels = getEntities(conclusion)
+        val labels = readEntities(conclusion)
         labels.forEach { (label, labelObj) ->
             try {
                 val valueStr = if (label.value != null) {
@@ -310,7 +306,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
     }
 
     private fun processEntities(premiseExpr: PremiseExprContext): List<RewriteData> {
-        val labels = getEntities(premiseExpr)
+        val labels = readEntities(premiseExpr)
 
         return labels.flatMap { (label, labelObj) ->
             entityVars.add(labelObj)

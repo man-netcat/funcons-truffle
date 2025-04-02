@@ -79,9 +79,7 @@ class FunconObject(
                     }
                     val entityVars = generateEntityVariables(ruleObjs)
 
-                    val pairs =
-                        ruleObjs.sortedBy { it.rulePriority }
-                            .map { it.getSortedConditions().joinToString(" && ") to it.bodyStr }
+                    val pairs = ruleObjs.map { it.getSortedConditions().joinToString(" && ") to it.bodyStr }
 
                     if (entityVars.isNotEmpty()) stringBuilder.appendLine(entityVars)
 
@@ -96,7 +94,7 @@ class FunconObject(
             val newVar = makeVariable("new", new)
             val localVariables = generateLocalVariables(metaVariables)
 
-            stringBuilder.appendLine(localVariables)
+            if (localVariables.isNotEmpty()) stringBuilder.appendLine(localVariables)
             stringBuilder.appendLine(newVar)
             stringBuilder.appendLine(returnStr)
             return makeReduceFunction(stringBuilder.toString(), TERMNODE)
@@ -121,7 +119,7 @@ class DatatypeFunconObject(
                 val newVar = makeVariable("new", new)
 
                 val reduceBuilder = StringBuilder()
-                reduceBuilder.appendLine(localVariables)
+                if (localVariables.isNotEmpty()) reduceBuilder.appendLine(localVariables)
                 reduceBuilder.appendLine(newVar)
                 reduceBuilder.appendLine(returnStr)
                 makeReduceFunction(reduceBuilder.toString(), TERMNODE)

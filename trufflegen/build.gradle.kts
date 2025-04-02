@@ -4,7 +4,6 @@ import dependencies.Vars
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.io.path.ExperimentalPathApi
-import kotlin.io.path.deleteRecursively
 
 plugins {
     kotlin("jvm") version "2.1.0"
@@ -30,8 +29,12 @@ application {
 
 tasks.named<JavaExec>("run") {
     val generated = Paths.get(Vars.GENERATEDPATHSTR)
-    generated.deleteRecursively()
+    val backup = generated.resolveSibling("generated.bak")
+
+    if (Files.exists(backup)) backup.toFile().deleteRecursively()
+    if (Files.exists(generated)) generated.toFile().renameTo(backup.toFile())
     Files.createDirectories(generated)
+
     args = listOf(
         Vars.CBSFILEPATH,
         Vars.GENERATEDPATHSTR,

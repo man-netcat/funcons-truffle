@@ -9,3 +9,6 @@ handle-abrupt difference between V:T'=>T and V:T (possibly lack of contextual en
 same for give
 
 ask about literature study. topic about performance in operational semantics and modelling thereof
+
+abstraction(integer-add(given, 2)) -> int=>int
+abstraction(print(given)) -> values=>null
