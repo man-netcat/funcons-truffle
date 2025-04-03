@@ -172,6 +172,13 @@ class Rule(
         }
     }
 
+    private fun getControlEntityLabels(premiseExpr: TransitionPremiseWithControlEntityContext): List<Pair<LabelContext, EntityObject>> {
+        val steps = premiseExpr.steps().step().sortedBy { it.sequenceNumber.text.toInt() }
+        return steps.flatMap { step ->
+            step.labels().label().map { label -> label to labelToObject(label) }
+        }
+    }
+
     private fun processPremises(
         ruleDef: ExprContext,
         premise: PremiseExprContext,
@@ -180,8 +187,8 @@ class Rule(
         val (lhs, rhs) = extractLhsRhs(premise)
 
         when (premise) {
-            // TODO: Verify
             is RewritePremiseContext -> {
+                // TODO: Verify
                 if (lhs !is VariableContext) {
                     val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
                     val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
@@ -198,10 +205,6 @@ class Rule(
 
                 val label = premise.context_
                 val labelObj = getObject(label) as EntityObject
-//                if (label.value == null) {
-//                    val emptyCondition = "${labelObj.asVarName}.emptyValue()"
-//                    addCondition(emptyCondition)
-//                }
 
                 val assignment = makeEntityAssignment(ruleDef, label, labelObj, rewriteData)
                 assignments.addFirst(assignment)
@@ -216,10 +219,7 @@ class Rule(
                 addCondition(condition)
             }
 
-            is TransitionPremiseContext,
-            is TransitionPremiseWithControlEntityContext,
-            is TransitionPremiseWithMutableEntityContext,
-                -> {
+            is TransitionPremiseContext -> {
                 if (rhs.text == "_") return
                 val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
                 val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
@@ -227,7 +227,21 @@ class Rule(
                 val rewrite = "val $rewriteRhs = $rewriteLhs.reduce(frame)"
                 assignments.add(rewrite)
 
-                val labels = readEntities(premise)
+                val condition = "$rewriteLhs.isReducible()"
+                addCondition(condition)
+            }
+
+            is TransitionPremiseWithControlEntityContext,
+                -> {
+
+                if (rhs.text == "_") return
+                val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
+                val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
+
+                val rewrite = "val $rewriteRhs = $rewriteLhs.reduce(frame)"
+                assignments.add(rewrite)
+
+                val labels = getControlEntityLabels(premise)
                 if (labels.isNotEmpty()) {
                     labels.forEach { (label, obj) ->
                         if (label.value == null) {
@@ -249,12 +263,23 @@ class Rule(
                     else -> throw DetailedException("Unexpected premise: ${premise.text}")
                 }
                 addCondition(condition)
-                if (premise is TransitionPremiseWithMutableEntityContext) {
-                    val rewriteEntityLhs = rewrite(ruleDef, premise.entityLhs.value, rewriteData)
-                    val rewriteEntityRhs = rewrite(ruleDef, premise.entityRhs.value, rewriteData)
-                    val rewritten = "val $rewriteEntityRhs = $rewriteEntityLhs.reduce(frame)"
-                    assignments.add(rewritten)
-                }
+            }
+
+            is TransitionPremiseWithMutableEntityContext -> {
+                if (rhs.text == "_") return
+                val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
+                val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
+
+                val rewrite = "val $rewriteRhs = $rewriteLhs.reduce(frame)"
+                assignments.add(rewrite)
+
+                val condition = "$rewriteLhs.isReducible()"
+                addCondition(condition)
+
+                val rewriteEntityLhs = rewrite(ruleDef, premise.entityLhs.value, rewriteData)
+                val rewriteEntityRhs = rewrite(ruleDef, premise.entityRhs.value, rewriteData)
+                val rewritten = "val $rewriteEntityRhs = $rewriteEntityLhs.reduce(frame)"
+                assignments.add(rewritten)
             }
 
             is BooleanPremiseContext -> {
@@ -291,33 +316,13 @@ class Rule(
         }
     }
 
-    private fun readEntities(
-        premiseExpr: PremiseExprContext,
-        isConclusion: Boolean = false,
-    ): List<Pair<LabelContext, EntityObject>> {
-        fun labelToObject(label: LabelContext): EntityObject {
-            return if (label.name.text == "abrupt") {
-                // TODO: Edge case due to bug in CBS code for yield-on-value. Remove when fixed.
-                globalObjects["abrupted"]
-            } else {
-                getObject(label)
-            } as EntityObject
-        }
-
-        return if (!isConclusion) when (premiseExpr) {
-            is TransitionPremiseWithControlEntityContext -> {
-                val steps = premiseExpr.steps().step().sortedBy { it.sequenceNumber.text.toInt() }
-                steps.flatMap { step ->
-                    step.labels().label().map { label -> label to labelToObject(label) }
-                }
-            }
-
-            is TransitionPremiseWithMutableEntityContext -> listOf(premiseExpr.entityLhs to labelToObject(premiseExpr.entityLhs))
-            else -> emptyList()
-        } else when (premiseExpr) {
-            is TransitionPremiseWithContextualEntityContext -> listOf(premiseExpr.context_ to labelToObject(premiseExpr.context_))
-            else -> emptyList()
-        }
+    fun labelToObject(label: LabelContext): EntityObject {
+        return if (label.name.text == "abrupt") {
+            // TODO: Edge case due to bug in CBS code for yield-on-value. Remove when fixed.
+            globalObjects["abrupted"]
+        } else {
+            getObject(label)
+        } as EntityObject
     }
 
     private fun makeEntityAssignment(
@@ -326,7 +331,7 @@ class Rule(
         labelObj: EntityObject,
         rewriteData: MutableList<RewriteData>,
     ): String {
-        val valueStr = if (label.value != null) {
+        val valueStr = if (label.value != null && label.value.text != "_?") {
             "${rewrite(ruleDef, label.value, rewriteData)}.toSequence()"
         } else "SequenceNode()"
         val newEntityStr = "${labelObj.nodeName}($valueStr)"
@@ -339,28 +344,30 @@ class Rule(
         rewriteData: MutableList<RewriteData>,
         emptyPremises: Boolean = false,
     ) {
-        if (conclusion is TransitionPremiseWithContextualEntityContext) {
-            val label = conclusion.context_
-            val labelObj = getObject(label)
-            if (label.value == null) {
-                val emptyCondition = "${labelObj.asVarName}.emptyValue()"
-                rulePriority = 0
-                addCondition(emptyCondition)
-            }
-        } else {
-            val labels = readEntities(conclusion)
-            labels.forEach { (label, labelObj) ->
+        when (conclusion) {
+            is TransitionPremiseWithContextualEntityContext -> {
+                val label = conclusion.context_
+                val labelObj = getObject(label) as EntityObject
                 if (label.value == null) {
                     val emptyCondition = "${labelObj.asVarName}.emptyValue()"
                     rulePriority = 0
-                    addCondition(emptyCondition)
+                    addCondition(emptyCondition, 0)
                 }
-                try {
-                    val assignment = makeEntityAssignment(ruleDef, label, labelObj, rewriteData)
-                    assignments.addFirst(assignment)
-                } catch (e: StringNotFoundException) {
-                    entityVars.add(labelObj)
-                    rewriteData.addAll(getParamStrs(label, prefix = labelObj.asVarName))
+            }
+
+            is TransitionPremiseWithControlEntityContext -> {
+                val steps = conclusion.steps().step().sortedBy { it.sequenceNumber.text.toInt() }
+                val labels = steps.flatMap { step ->
+                    step.labels().label().map { label -> label to labelToObject(label) }
+                }
+                labels.forEach { (label, labelObj) ->
+                    try {
+                        val assignment = makeEntityAssignment(ruleDef, label, labelObj, rewriteData)
+                        assignments.addFirst(assignment)
+                    } catch (e: StringNotFoundException) {
+                        entityVars.add(labelObj)
+                        rewriteData.addAll(getParamStrs(label, prefix = labelObj.asVarName))
+                    }
                 }
             }
         }
@@ -380,12 +387,29 @@ class Rule(
         }
     }
 
-    private fun processEntities(premiseExpr: PremiseExprContext, isConclusion: Boolean = false): List<RewriteData> {
-        val labels = readEntities(premiseExpr, isConclusion)
+    private fun processEntities(
+        premiseExpr: PremiseExprContext,
+        isPremise: Boolean = true,
+        emptyPremises: Boolean = false,
+    ): List<RewriteData> {
+        val labels = when {
+            premiseExpr is TransitionPremiseWithContextualEntityContext && !isPremise && emptyPremises ->
+                listOf(premiseExpr.context_ to labelToObject(premiseExpr.context_))
+
+            premiseExpr is TransitionPremiseWithControlEntityContext && isPremise && !emptyPremises ->
+                getControlEntityLabels(premiseExpr)
+
+            premiseExpr is TransitionPremiseWithMutableEntityContext ->
+                listOf(premiseExpr.entityLhs to labelToObject(premiseExpr.entityLhs))
+
+            else -> emptyList()
+        }
 
         return labels.flatMap { (label, labelObj) ->
-            entityVars.add(labelObj)
-            getParamStrs(label, prefix = labelObj.asVarName)
+            if (label.value != null) {
+                entityVars.add(labelObj)
+                getParamStrs(label, prefix = labelObj.asVarName)
+            } else emptyList()
         }
     }
 
@@ -396,7 +420,7 @@ class Rule(
 
         // Add values for entities
         rewriteData.addAll((premises).flatMap { premise -> processEntities(premise) })
-        rewriteData.addAll(processEntities(conclusion, true))
+        rewriteData.addAll(processEntities(conclusion, false, premises.isEmpty()))
 
         // Process all intermediate values
         // TODO: Identify common intermediates, maybe outside the scope of a single Rule
@@ -413,5 +437,4 @@ class Rule(
 
         rewriteStr = rewrite(ruleDef, toRewrite, rewriteData)
     }
-
 }

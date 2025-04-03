@@ -5,7 +5,6 @@ import main.*
 import main.dataclasses.Rule
 import main.dataclasses.Type
 import main.exceptions.DetailedException
-import main.exceptions.EmptyConditionException
 import main.objects.AlgebraicDatatypeObject
 import main.objects.EntityObject
 import main.objects.Object
@@ -83,8 +82,6 @@ class FunconObject(
                         .map { it.getSortedConditions().joinToString(" && ") to it.bodyStr }
 
                     if (entityVars.isNotEmpty()) stringBuilder.appendLine(entityVars)
-
-                    if (pairs.any { pair -> pair.second.isEmpty() }) throw EmptyConditionException("Empty condition found in $name")
 
                     makeWhenStatement(pairs, elseBranch = "FailNode()")
                 }
