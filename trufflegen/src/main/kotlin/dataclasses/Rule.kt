@@ -20,6 +20,7 @@ class Rule(
     private val rewriteStr: String
     private var intermediateCounter = 0
     private val metavariableMap = metaVariables.associate { (variable, type) -> variable.text to type }
+    var rulePriority = 1
 
     val bodyStr: String
         get() = (assignments + rewriteStr).joinToString("\n")
@@ -49,7 +50,10 @@ class Rule(
         (paramStrs + rewriteData).forEach { data ->
             val (argValue, argType, paramStr) = data
 
-            if (argType == null && argValue == null) addCondition("${paramStr}.isEmpty()")
+            if (argType == null && argValue == null) {
+                rulePriority = 0
+                addCondition("${paramStr}.isEmpty()")
+            }
 
             when (argType) {
                 is SuffixExpressionContext -> if (argType.op.text == "+") {
@@ -75,7 +79,10 @@ class Rule(
 
             when (argValue) {
                 is NumberContext -> addCondition("$paramStr == ${argValue.text}")
-                is TupleExpressionContext -> addCondition("${paramStr}.isEmpty()")
+                is TupleExpressionContext -> {
+                    rulePriority = 0
+                    addCondition("${paramStr}.isEmpty()")
+                }
                 is SuffixExpressionContext -> {}
             }
         }
@@ -103,7 +110,10 @@ class Rule(
                 }
 
                 else -> when (offsetValue) {
-                    0 -> "$sequenceParamStr.isEmpty()"
+                    0 -> {
+                        rulePriority = 0
+                        "$sequenceParamStr.isEmpty()"
+                    }
                     else -> "$sequenceParamStr.size == $offsetValue"
                 }
             }

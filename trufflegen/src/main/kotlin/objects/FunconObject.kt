@@ -79,7 +79,8 @@ class FunconObject(
                     }
                     val entityVars = generateEntityVariables(ruleObjs)
 
-                    val pairs = ruleObjs.map { it.getSortedConditions().joinToString(" && ") to it.bodyStr }
+                    val pairs = ruleObjs.sortedBy { it.rulePriority }
+                        .map { it.getSortedConditions().joinToString(" && ") to it.bodyStr }
 
                     if (entityVars.isNotEmpty()) stringBuilder.appendLine(entityVars)
 
