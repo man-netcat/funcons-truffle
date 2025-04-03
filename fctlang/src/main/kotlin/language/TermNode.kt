@@ -185,4 +185,26 @@ abstract class TermNode : Node() {
                 println("newNode is null $reasonStr")
         }
     }
+
+    fun rewrite(frame: VirtualFrame) {
+        var term = this
+        try {
+            var iterationCount = 0
+            while (term.isReducible()) {
+                if (DEBUG) {
+                    println("------------------")
+                    println("Iteration $iterationCount: Current result is ${term::class.simpleName}")
+                    term.printTree()
+                }
+                //            println(rootExpr.getContext().globalVariables)
+                term = term.reduce(frame)
+                iterationCount++
+                if (iterationCount > 1000) throw InfiniteLoopException()
+            }
+        } catch (e: StuckException) {
+            println("Failed to properly reduce.")
+        } catch (e: InfiniteLoopException) {
+            println("Infinite loop detected")
+        }
+    }
 }

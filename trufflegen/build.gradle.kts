@@ -29,10 +29,7 @@ application {
 
 tasks.named<JavaExec>("run") {
     val generated = Paths.get(Vars.GENERATEDPATHSTR)
-    val backup = generated.resolveSibling("generated.bak")
 
-    if (Files.exists(backup)) backup.toFile().deleteRecursively()
-    if (Files.exists(generated)) generated.toFile().renameTo(backup.toFile())
     Files.createDirectories(generated)
 
     args = listOf(

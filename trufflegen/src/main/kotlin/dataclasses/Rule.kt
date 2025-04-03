@@ -7,7 +7,11 @@ import main.exceptions.StringNotFoundException
 import main.objects.EntityObject
 import main.objects.Object
 
-class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, returns: Type) {
+class Rule(
+    premises: List<PremiseExprContext>,
+    conclusion: PremiseExprContext,
+    metaVariables: Set<Pair<ExprContext, ExprContext>>,
+) {
     data class Condition(val expr: String, val priority: Int = 1)
 
     val conditions = mutableListOf<Condition>()
@@ -15,6 +19,7 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
     private val assignments = mutableListOf<String>()
     private val rewriteStr: String
     private var intermediateCounter = 0
+    private val metavariableMap = metaVariables.associate { (variable, type) -> variable.text to type }
 
     val bodyStr: String
         get() = (assignments + rewriteStr).joinToString("\n")
@@ -62,7 +67,10 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                     addCondition(typeCondition)
                 }
 
-                is VariableContext -> {}
+                is VariableContext -> {
+                    val typeCondition = makeTypeCondition(paramStr, metavariableMap[argType.text]!!)
+                    addCondition(typeCondition)
+                }
             }
 
             when (argValue) {
@@ -170,9 +178,34 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 }
             }
 
+            is TransitionPremiseWithContextualEntityContext -> {
+                if (rhs.text == "_") return
+                val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
+                val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
+
+
+                val label = premise.context_
+                val labelObj = getObject(label) as EntityObject
+//                if (label.value == null) {
+//                    val emptyCondition = "${labelObj.asVarName}.emptyValue()"
+//                    addCondition(emptyCondition)
+//                }
+
+                val assignment = makeEntityAssignment(ruleDef, label, labelObj, rewriteData)
+                assignments.addFirst(assignment)
+
+                val rewrite = "val $rewriteRhs = $rewriteLhs.reduce(frame)"
+                assignments.add(rewrite)
+
+                val condition = when {
+                    rhs is VariableContext -> "$rewriteLhs.isReducible()"
+                    else -> throw DetailedException("Unexpected premise: ${premise.text}")
+                }
+                addCondition(condition)
+            }
+
             is TransitionPremiseContext,
             is TransitionPremiseWithControlEntityContext,
-            is TransitionPremiseWithContextualEntityContext,
             is TransitionPremiseWithMutableEntityContext,
                 -> {
                 if (rhs.text == "_") return
@@ -185,18 +218,15 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
                 val labels = readEntities(premise)
                 if (labels.isNotEmpty()) {
                     labels.forEach { (label, obj) ->
-                        println(label.text)
                         if (label.value == null) {
-                            addCondition("${obj.asVarName}.emptyValue()")
+                            val emptyCondition = "${obj.asVarName}.emptyValue()"
+                            addCondition(emptyCondition)
                         }
                     }
                 }
 
                 val condition = when {
-                    rhs is VariableContext -> {
-                        "$rewriteLhs.isReducible()"
-                    }
-
+                    rhs is VariableContext -> "$rewriteLhs.isReducible()"
                     lhs is FunconExpressionContext -> {
                         // In the case of `atomic(X') --yielded( )->2 X''`
                         val lhsFuncon = getObject(lhs)
@@ -272,17 +302,26 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
         }
     }
 
+    private fun makeEntityAssignment(
+        ruleDef: ExprContext,
+        label: LabelContext,
+        labelObj: EntityObject,
+        rewriteData: MutableList<RewriteData>,
+    ): String {
+        val valueStr = if (label.value != null) {
+            "${rewrite(ruleDef, label.value, rewriteData)}.toSequence()"
+        } else "SequenceNode()"
+        val newEntityStr = "${labelObj.nodeName}($valueStr)"
+        return labelObj.putStr(newEntityStr)
+    }
+
     private fun processConclusion(
         ruleDef: ExprContext, conclusion: PremiseExprContext, rewriteData: MutableList<RewriteData>,
     ) {
         val labels = readEntities(conclusion)
         labels.forEach { (label, labelObj) ->
             try {
-                val valueStr = if (label.value != null) {
-                    "${rewrite(ruleDef, label.value, rewriteData)}.toSequence()"
-                } else "SequenceNode()"
-                val newEntityStr = "${labelObj.nodeName}($valueStr)"
-                val assignment = labelObj.putStr(newEntityStr)
+                val assignment = makeEntityAssignment(ruleDef, label, labelObj, rewriteData)
                 assignments.addFirst(assignment)
             } catch (e: StringNotFoundException) {
                 entityVars.add(labelObj)
@@ -316,13 +355,11 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
     init {
         val (ruleDef, toRewrite) = extractLhsRhs(conclusion)
-        println("ruleDef: ${ruleDef.text}, toRewrite: ${toRewrite.text}")
 
         val rewriteData = mutableListOf<RewriteData>()
 
         // Add values for entities
         rewriteData.addAll((premises).flatMap { premise -> processEntities(premise) })
-//            rewriteData.addAll(processEntities(conclusion))
 
         // Process all intermediate values
         // TODO: Identify common intermediates, maybe outside the scope of a single Rule
@@ -339,4 +376,5 @@ class Rule(premises: List<PremiseExprContext>, conclusion: PremiseExprContext, r
 
         rewriteStr = rewrite(ruleDef, toRewrite, rewriteData)
     }
+
 }

@@ -75,7 +75,7 @@ class FunconObject(
                 rewritesTo != null -> rewrite(ctx, rewritesTo)
                 rules.isNotEmpty() -> {
                     val ruleObjs = rules.map { rule ->
-                        Rule(rule.premises()?.premiseExpr()?.toList() ?: emptyList(), rule.conclusion, returns)
+                        Rule(rule.premises()?.premiseExpr()?.toList() ?: emptyList(), rule.conclusion, metaVariables)
                     }
                     val entityVars = generateEntityVariables(ruleObjs)
 
