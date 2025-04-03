@@ -102,7 +102,7 @@ class IntegerAddNode(@Child override var p0: SequenceNode = SequenceNode()) : Te
     override val eager = listOf(0)
     override fun reduceRules(frame: VirtualFrame): TermNode {
         // TODO Check type
-        val sum = p0.elements.fold(0) { acc, node -> node.value as Int }
+        val sum = p0.elements.fold(0) { acc, node -> acc + (node.value as Int) }
         val new = IntegerNode(sum)
         return replace(new)
     }

@@ -83,6 +83,7 @@ class Rule(
                     rulePriority = 0
                     addCondition("${paramStr}.isEmpty()")
                 }
+
                 is SuffixExpressionContext -> {}
             }
         }
@@ -114,6 +115,7 @@ class Rule(
                         rulePriority = 0
                         "$sequenceParamStr.isEmpty()"
                     }
+
                     else -> "$sequenceParamStr.size == $offsetValue"
                 }
             }
@@ -229,6 +231,7 @@ class Rule(
                 if (labels.isNotEmpty()) {
                     labels.forEach { (label, obj) ->
                         if (label.value == null) {
+                            rulePriority = 0
                             val emptyCondition = "${obj.asVarName}.emptyValue()"
                             addCondition(emptyCondition)
                         }
@@ -288,7 +291,10 @@ class Rule(
         }
     }
 
-    private fun readEntities(premiseExpr: PremiseExprContext): List<Pair<LabelContext, EntityObject>> {
+    private fun readEntities(
+        premiseExpr: PremiseExprContext,
+        isConclusion: Boolean = false,
+    ): List<Pair<LabelContext, EntityObject>> {
         fun labelToObject(label: LabelContext): EntityObject {
             return if (label.name.text == "abrupt") {
                 // TODO: Edge case due to bug in CBS code for yield-on-value. Remove when fixed.
@@ -298,7 +304,7 @@ class Rule(
             } as EntityObject
         }
 
-        return when (premiseExpr) {
+        return if (!isConclusion) when (premiseExpr) {
             is TransitionPremiseWithControlEntityContext -> {
                 val steps = premiseExpr.steps().step().sortedBy { it.sequenceNumber.text.toInt() }
                 steps.flatMap { step ->
@@ -307,6 +313,8 @@ class Rule(
             }
 
             is TransitionPremiseWithMutableEntityContext -> listOf(premiseExpr.entityLhs to labelToObject(premiseExpr.entityLhs))
+            else -> emptyList()
+        } else when (premiseExpr) {
             is TransitionPremiseWithContextualEntityContext -> listOf(premiseExpr.context_ to labelToObject(premiseExpr.context_))
             else -> emptyList()
         }
@@ -326,16 +334,34 @@ class Rule(
     }
 
     private fun processConclusion(
-        ruleDef: ExprContext, conclusion: PremiseExprContext, rewriteData: MutableList<RewriteData>,
+        ruleDef: ExprContext,
+        conclusion: PremiseExprContext,
+        rewriteData: MutableList<RewriteData>,
+        emptyPremises: Boolean = false,
     ) {
-        val labels = readEntities(conclusion)
-        labels.forEach { (label, labelObj) ->
-            try {
-                val assignment = makeEntityAssignment(ruleDef, label, labelObj, rewriteData)
-                assignments.addFirst(assignment)
-            } catch (e: StringNotFoundException) {
-                entityVars.add(labelObj)
-                rewriteData.addAll(getParamStrs(label, prefix = labelObj.asVarName))
+        if (conclusion is TransitionPremiseWithContextualEntityContext) {
+            val label = conclusion.context_
+            val labelObj = getObject(label)
+            if (label.value == null) {
+                val emptyCondition = "${labelObj.asVarName}.emptyValue()"
+                rulePriority = 0
+                addCondition(emptyCondition)
+            }
+        } else {
+            val labels = readEntities(conclusion)
+            labels.forEach { (label, labelObj) ->
+                if (label.value == null) {
+                    val emptyCondition = "${labelObj.asVarName}.emptyValue()"
+                    rulePriority = 0
+                    addCondition(emptyCondition)
+                }
+                try {
+                    val assignment = makeEntityAssignment(ruleDef, label, labelObj, rewriteData)
+                    assignments.addFirst(assignment)
+                } catch (e: StringNotFoundException) {
+                    entityVars.add(labelObj)
+                    rewriteData.addAll(getParamStrs(label, prefix = labelObj.asVarName))
+                }
             }
         }
     }
@@ -354,8 +380,8 @@ class Rule(
         }
     }
 
-    private fun processEntities(premiseExpr: PremiseExprContext): List<RewriteData> {
-        val labels = readEntities(premiseExpr)
+    private fun processEntities(premiseExpr: PremiseExprContext, isConclusion: Boolean = false): List<RewriteData> {
+        val labels = readEntities(premiseExpr, isConclusion)
 
         return labels.flatMap { (label, labelObj) ->
             entityVars.add(labelObj)
@@ -370,6 +396,7 @@ class Rule(
 
         // Add values for entities
         rewriteData.addAll((premises).flatMap { premise -> processEntities(premise) })
+        rewriteData.addAll(processEntities(conclusion, true))
 
         // Process all intermediate values
         // TODO: Identify common intermediates, maybe outside the scope of a single Rule
