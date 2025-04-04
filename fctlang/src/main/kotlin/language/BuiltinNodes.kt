@@ -25,7 +25,7 @@ open class CharactersNode : GroundValuesNode(), CharactersInterface
 
 open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
 
-open class MapsNode(var tp0: TermNode, var tp1: TermNode) : ValuesNode(), MapsInterface
+open class MapsNode(var tp0: TermNode, var tp1: TermNode) : ValueTypesNode(), MapsInterface
 
 final class EmptyTypeNode : ValueTypesNode(), EmptyTypeInterface
 

@@ -414,7 +414,7 @@ fun makeArgList(args: ArgsContext): List<ExprContext> {
 
 fun partitionArgs(args: List<ExprContext?>): Pair<List<ExprContext>, List<ExprContext>> {
     return args.filterNotNull().partition { arg ->
-        arg is SuffixExpressionContext || (arg is TypeExpressionContext && arg.value is SuffixExpressionContext)
+        arg is SuffixExpressionContext || (arg is TypeExpressionContext && arg.value is SuffixExpressionContext) || arg is TupleExpressionContext
     }
 }
 

@@ -128,6 +128,8 @@ abstract class TermNode : Node() {
             is NaturalNumbersNode -> this is NaturalNumberNode || (this is IntegerNode && value >= 0)
             is IntegersNode -> this is NaturalNumberNode || this is IntegerNode
             is BooleansNode -> this is FalseNode || this is TrueNode
+            is MapsNode -> this is ValueMapNode
+            is ListsNode -> this is ValueListNode
             else -> type::class.isInstance(this)
         }
     }

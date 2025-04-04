@@ -79,11 +79,6 @@ class Rule(
 
             when (argValue) {
                 is NumberContext -> addCondition("$paramStr == ${argValue.text}")
-                is TupleExpressionContext -> {
-                    rulePriority = 0
-                    addCondition("${paramStr}.isEmpty()")
-                }
-
                 is SuffixExpressionContext -> {}
             }
         }
@@ -96,6 +91,7 @@ class Rule(
                     return when (arg) {
                         is TypeExpressionContext -> processArg(arg.value)
                         is SuffixExpressionContext -> if (arg.op.text == "+") 1 else 0
+                        is TupleExpressionContext -> 0
                         else -> 1
                     }
                 }
@@ -106,8 +102,16 @@ class Rule(
             val offsetValue = sumVarargMin + nonSequenceArgs.size - (obj.params.size - 1)
             val condition = when {
                 sequenceArgs.isNotEmpty() -> when (offsetValue) {
-                    1 -> "$sequenceParamStr.isNotEmpty()"
-                    else -> "$sequenceParamStr.size >= $offsetValue"
+                    1 -> {
+                        rulePriority = 2
+                        "$sequenceParamStr.isNotEmpty()"
+                    }
+
+                    else -> if (sequenceArgs[0] is TupleExpressionContext) {
+                        "$sequenceParamStr.isEmpty()"
+                    } else {
+                        "$sequenceParamStr.size >= $offsetValue"
+                    }
                 }
 
                 else -> when (offsetValue) {
@@ -420,7 +424,16 @@ class Rule(
 
         // Add values for entities
         rewriteData.addAll((premises).flatMap { premise -> processEntities(premise) })
-        rewriteData.addAll(processEntities(conclusion, false, premises.isEmpty()))
+        fun isTransitionPremise(premiseExpr: PremiseExprContext): Boolean = when (premiseExpr) {
+            is TransitionPremiseContext,
+            is TransitionPremiseWithMutableEntityContext,
+            is TransitionPremiseWithControlEntityContext,
+            is TransitionPremiseWithContextualEntityContext,
+                -> true
+
+            else -> false
+        }
+        rewriteData.addAll(processEntities(conclusion, false, !premises.any(::isTransitionPremise)))
 
         // Process all intermediate values
         // TODO: Identify common intermediates, maybe outside the scope of a single Rule

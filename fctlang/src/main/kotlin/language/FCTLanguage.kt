@@ -168,6 +168,11 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
                 }
             }
 
+            is SequenceExpressionContext -> {
+                val elements = parseTree.sequenceExpr()?.expr()?.map { buildTree(it) } ?: emptyList()
+                FCTNodeFactory.createNode("sequence", elements)
+            }
+
             else -> throw IllegalArgumentException("Unsupported expression type: ${parseTree::class.simpleName}: ${parseTree.text}")
         }
     }
