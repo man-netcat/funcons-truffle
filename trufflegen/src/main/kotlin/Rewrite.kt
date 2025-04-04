@@ -101,8 +101,7 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
 
         // Utility function to build parameter string based on provided condition
         fun buildParamString(paramIndex: Int, suffix: String = ""): String {
-            val prefix = if (parentStr.isEmpty()) "l" else "p"
-            return listOf(parentStr, "$prefix$paramIndex").filterNot { it.isEmpty() }.joinToString(".") + suffix
+            return listOf(parentStr, "get($paramIndex)").filterNot { it.isEmpty() }.joinToString(".") + suffix
         }
 
         return when {
@@ -126,10 +125,7 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
                 } else {
                     when (sequenceRelativeIndex) {
                         0 -> "$base.head"
-                        1 -> "$base.second"
-                        2 -> "$base.third"
-                        3 -> "$base.fourth"
-                        else -> throw IndexOutOfBoundsException("sequenceRelativeIndex $sequenceRelativeIndex out of bounds.")
+                        else -> "$base.get($sequenceRelativeIndex)"
                     }
                 }
             }
@@ -159,7 +155,7 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
                     listOf(RewriteData(null, arg, newStr)) + funconArgs.ifEmpty {
                         val funconObject = getObject(arg)
                         if (funconObject.params.isNotEmpty()) {
-                            listOf(RewriteData(null, null, "$newStr.p0"))
+                            listOf(RewriteData(null, null, "$newStr.get(0)"))
                         } else listOf()
                     }
                 }

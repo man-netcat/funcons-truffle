@@ -18,14 +18,15 @@ abstract class TermNode : Node() {
     val primaryConstructor = this::class.primaryConstructor!!
     val memberProperties = this::class.memberProperties
     val members = this::class.members
-    val params: List<TermNode>
-        get() {
-            return primaryConstructor.parameters.mapNotNull { param ->
-                memberProperties.first { it.name == param.name }.getter.call(this) as? TermNode
-            }
+
+    // Pre-generate the list of params during initialization
+    private val params: List<TermNode> by lazy {
+        primaryConstructor.parameters.mapNotNull { param ->
+            memberProperties.first { it.name == param.name }.getter.call(this) as? TermNode
         }
-    val nonLazyParams: List<TermNode>
-        get() = eager.map { index -> params[index] }
+    }
+
+    val nonLazyParams: List<TermNode> by lazy { eager.map { index -> params[index] } }
 
     open val value: Any
         get() = when (this) {
@@ -209,4 +210,16 @@ abstract class TermNode : Node() {
             println("Infinite loop detected")
         }
     }
+
+    open operator fun get(index: Int): TermNode = params[index]
+
+    open val head: TermNode get() = abort("not a sequence")
+    open val second: TermNode get() = abort("not a sequence")
+    open val third: TermNode get() = abort("not a sequence")
+    open val fourth: TermNode get() = abort("not a sequence")
+    open val tail: SequenceNode get() = abort("not a sequence")
+    open val size: Int get() = abort("not a sequence")
+    open fun isEmpty(): Boolean = abort("not a sequence")
+    open fun isNotEmpty(): Boolean = abort("not a sequence")
+    open fun sliceFrom(startIndex: Int, endIndexOffset: Int = 0): SequenceNode = abort("not a sequence")
 }

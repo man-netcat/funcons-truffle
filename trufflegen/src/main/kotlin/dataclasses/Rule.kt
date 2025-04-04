@@ -98,7 +98,7 @@ class Rule(
                 processArg(arg)
             }
 
-            val sequenceParamStr = "l${obj.sequenceIndex}"
+            val sequenceParamStr = "get(${obj.sequenceIndex})"
             val offsetValue = sumVarargMin + nonSequenceArgs.size - (obj.params.size - 1)
             val condition = when {
                 sequenceArgs.isNotEmpty() -> when (offsetValue) {

@@ -3,7 +3,6 @@ package objects
 import cbs.CBSParser.*
 import main.*
 import main.dataclasses.Rule
-import main.dataclasses.Type
 import main.exceptions.DetailedException
 import main.objects.AlgebraicDatatypeObject
 import main.objects.EntityObject
@@ -35,33 +34,10 @@ abstract class AbstractFunconObject(ctx: ParseTree) : Object(ctx) {
                 appendLine(makeVariable(entityObj.asVarName, entityObj.getStr()))
             }
         }
-
-    protected fun generateLocalVariables(metaVariables: Set<Pair<ExprContext, ExprContext>>): String {
-        val metaVariableMap =
-            metaVariables.associate { (varName, typeName) -> varName.text to Type(typeName).rewrite() }
-        // TODO: Give local variables a direct cast to remove need for checking in conditional statements
-        return params.joinToString("\n") { param ->
-            val typeRewrite = param.type.rewrite()
-//            val typeCast = if (typeRewrite in metaVariableMap.keys) {
-//                metaVariableMap[typeRewrite]!!
-//            } else typeRewrite
-            val valueStr = "p${param.index}"
-//            + if (!param.type.isSequence) {
-//                " as $typeCast"
-//            } else ""
-
-            makeVariable(
-                "l${param.index}",
-                value = valueStr,
-//                type = if (!param.type.isSequence) typeCast else ""
-            )
-        }
-    }
 }
 
 class FunconObject(
     ctx: FunconDefinitionContext,
-    val returns: Type,
     val rules: List<RuleDefinitionContext> = emptyList(),
     val rewritesTo: ExprContext? = null,
     val metaVariables: Set<Pair<ExprContext, ExprContext>>,
@@ -90,9 +66,6 @@ class FunconObject(
             }
 
             val newVar = makeVariable("new", new)
-            val localVariables = generateLocalVariables(metaVariables)
-
-            if (localVariables.isNotEmpty()) stringBuilder.appendLine(localVariables)
             stringBuilder.appendLine(newVar)
             stringBuilder.appendLine(returnStr)
             return makeReduceFunction(stringBuilder.toString(), TERMNODE)
@@ -104,7 +77,6 @@ class FunconObject(
 class DatatypeFunconObject(
     ctx: FunconExpressionContext,
     private val superclass: AlgebraicDatatypeObject,
-    val metaVariables: Set<Pair<ExprContext, ExprContext>>,
 ) : AbstractFunconObject(ctx) {
     override val superClassStr: String get() = makeFunCall(if (reducibleIndices.isEmpty()) superclass.nodeName else TERMNODE)
     override val keyWords: List<String> = emptyList()
@@ -112,12 +84,10 @@ class DatatypeFunconObject(
     override val contentStr: String
         get() {
             return if (reducibleIndices.isNotEmpty()) {
-                val new = "Value$nodeName(${params.joinToString { param -> "l${param.index}" }})"
-                val localVariables = generateLocalVariables(metaVariables)
+                val new = "Value$nodeName(${params.joinToString { param -> "p${param.index}" }})"
                 val newVar = makeVariable("new", new)
 
                 val reduceBuilder = StringBuilder()
-                if (localVariables.isNotEmpty()) reduceBuilder.appendLine(localVariables)
                 reduceBuilder.appendLine(newVar)
                 reduceBuilder.appendLine(returnStr)
                 makeReduceFunction(reduceBuilder.toString(), TERMNODE)

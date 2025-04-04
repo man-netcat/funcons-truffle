@@ -10,20 +10,12 @@ class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
         }.toTypedArray()
     }
 
-    val size: Int get() = elements.size
+    override val size: Int by lazy { elements.size }
 
-    fun isEmpty(): Boolean = elements.isEmpty()
-    fun isNotEmpty(): Boolean = elements.isNotEmpty()
+    override fun isEmpty(): Boolean = elements.isEmpty()
+    override fun isNotEmpty(): Boolean = elements.isNotEmpty()
 
-    operator fun get(index: Int): TermNode {
-        return try {
-            elements[index]
-        } catch (e: ArrayIndexOutOfBoundsException) {
-            NullValueNode()
-        }
-    }
-
-    fun sliceFrom(startIndex: Int, endIndexOffset: Int = 0): SequenceNode {
+    override fun sliceFrom(startIndex: Int, endIndexOffset: Int): SequenceNode {
         val endIndex = size - endIndexOffset
         require(endIndexOffset >= 0 && endIndex <= size && startIndex <= endIndex) {
             "Invalid end index offset."
@@ -33,11 +25,11 @@ class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
         return SequenceNode(*sliced)
     }
 
-    val head: TermNode = get(0)
-    val second: TermNode = get(1)
-    val third: TermNode = get(2)
-    val fourth: TermNode = get(3)
-    val tail: SequenceNode get() = sliceFrom(1)
+    override val head: TermNode by lazy { get(0) }
+    override val second: TermNode by lazy { get(1) }
+    override val third: TermNode by lazy { get(2) }
+    override val fourth: TermNode by lazy { get(3) }
+    override val tail: SequenceNode by lazy { sliceFrom(1) }
 
     fun random(): TermNode {
         require(elements.isNotEmpty())
@@ -76,13 +68,20 @@ class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
         return SequenceNode(*newElements.toTypedArray())
     }
 
-    override val value: Any
-        get() = elements.joinToString { it.value.toString() }
+    override val value: Any by lazy { elements.joinToString { it.value.toString() } }
 
     fun popFirst(): TermNode {
         if (elements.isEmpty()) return NullValueNode()
         val firstElement = elements[0]
         elements = elements.sliceArray(1 until elements.size)
         return firstElement
+    }
+
+    override operator fun get(index: Int): TermNode {
+        return try {
+            elements[index]
+        } catch (e: ArrayIndexOutOfBoundsException) {
+            NullValueNode()
+        }
     }
 }
