@@ -7,6 +7,7 @@ import main.exceptions.DetailedException
 class TypeObject(
     ctx: TypeDefinitionContext,
 ) : Object(ctx) {
+    val operator = ctx.op?.text
     override val keyWords: List<String> = listOf("open")
     private val definitionExpr = ctx.definition
     override val superClassStr: String
@@ -40,5 +41,12 @@ class TypeObject(
                     "$nodeType(${definitions.joinToString { definition -> makeTypeDef(definition) }})"
                 }
             }
+        }
+    override val contentStr: String
+        get() = when (operator) {
+            null -> ""
+            "<:" -> makeValueTypesCompanionObject("TODO(\"Implement me!\")")
+            "~>" -> ""
+            else -> throw DetailedException("Unexpected operator: $operator")
         }
 }

@@ -52,8 +52,10 @@ fun makeFunction(
     parameters: List<String>,
     body: String,
     modifiers: List<String> = emptyList(),
+    indent: Int = 0,
 ): String {
     val result = StringBuilder()
+    val indentation = "    ".repeat(indent)
 
     if (modifiers.isNotEmpty()) {
         result.append(modifiers.joinToString(" "))
@@ -61,8 +63,10 @@ fun makeFunction(
     }
 
     result.append("fun $name(${parameters.joinToString()}): $returnType {\n")
-    result.append(makeBody(body).trimEnd())
-    result.append("\n}")
+
+    val indentedBody = body.lines().joinToString("\n") { "$indentation    $it" }
+    result.append(indentedBody.trimEnd())
+    result.append("\n$indentation}")
 
     return result.toString()
 }
@@ -245,14 +249,12 @@ fun makeCompanionObject(
     return result.toString()
 }
 
-fun makeContainsFunction(body: String): String {
-    return makeFunction(
-        "contains", returnType = "Bool", parameters = listOf(
-            makeParam(name = "value", type = "TermNode")
-        ),
-        body = body
-    )
-}
+fun makeContainsFunction(body: String): String = makeFunction(
+    "hasElement", returnType = "Boolean", parameters = listOf(
+        makeParam(name = "value", type = "TermNode")
+    ),
+    body = body, indent = 1
+)
 
 fun makeWhenStatement(cases: List<Pair<String, String>>, elseBranch: String? = null): String {
     val result = StringBuilder("when {\n")

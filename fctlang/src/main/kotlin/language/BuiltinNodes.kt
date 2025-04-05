@@ -5,13 +5,32 @@ import generated.*
 
 open class ValueTypesNode : ValuesNode(), ValueTypesInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = this
+
+    companion object {
+        fun hasElement(value: TermNode) =
+            value::class == ValueTypesNode || value is ValueTypesNode || value::class == ValuesNode
+    }
 }
 
 open class ValuesNode : TermNode(), ValuesInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = this
+
+    companion object {
+        fun hasElement(value: TermNode) = true
+    }
 }
 
-open class GroundValuesNode : ValuesNode(), GroundValuesInterface
+open class EmptyTypeNode : ValueTypesNode(), EmptyTypeInterface {
+    companion object {
+        fun hasElement(value: TermNode) = false
+    }
+}
+
+open class GroundValuesNode : ValuesNode(), GroundValuesInterface {
+    companion object {
+        fun hasElement(value: TermNode) = value is StringNode
+    }
+}
 
 open class IntegersNode : GroundValuesNode(), IntegersInterface {
     companion object {
@@ -23,11 +42,15 @@ open class IntegersNode : GroundValuesNode(), IntegersInterface {
 
 open class CharactersNode : GroundValuesNode(), CharactersInterface
 
-open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
+open class DatatypeValuesNode : ValuesNode(), DatatypeValuesInterface
 
-open class MapsNode(var tp0: TermNode, var tp1: TermNode) : ValueTypesNode(), MapsInterface
-
-final class EmptyTypeNode : ValueTypesNode(), EmptyTypeInterface
+open class MapsNode(var tp0: TermNode, var tp1: TermNode) : ValueTypesNode(), MapsInterface {
+    companion object {
+        fun hasElement(value: TermNode): Boolean {
+            return value::class in setOf(ValueMapNode::class)
+        }
+    }
+}
 
 open class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
 

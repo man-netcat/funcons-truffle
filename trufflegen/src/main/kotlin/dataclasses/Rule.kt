@@ -4,8 +4,10 @@ import cbs.CBSParser.*
 import main.*
 import main.exceptions.DetailedException
 import main.exceptions.StringNotFoundException
+import main.objects.AlgebraicDatatypeObject
 import main.objects.EntityObject
 import main.objects.Object
+import main.objects.TypeObject
 
 class Rule(
     premises: List<PremiseExprContext>,
@@ -37,10 +39,16 @@ class Rule(
     private fun newVar() = "i${intermediateCounter++}"
 
     private fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
-        val argType = Type(typeExpr)
-        val typeStr = argType.rewrite()
-        val complementStr = if (argType.isComplement) "!" else ""
-        return "$paramStr ${complementStr}is $typeStr"
+        val (obj, isComplement) = when (typeExpr) {
+            is ComplementExpressionContext -> getObject(typeExpr.expr()) to true
+            else -> getObject(typeExpr) to false
+        }
+
+        val complementStr = if (isComplement) "!" else ""
+        return when (obj) {
+            is TypeObject, is AlgebraicDatatypeObject -> "${obj.nodeName}.hasElement($paramStr)"
+            else -> "$paramStr ${complementStr}is ${obj.nodeName}"
+        }
     }
 
     private fun argsConditions(funconExpr: FunconExpressionContext, rewriteData: MutableList<RewriteData>) {
