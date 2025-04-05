@@ -22,8 +22,6 @@ abstract class AbstractFunconObject(ctx: ParseTree) : Object(ctx) {
         )
     } else emptyList()
 
-    protected val returnStr = "return replace(new)"
-
     protected fun computeReducibles(): List<Int> =
         params.mapIndexedNotNull { index, param -> if (!param.type.computes) index else null }
 
@@ -46,11 +44,13 @@ class FunconObject(
         get() {
             val stringBuilder = StringBuilder()
 
-            val new = when {
+            val returnStr = "return " + when {
                 rewritesTo != null -> rewrite(ctx, rewritesTo)
                 rules.isNotEmpty() -> {
+                    val outerVariables = mutableMapOf<String, String>()
                     val ruleObjs = rules.map { rule ->
-                        Rule(rule.premises()?.premiseExpr()?.toList() ?: emptyList(), rule.conclusion, metaVariables)
+                        val premises = rule.premises()?.premiseExpr()?.toList() ?: emptyList()
+                        Rule(premises, rule.conclusion, metaVariables, outerVariables)
                     }
                     val entityVars = generateEntityVariables(ruleObjs)
 
@@ -59,14 +59,17 @@ class FunconObject(
 
                     if (entityVars.isNotEmpty()) stringBuilder.appendLine(entityVars)
 
+                    outerVariables.forEach { (rewrite, varName) ->
+                        val rewriteStr = makeVariable(varName, "$rewrite.rewrite(frame)")
+                        stringBuilder.appendLine(rewriteStr)
+                    }
+
                     makeWhenStatement(pairs, elseBranch = "FailNode()")
                 }
 
                 else -> throw DetailedException("Funcon $name does not have any associated rules.")
             }
 
-            val newVar = makeVariable("new", new)
-            stringBuilder.appendLine(newVar)
             stringBuilder.appendLine(returnStr)
             return makeReduceFunction(stringBuilder.toString(), TERMNODE)
         }
@@ -84,11 +87,8 @@ class DatatypeFunconObject(
     override val contentStr: String
         get() {
             return if (reducibleIndices.isNotEmpty()) {
-                val new = "Value$nodeName(${params.joinToString { param -> "p${param.index}" }})"
-                val newVar = makeVariable("new", new)
-
                 val reduceBuilder = StringBuilder()
-                reduceBuilder.appendLine(newVar)
+                val returnStr = "return Value$nodeName(${params.joinToString { param -> "p${param.index}" }})"
                 reduceBuilder.appendLine(returnStr)
                 makeReduceFunction(reduceBuilder.toString(), TERMNODE)
             } else ""

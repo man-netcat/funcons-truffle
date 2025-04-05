@@ -13,8 +13,14 @@ class GlobalScope {
         return existingValue != null
     }
 
-    // Rename `get` to avoid conflict with property accessors
     fun getEntity(name: String?): Entity? {
         return this.variables[name]
     }
+
+    override fun toString(): String {
+        return "{\n" + variables.map { (name, entity) -> "    $name: ${entity?.value?.value}" }
+            .joinToString("\n") + "\n}"
+    }
+
+    fun isEmpty(): Boolean = variables.isEmpty()
 }

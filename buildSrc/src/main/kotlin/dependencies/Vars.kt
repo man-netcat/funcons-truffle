@@ -9,9 +9,9 @@ object Vars {
 //        "Computations/Normal/Binding/tests/accumulate.config",
 //        "Computations/Normal/Flowing/tests/atomic.config",
 //        "Computations/Normal/Binding/tests/bind-recursively.config",
-//        "Computations/Normal/Giving/tests/fold-left.config", // Maybe correct?
 //        "Computations/Normal/Binding/tests/closed.config",
-        "Computations/Normal/Binding/tests/environments.config",
+        "Computations/Normal/Giving/tests/fold-left.config", // Maybe correct?
+//        "Computations/Normal/Binding/tests/environments.config",
         "Values/Value-Types/tests/is-in-type.config",
         "Values/Value-Types/tests/cast-to-type.config",
         "Computations/Normal/Binding/tests/bind-value.config",

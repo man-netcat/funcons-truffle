@@ -52,6 +52,15 @@ abstract class TermNode : Node() {
             }
     }
 
+    internal fun printLocalContext(frame: VirtualFrame) {
+        val context = getLocalContext(frame)
+        if (context.isNotEmpty()) {
+            val str = "{\n" + context.map { (name, entity) -> "    $name: ${entity?.value?.value}" }
+                .joinToString("\n") + "\n}"
+            println(str)
+        } else println("{}")
+    }
+
     fun getInScope(frame: VirtualFrame, key: String): Entity? {
         return getLocalContext(frame)[key]
     }
@@ -93,7 +102,7 @@ abstract class TermNode : Node() {
 
     internal open fun reduce(frame: VirtualFrame): TermNode {
         reduceComputations(frame)?.let { new -> return replace(new) }
-        return reduceRules(frame)
+        reduceRules(frame).let { new -> return replace(new) }
     }
 
     abstract fun reduceRules(frame: VirtualFrame): TermNode
@@ -160,7 +169,6 @@ abstract class TermNode : Node() {
         }
     }
 
-
     override fun equals(other: Any?): Boolean {
         if (other == null) return false
         if (this === other) return true
@@ -189,7 +197,7 @@ abstract class TermNode : Node() {
         }
     }
 
-    fun rewrite(frame: VirtualFrame) {
+    fun rewrite(frame: VirtualFrame): TermNode {
         var term = this
         try {
             var iterationCount = 0
@@ -198,8 +206,13 @@ abstract class TermNode : Node() {
                     println("------------------")
                     println("Iteration $iterationCount: Current result is ${term::class.simpleName}")
                     term.printTree()
+                    println("Global entities")
+                    if (!term.getContext().globalVariables.isEmpty()) {
+                        println(term.getContext().globalVariables)
+                    } else println("{}")
+                    println("Contextual entities")
+                    printLocalContext(frame)
                 }
-                //            println(rootExpr.getContext().globalVariables)
                 term = term.reduce(frame)
                 iterationCount++
                 if (iterationCount > 1000) throw InfiniteLoopException()
@@ -209,6 +222,7 @@ abstract class TermNode : Node() {
         } catch (e: InfiniteLoopException) {
             println("Infinite loop detected")
         }
+        return term
     }
 
     open operator fun get(index: Int): TermNode = params[index]
@@ -219,6 +233,7 @@ abstract class TermNode : Node() {
     open val fourth: TermNode get() = abort("not a sequence")
     open val tail: SequenceNode get() = abort("not a sequence")
     open val size: Int get() = abort("not a sequence")
+    open val elements: Array<out TermNode> get() = abort("not a sequence")
     open fun isEmpty(): Boolean = abort("not a sequence")
     open fun isNotEmpty(): Boolean = abort("not a sequence")
     open fun sliceFrom(startIndex: Int, endIndexOffset: Int = 0): SequenceNode = abort("not a sequence")

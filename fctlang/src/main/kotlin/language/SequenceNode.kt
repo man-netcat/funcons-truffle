@@ -3,7 +3,7 @@ package language
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.NullValueNode
 
-class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
+class SequenceNode(@Children override vararg var elements: TermNode) : TermNode() {
     init {
         elements = elements.flatMap {
             if (it is SequenceNode) it.elements.toList() else listOf(it)
@@ -81,7 +81,7 @@ class SequenceNode(@Children vararg var elements: TermNode) : TermNode() {
         return try {
             elements[index]
         } catch (e: ArrayIndexOutOfBoundsException) {
-            NullValueNode()
+            SequenceNode()
         }
     }
 }

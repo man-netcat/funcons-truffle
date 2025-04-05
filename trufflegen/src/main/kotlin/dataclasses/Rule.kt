@@ -11,6 +11,7 @@ class Rule(
     premises: List<PremiseExprContext>,
     conclusion: PremiseExprContext,
     metaVariables: Set<Pair<ExprContext, ExprContext>>,
+    val outerVariables: MutableMap<String, String>,
 ) {
     data class Condition(val expr: String, val priority: Int = 1)
 
@@ -136,23 +137,22 @@ class Rule(
 
         return when (premise) {
             is RewritePremiseContext -> {
-                if (lhs is VariableContext && rhs !is VariableContext) {
-                    val string = rewrite(ruleDef, lhs, rewriteData)
-                    getParamStrs(rhs, prefix = string)
-                } else if (rhs is VariableContext) {
-                    val string = newVar()
-                    listOf(RewriteData(rhs, null, string))
-                } else if (rhs is NestedExpressionContext) {
-                    val nestedExpr = rhs.expr()
-                    if (nestedExpr !is TypeExpressionContext) {
-                        throw DetailedException("Unexpected expression of type ${nestedExpr::class.simpleName}, ${nestedExpr.text}")
+                val rewrite = rewrite(ruleDef, lhs, rewriteData)
+                val variable = if (rewrite !in outerVariables.keys) {
+                    val newVar = newVar()
+                    outerVariables.put(rewrite, newVar)
+                    newVar
+                } else outerVariables[rewrite]!!
+                val rewriteData =
+                    if (rhs is NestedExpressionContext && rhs.expr() is TypeExpressionContext) {
+                        val typeExpr = rhs.expr() as TypeExpressionContext
+                        RewriteData(typeExpr.value, typeExpr.type, variable)
+                    } else if (rhs is TupleExpressionContext) {
+                        RewriteData(null, null, variable)
+                    } else {
+                        RewriteData(rhs, null, variable)
                     }
-                    val string = newVar()
-                    listOf(RewriteData(nestedExpr.value, nestedExpr.type, string))
-                } else if (rhs is TupleExpressionContext) {
-                    val string = newVar()
-                    listOf(RewriteData(rhs, null, string))
-                } else throw DetailedException("Unexpected expression of type ${rhs::class.simpleName}, ${rhs.text}")
+                listOf(rewriteData)
             }
 
             is TransitionPremiseContext,
@@ -191,16 +191,6 @@ class Rule(
         val (lhs, rhs) = extractLhsRhs(premise)
 
         when (premise) {
-            is RewritePremiseContext -> {
-                // TODO: Verify
-                if (lhs !is VariableContext) {
-                    val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
-                    val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
-                    val rewrite = "val $rewriteRhs = $rewriteLhs"
-                    assignments.add(rewrite)
-                }
-            }
-
             is TransitionPremiseWithContextualEntityContext -> {
                 if (rhs.text == "_") return
                 val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
@@ -210,10 +200,15 @@ class Rule(
                 val label = premise.context_
                 val labelObj = getObject(label) as EntityObject
 
-                val assignment = makeEntityAssignment(ruleDef, label, labelObj, rewriteData)
-                assignments.addFirst(assignment)
+                try {
+                    val assignment = makeEntityAssignment(ruleDef, label, labelObj, rewriteData)
+                    assignments.addFirst(assignment)
+                } catch (e: StringNotFoundException) {
+                    entityVars.add(labelObj)
+                    rewriteData.addAll(getParamStrs(label, prefix = labelObj.asVarName))
+                }
 
-                val rewrite = "val $rewriteRhs = $rewriteLhs.reduce(frame)"
+                val rewrite = makeVariable(rewriteRhs, "$rewriteLhs.reduce(frame)")
                 assignments.add(rewrite)
 
                 val condition = when {
@@ -228,7 +223,7 @@ class Rule(
                 val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
                 val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
 
-                val rewrite = "val $rewriteRhs = $rewriteLhs.reduce(frame)"
+                val rewrite = makeVariable(rewriteRhs, "$rewriteLhs.reduce(frame)")
                 assignments.add(rewrite)
 
                 val condition = "$rewriteLhs.isReducible()"
@@ -242,7 +237,7 @@ class Rule(
                 val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
                 val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
 
-                val rewrite = "val $rewriteRhs = $rewriteLhs.reduce(frame)"
+                val rewrite = makeVariable(rewriteRhs, "$rewriteLhs.reduce(frame)")
                 assignments.add(rewrite)
 
                 val labels = getControlEntityLabels(premise)
@@ -274,7 +269,7 @@ class Rule(
                 val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
                 val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
 
-                val rewrite = "val $rewriteRhs = $rewriteLhs.reduce(frame)"
+                val rewrite = makeVariable(rewriteRhs, "$rewriteLhs.reduce(frame)")
                 assignments.add(rewrite)
 
                 val condition = "$rewriteLhs.isReducible()"
@@ -282,8 +277,9 @@ class Rule(
 
                 val rewriteEntityLhs = rewrite(ruleDef, premise.entityLhs.value, rewriteData)
                 val rewriteEntityRhs = rewrite(ruleDef, premise.entityRhs.value, rewriteData)
-                val rewritten = "val $rewriteEntityRhs = $rewriteEntityLhs.reduce(frame)"
-                assignments.add(rewritten)
+                val entityRewrite = makeVariable(rewriteEntityRhs, "$rewriteEntityLhs.reduce(frame)")
+
+                assignments.add(entityRewrite)
             }
 
             is BooleanPremiseContext -> {

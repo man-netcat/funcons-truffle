@@ -52,8 +52,7 @@ abstract class DirectionalNode(@Children open vararg var p0: SequenceNode) : Ter
         }
 
         newTerms[reducibleIndex] = newTerms[reducibleIndex].reduce(frame) as SequenceNode
-        val new = createNewNode(*newTerms.toTypedArray())
-        return replace(new)
+        return createNewNode(*newTerms.toTypedArray())
     }
 }
 
@@ -74,7 +73,7 @@ class SequentialNode(
     TermNode(),
     SequentialInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val new = when {
+        return when {
             p0.size == 0 -> p1
             p0.isReducible() -> {
                 val r = p0.reduce(frame).toSequence()
@@ -84,17 +83,15 @@ class SequentialNode(
             p0.size >= 1 && p0.head is NullValueNode -> SequentialNode(p0.tail, p1)
             else -> FailNode()
         }
-        return replace(new)
     }
 }
 
 class ChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), ChoiceInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val new = when {
+        return when {
             p0.size >= 1 -> p0.random()
             else -> FailNode()
         }
-        return replace(new)
     }
 }
 
@@ -103,8 +100,7 @@ class IntegerAddNode(@Child override var p0: SequenceNode = SequenceNode()) : Te
     override fun reduceRules(frame: VirtualFrame): TermNode {
         // TODO Check type
         val sum = p0.elements.fold(0) { acc, node -> acc + (node.value as Int) }
-        val new = IntegerNode(sum)
-        return replace(new)
+        return IntegerNode(sum)
     }
 }
 
@@ -123,8 +119,7 @@ class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode(Va
 class MapNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), MapInterface {
     override val eager = listOf(0)
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val new = ValueMapNode(p0)
-        return replace(new)
+        return ValueMapNode(p0)
     }
 }
 
@@ -138,6 +133,21 @@ class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : MapsNode(Grou
             }
         }}"
 }
+
+//class MapLookupNode(@Child override var p0: TermNode, @Child override var p1: TermNode) : TermNode(),
+//    MapLookupInterface {
+//    override fun reduceRules(frame: VirtualFrame): TermNode {
+//        return when {
+//            get(0) is ValueMapNode && get(1) is GroundValuesNode -> {
+//                get(0).get(0).elements.firstOrNull { element -> element == get(1) } ?: SequenceNode()
+//            }
+//
+//            else -> FailNode()
+//        }
+//    }
+//}
+
+class IdentifiersNode() : DatatypeValuesNode(), IdentifiersInterface
 
 data class NaturalNumberNode(override val value: Int) : NaturalNumbersNode() {
     override fun equals(other: Any?): Boolean = when (other) {
@@ -182,11 +192,10 @@ class ReadNode : TermNode(), ReadInterface {
         val standardIn = getGlobal("standard-in") as? StandardInNode ?: StandardInNode()
         val stdInHead = standardIn.p0.popFirst()
 
-        val new = when (stdInHead) {
+        return when (stdInHead) {
             !is NullTypeNode -> stdInHead
             else -> FailNode()
         }
-        return replace(new)
     }
 }
 

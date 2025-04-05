@@ -19,6 +19,7 @@ abstract class Object(val ctx: ParseTree) {
                 "sequential",                           // Param after sequence
                 "some-element", "stuck", "abstraction", // No rules, implement manually
                 "read",                                 // Annoying
+                "identifiers",                          // ???
             )
         ).contains(true)
 

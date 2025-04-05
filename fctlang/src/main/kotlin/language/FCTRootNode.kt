@@ -15,9 +15,9 @@ class FCTRootNode(
     override fun execute(frame: VirtualFrame): ResultArray {
         val standardInNode = StandardInNode(SequenceNode(*inputNodes))
         rootTerm.appendGlobal("standard-in", standardInNode)
-        rootTerm.rewrite(frame)
-        val resultTerm = listOf(rootTerm.value.toString())
-        val standardOutNode = rootTerm.getGlobal("standard-out") as? StandardOutNode
+        val reduced = rootTerm.rewrite(frame)
+        val resultTerm = listOf(reduced.value.toString())
+        val standardOutNode = reduced.getGlobal("standard-out") as? StandardOutNode
         val elements = standardOutNode?.p0?.elements.orEmpty()
         val standardOutValues = elements.map { it.value.toString() }
 
