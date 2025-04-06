@@ -8,6 +8,7 @@ import main.objects.AlgebraicDatatypeObject
 import main.objects.EntityObject
 import main.objects.Object
 import main.objects.TypeObject
+import objects.DatatypeFunconObject
 
 class Rule(
     premises: List<PremiseExprContext>,
@@ -46,8 +47,11 @@ class Rule(
 
         val complementStr = if (isComplement) "!" else ""
         return when (obj) {
-            is TypeObject, is AlgebraicDatatypeObject -> "${obj.nodeName}.hasElement($paramStr)"
-            else -> "$paramStr ${complementStr}is ${obj.nodeName}"
+            is TypeObject, is AlgebraicDatatypeObject -> "${complementStr}${obj.nodeName}.hasElement($paramStr)"
+            else -> {
+                val explicitValue = if (obj is DatatypeFunconObject && obj.params.isNotEmpty()) "Value" else ""
+                "$paramStr ${complementStr}is $explicitValue${obj.nodeName}"
+            }
         }
     }
 

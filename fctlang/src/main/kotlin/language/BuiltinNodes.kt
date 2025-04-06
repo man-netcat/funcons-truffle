@@ -8,7 +8,10 @@ open class ValueTypesNode : ValuesNode(), ValueTypesInterface {
 
     companion object {
         fun hasElement(value: TermNode) =
-            value::class == ValueTypesNode || value is ValueTypesNode || value::class == ValuesNode
+            value::class in setOf(
+                ValueTypesNode::class,
+                ValuesNode::class,
+            ) || value is ValueTypesNode
     }
 }
 
@@ -26,9 +29,9 @@ open class EmptyTypeNode : ValueTypesNode(), EmptyTypeInterface {
     }
 }
 
-open class GroundValuesNode : ValuesNode(), GroundValuesInterface {
+open class GroundValuesNode : ValueTypesNode(), GroundValuesInterface {
     companion object {
-        fun hasElement(value: TermNode) = value is StringNode
+        fun hasElement(value: TermNode) = value is GroundValuesNode
     }
 }
 
@@ -42,7 +45,7 @@ open class IntegersNode : GroundValuesNode(), IntegersInterface {
 
 open class CharactersNode : GroundValuesNode(), CharactersInterface
 
-open class DatatypeValuesNode : ValuesNode(), DatatypeValuesInterface
+open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
 
 open class MapsNode(var tp0: TermNode, var tp1: TermNode) : ValueTypesNode(), MapsInterface {
     companion object {
