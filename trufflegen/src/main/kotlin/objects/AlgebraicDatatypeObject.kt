@@ -3,8 +3,8 @@ package main.objects
 import cbs.CBSParser.DatatypeDefinitionContext
 import main.exceptions.DetailedException
 import main.makeFunCall
-import main.makeValueTypesCompanionObject
-import main.toClassName
+import main.makeIsInTypeFunction
+import main.toNodeName
 import objects.DatatypeFunconObject
 
 class AlgebraicDatatypeObject(ctx: DatatypeDefinitionContext) : Object(ctx) {
@@ -13,8 +13,8 @@ class AlgebraicDatatypeObject(ctx: DatatypeDefinitionContext) : Object(ctx) {
     override val keyWords: List<String>
         get() = listOf("open")
     override val superClassStr: String
-        get() = makeFunCall(toClassName("datatype-values"))
-    override val contentStr: String
+        get() = makeFunCall(toNodeName("datatype-values"))
+    val makeElementInFunction: String
         get() = when (operator) {
             null -> "" // Likely builtin
             "::=" -> {
@@ -22,8 +22,7 @@ class AlgebraicDatatypeObject(ctx: DatatypeDefinitionContext) : Object(ctx) {
                     val explicitValue = if (def.params.isNotEmpty()) "Value" else ""
                     "$explicitValue${def.nodeName}::class"
                 }
-                val body = "return value::class in setOf($classList)"
-                makeValueTypesCompanionObject(body)
+                makeIsInTypeFunction(camelCaseName, "return this::class in setOf($classList)")
             }
 
 

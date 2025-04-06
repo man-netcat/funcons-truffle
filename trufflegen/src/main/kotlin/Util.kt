@@ -6,23 +6,19 @@ import main.exceptions.DetailedException
 import main.objects.Object
 import org.antlr.v4.runtime.tree.ParseTree
 
-fun toClassName(input: String): String {
+fun toCamelCase(input: String): String {
     return (input.split("-").joinToString("") { word ->
         word.replaceFirstChar { it.uppercase() }
-    }) + "Node"
+    })
 }
+
+fun toNodeName(input: String): String = toCamelCase(input) + "Node"
+fun toInterfaceName(input: String): String = toCamelCase(input) + "Interface"
 
 fun toVariableName(input: String): String {
     return input.split("-").mapIndexed { index, word ->
         if (index == 0) word.lowercase() else word.replaceFirstChar { it.uppercase() }
     }.joinToString("")
-}
-
-
-fun toInterfaceName(input: String): String {
-    return (input.split("-").joinToString("") { word ->
-        word.replaceFirstChar { it.uppercase() }
-    }) + "Interface"
 }
 
 fun makeBody(content: String, indentLevel: Int = 1): String {
@@ -49,7 +45,7 @@ fun makeParam(type: String, name: String, annotation: String = "", default: Stri
 fun makeFunction(
     name: String,
     returnType: String,
-    parameters: List<String>,
+    parameters: List<String> = emptyList(),
     body: String,
     modifiers: List<String> = emptyList(),
     indent: Int = 0,
@@ -71,8 +67,23 @@ fun makeFunction(
     return result.toString()
 }
 
+fun makeIsInTypeFunction(nodeName: String, body: String): String {
+    return makeFunction(
+        name = "TermNode.isIn${nodeName}",
+        returnType = "Boolean",
+        parameters = listOf(),
+        body = body,
+    )
+}
+
 fun makeReduceFunction(content: String, returns: String): String =
-    makeFunction("reduceRules", returns, listOf(makeParam("VirtualFrame", "frame", "")), content, listOf("override"))
+    makeFunction(
+        name = "reduceRules",
+        returnType = returns,
+        parameters = listOf(makeParam("VirtualFrame", "frame", "")),
+        body = content,
+        modifiers = listOf("override")
+    )
 
 fun todoReduce(name: String, returnStr: String) = makeReduceFunction("TODO(\"Implement me: $name\")", returnStr)
 

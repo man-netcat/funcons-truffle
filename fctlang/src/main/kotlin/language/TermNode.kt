@@ -129,7 +129,7 @@ abstract class TermNode : Node() {
     open fun isInType(type: TermNode): Boolean {
         if (this::class == type::class) return true
         if (type::class == ValuesNode::class) return true
-        if (type::class == NullTypeNode::class) return true
+        if (type::class == NullTypeNode::class) return false
         return when (type) {
             is UnionTypeNode -> type.types.any { this.isInType(it) }
             is IntersectionTypeNode -> type.types.all { this.isInType(it) }

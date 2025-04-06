@@ -25,8 +25,8 @@ class TypeObject(
             return when (definitions.size) {
                 0 -> {
                     val superClassName = when (name) {
-                        "abstractions" -> toClassName("values")
-                        else -> toClassName("ground-values")
+                        "abstractions" -> toNodeName("values")
+                        else -> toNodeName("ground-values")
                     }
                     emptySuperClass(superClassName)
                 }
@@ -42,10 +42,11 @@ class TypeObject(
                 }
             }
         }
-    override val contentStr: String
+
+    val makeElementInFunction: String
         get() = when (operator) {
             null -> ""
-            "<:" -> makeValueTypesCompanionObject("TODO(\"Implement me!\")")
+            "<:" -> ""
             "~>" -> ""
             else -> throw DetailedException("Unexpected operator: $operator")
         }

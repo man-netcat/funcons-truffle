@@ -18,6 +18,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 val globalObjects: MutableMap<String, Object?> = mutableMapOf()
+val globalFiles: MutableMap<String, File> = mutableMapOf()
 
 class TruffleGen(
     private val cbsDir: File,
@@ -144,6 +145,7 @@ class TruffleGen(
     }
 
     private fun generateGraphViz() {
+        // Outdated, do not use until fixed
         println("Generating Graphviz for dependencies...")
         val sb = StringBuilder("digraph G {\n")
         for (obj in generatedDependencies) {
@@ -203,7 +205,7 @@ class TruffleGen(
                 obj!!.aliases
                     .asSequence()
                     .filterNot { alias -> alias == obj.name }
-                    .map { alias -> makeTypeAlias(toClassName(alias), toClassName(obj.name)) }
+                    .map { alias -> makeTypeAlias(toNodeName(alias), toNodeName(obj.name)) }
             }
             .joinToString("\n")
             .let(stringBuilder::appendLine)

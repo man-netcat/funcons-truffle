@@ -5,55 +5,38 @@ import generated.*
 
 open class ValueTypesNode : ValuesNode(), ValueTypesInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = this
-
-    companion object {
-        fun hasElement(value: TermNode) =
-            value::class in setOf(
-                ValueTypesNode::class,
-                ValuesNode::class,
-            ) || value is ValueTypesNode
-    }
 }
+
+fun TermNode.isInValueTypes(): Boolean =
+    this::class in setOf(ValueTypesNode::class, ValuesNode::class) || this is ValueTypesNode
 
 open class ValuesNode : TermNode(), ValuesInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = this
-
-    companion object {
-        fun hasElement(value: TermNode) = true
-    }
 }
 
-open class EmptyTypeNode : ValueTypesNode(), EmptyTypeInterface {
-    companion object {
-        fun hasElement(value: TermNode) = false
-    }
-}
+fun TermNode.isInValues(): Boolean = true
 
-open class GroundValuesNode : ValueTypesNode(), GroundValuesInterface {
-    companion object {
-        fun hasElement(value: TermNode) = value is GroundValuesNode
-    }
-}
+open class EmptyTypeNode : ValueTypesNode(), EmptyTypeInterface
 
-open class IntegersNode : GroundValuesNode(), IntegersInterface {
-    companion object {
-        fun contains(value: TermNode): Boolean {
-            return value is IntegerNode
-        }
-    }
-}
+fun TermNode.isInEmptyType(): Boolean = false
+
+open class GroundValuesNode : ValueTypesNode(), GroundValuesInterface
+
+fun TermNode.isInGroundValues(): Boolean = this is GroundValuesNode
+
+open class IntegersNode : GroundValuesNode(), IntegersInterface
+
+fun TermNode.isInIntegers(): Boolean = this is IntegersNode
 
 open class CharactersNode : GroundValuesNode(), CharactersInterface
 
 open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
 
-open class MapsNode(var tp0: TermNode, var tp1: TermNode) : ValueTypesNode(), MapsInterface {
-    companion object {
-        fun hasElement(value: TermNode): Boolean {
-            return value::class in setOf(ValueMapNode::class)
-        }
-    }
-}
+fun TermNode.isInDatatypeValues(): Boolean = this is DatatypeValuesNode
+
+open class MapsNode(var tp0: TermNode, var tp1: TermNode) : ValueTypesNode(), MapsInterface
+
+fun TermNode.isInMaps(): Boolean = this is ValueMapNode
 
 open class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
 

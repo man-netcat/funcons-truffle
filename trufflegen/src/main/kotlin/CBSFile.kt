@@ -136,9 +136,14 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
         toProcess.forEach { obj ->
             println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $fileName)")
 //            try {
-                val code = obj.makeCode()
+            val code = obj.makeCode()
+            stringBuilder.appendLine()
+            stringBuilder.appendLine(code)
+            if (obj is AlgebraicDatatypeObject && obj.makeElementInFunction.isNotEmpty()) {
                 stringBuilder.appendLine()
-                stringBuilder.appendLine(code)
+                stringBuilder.appendLine(obj.makeElementInFunction)
+            }
+
 //            } catch (e: StringNotFoundException) {
 //                println(e)
 //            } catch (e: EmptyConditionException) {

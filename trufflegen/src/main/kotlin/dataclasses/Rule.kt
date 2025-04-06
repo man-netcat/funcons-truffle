@@ -47,7 +47,7 @@ class Rule(
 
         val complementStr = if (isComplement) "!" else ""
         return when (obj) {
-            is TypeObject, is AlgebraicDatatypeObject -> "${complementStr}${obj.nodeName}.hasElement($paramStr)"
+            is TypeObject, is AlgebraicDatatypeObject -> "${complementStr}$paramStr.isIn${obj.camelCaseName}()"
             else -> {
                 val explicitValue = if (obj is DatatypeFunconObject && obj.params.isNotEmpty()) "Value" else ""
                 "$paramStr ${complementStr}is $explicitValue${obj.nodeName}"

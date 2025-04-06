@@ -76,9 +76,10 @@ abstract class Object(val ctx: ParseTree) {
             }
         }
 
-    val nodeName get() = toClassName(name)
-    val asVarName get() = toVariableName(name)
-    val interfaceName get() = toInterfaceName(name)
+    val camelCaseName = toCamelCase(name)
+    val nodeName = toNodeName(name)
+    val interfaceName = toInterfaceName(name)
+    val asVarName = toVariableName(name)
 
     fun makeCode(): String {
         return if (!skipCriteria) makeClass(
