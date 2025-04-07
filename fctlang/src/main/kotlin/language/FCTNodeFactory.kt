@@ -1,5 +1,7 @@
 package language
 
+import builtin.SequenceNode
+import builtin.TermNode
 import generated.aliasMap
 import language.Util.DEBUG
 import java.lang.reflect.Array
@@ -10,11 +12,12 @@ import kotlin.reflect.KParameter
 object FCTNodeFactory {
     private const val GENERATED = "generated"
     private const val INTERPRETER = "language"
+    private const val BUILTIN = "builtin"
 
     fun createNode(funconName: String, args: List<Any>): TermNode {
         val resolvedName = aliasMap[funconName] ?: funconName
 
-        val classNames = sequenceOf(GENERATED, INTERPRETER)
+        val classNames = sequenceOf(GENERATED, INTERPRETER, BUILTIN)
             .map { packageName -> toClassName(resolvedName, packageName) }
 
         val clazz = classNames

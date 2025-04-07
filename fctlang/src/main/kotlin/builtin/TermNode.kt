@@ -1,8 +1,9 @@
-package language
+package builtin
 
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
 import generated.*
+import language.*
 import language.Util.DEBUG
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
@@ -38,11 +39,11 @@ abstract class TermNode : Node() {
         }
 
     private fun getLanguage(): FCTLanguage {
-        return FCTLanguage.get(this)
+        return FCTLanguage.Companion.get(this)
     }
 
     private fun getContext(): FCTContext {
-        return FCTContext.get(this)!!
+        return FCTContext.Companion.get(this)!!
     }
 
     private fun getLocalContext(frame: VirtualFrame): MutableMap<String, Entity?> {
@@ -210,8 +211,6 @@ abstract class TermNode : Node() {
                     if (!term.getContext().globalVariables.isEmpty()) {
                         println(term.getContext().globalVariables)
                     } else println("{}")
-                    println("Contextual entities")
-                    printLocalContext(frame)
                 }
                 term = term.reduce(frame)
                 iterationCount++

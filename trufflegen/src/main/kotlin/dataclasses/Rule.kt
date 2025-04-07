@@ -46,8 +46,10 @@ class Rule(
         }
 
         val complementStr = if (isComplement) "!" else ""
-        return when (obj) {
-            is TypeObject, is AlgebraicDatatypeObject -> "${complementStr}$paramStr.isIn${obj.camelCaseName}()"
+        return when {
+            obj is AlgebraicDatatypeObject || (obj is TypeObject && obj.operator != "~>")
+                -> "${complementStr}$paramStr.isIn${obj.camelCaseName}()"
+
             else -> {
                 val explicitValue = if (obj is DatatypeFunconObject && obj.params.isNotEmpty()) "Value" else ""
                 "$paramStr ${complementStr}is $explicitValue${obj.nodeName}"
@@ -254,12 +256,17 @@ class Rule(
 
                 val labels = getControlEntityLabels(premise)
                 if (labels.isNotEmpty()) {
-                    labels.forEach { (label, obj) ->
+                    labels.forEach { (label, labelObj) ->
                         if (label.value == null) {
-                            rulePriority = 0
-                            val emptyCondition = "${obj.asVarName}.emptyValue()"
+                            val emptyCondition = "${labelObj.asVarName}.emptyValue()"
                             addCondition(emptyCondition)
+                            rulePriority = 0
+                        } else {
+                            val emptyCondition = "${labelObj.asVarName}.hasValue()"
+                            addCondition(emptyCondition, 0)
+                            rulePriority = 2
                         }
+                        entityVars.add(labelObj)
                     }
                 }
 
@@ -283,6 +290,19 @@ class Rule(
 
                 val rewrite = makeVariable(rewriteRhs, "$rewriteLhs.reduce(frame)")
                 assignments.add(rewrite)
+
+                val label = premise.entityRhs
+                val labelObj = getObject(label)
+                if (label.value == null) {
+                    val emptyCondition = "${labelObj.asVarName}.emptyValue()"
+                    addCondition(emptyCondition)
+                    rulePriority = 0
+                } else {
+                    val emptyCondition = "${labelObj.asVarName}.hasValue()"
+                    addCondition(emptyCondition, 0)
+                    rulePriority = 2
+                }
+                entityVars.add(labelObj)
 
                 val condition = "$rewriteLhs.isReducible()"
                 addCondition(condition)
@@ -365,6 +385,7 @@ class Rule(
                     rulePriority = 0
                     addCondition(emptyCondition, 0)
                 }
+                entityVars.add(labelObj)
             }
 
             is TransitionPremiseWithControlEntityContext -> {
@@ -380,6 +401,33 @@ class Rule(
                         entityVars.add(labelObj)
                         rewriteData.addAll(getParamStrs(label, prefix = labelObj.asVarName))
                     }
+                }
+            }
+
+            is TransitionPremiseWithMutableEntityContext -> {
+                val label = conclusion.entityLhs
+                val labelObj = getObject(label) as EntityObject
+                if (label.value == null) {
+                    val emptyCondition = "${labelObj.asVarName}.emptyValue()"
+                    rulePriority = 0
+                    addCondition(emptyCondition, 0)
+                } else if (label.value.text == "_") {
+                    val emptyCondition = "${labelObj.asVarName}.hasValue() || ${labelObj.asVarName}.emptyValue()"
+                    rulePriority = 1
+                    addCondition(emptyCondition, 0)
+                } else {
+                    val emptyCondition = "${labelObj.asVarName}.hasValue()"
+                    rulePriority = 2
+                    addCondition(emptyCondition, 0)
+                }
+                entityVars.add(labelObj)
+
+                try {
+                    val assignment = makeEntityAssignment(ruleDef, label, labelObj, rewriteData)
+                    assignments.addFirst(assignment)
+                } catch (e: StringNotFoundException) {
+                    entityVars.add(labelObj)
+                    rewriteData.addAll(getParamStrs(label, prefix = labelObj.asVarName))
                 }
             }
         }

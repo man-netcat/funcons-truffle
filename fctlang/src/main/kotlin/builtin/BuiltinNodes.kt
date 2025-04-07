@@ -1,6 +1,7 @@
-package language
+package builtin
 
 import com.oracle.truffle.api.frame.VirtualFrame
+import com.oracle.truffle.api.nodes.Node
 import generated.*
 
 open class ValueTypesNode : ValuesNode(), ValueTypesInterface {
@@ -41,7 +42,7 @@ fun TermNode.isInMaps(): Boolean = this is ValueMapNode
 open class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
 
 class ComputationTypesNode() : ValueTypesNode(), ComputationTypesInterface
-class AbstractionNode(@Child override var p0: TermNode) : AbstractionsNode(ComputationTypesNode()), AbstractionInterface
+class AbstractionNode(@Node.Child override var p0: TermNode) : AbstractionsNode(ComputationTypesNode()), AbstractionInterface
 
 class StuckNode() : TermNode(), StuckInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = abort("stuck")
@@ -113,13 +114,20 @@ class IntegerAddNode(@Child override var p0: SequenceNode = SequenceNode()) : Te
     }
 }
 
-class ValueTupleNode(@Child var p0: SequenceNode = SequenceNode()) : TuplesNode() {
+class ValueTupleNode(@Node.Child var p0: SequenceNode = SequenceNode()) : TuplesNode() {
     override val value get() = "tuple(${p0.value})"
 }
 
-class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode(ValuesNode()) {
+class ValueListNode(@Node.Child var p0: SequenceNode = SequenceNode()) : ListsNode(ValuesNode()) {
     override val value get() = "[${p0.value}]"
 }
+
+open class Identifiers : DatatypeValuesNode(), IdentifiersInterface
+
+class IdentifierTaggedNode(override val p0: TermNode, override val p1: TermNode) : Identifiers(),
+    IdentifierTaggedInterface
+
+fun TermNode.isInIdentifiers(): Boolean = this is StringNode || this is IdentifierTaggedNode
 
 //class ValueFunctionNode(@Child var p0: TermNode) : FunctionsNode(ValuesNode(), ValuesNode()) {
 //    override val value get() = "fun ${p0.value}"
@@ -143,8 +151,48 @@ class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : MapsNode(Grou
         }}"
 }
 
-//class MapLookupNode(@Child override var p0: TermNode, @Child override var p1: TermNode) : TermNode(),
-//    MapLookupInterface {
+class MapLookupNode(@Child override var p0: TermNode, @Child override var p1: TermNode) : TermNode(),
+    MapLookupInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        return when {
+            get(0) is ValueMapNode && get(1) is GroundValuesNode -> {
+                get(0).get(0).elements.firstOrNull { element -> element == get(1) } ?: SequenceNode()
+            }
+
+            else -> FailNode()
+        }
+    }
+}
+
+class MapOverrideNode(override val p0: SequenceNode) : TermNode(), MapOverrideInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        val resultMap = linkedMapOf<TermNode, TermNode>()
+
+        for (mapNode in p0.elements) {
+            mapNode as ValueMapNode
+            for (tuple in mapNode.p0.elements) {
+                tuple as ValueTupleNode
+                require(tuple.p0.size == 2) { "Invalid map entry" }
+
+                val key = tuple.p0.elements[0]
+                val value = tuple.p0.elements[1]
+
+                if (!resultMap.containsKey(key)) {
+                    resultMap[key] = value
+                }
+            }
+        }
+
+        val tuples = resultMap.entries.map { (k, v) ->
+            ValueTupleNode(SequenceNode(k, v))
+        }.toTypedArray()
+
+        return ValueMapNode(SequenceNode(*tuples))
+    }
+}
+
+
+//class MapDomainNode(@Child override var p0: TermNode) : TermNode(), MapDomainInterface {
 //    override fun reduceRules(frame: VirtualFrame): TermNode {
 //        return when {
 //            get(0) is ValueMapNode && get(1) is GroundValuesNode -> {
@@ -205,6 +253,14 @@ class ReadNode : TermNode(), ReadInterface {
             !is NullTypeNode -> stdInHead
             else -> FailNode()
         }
+    }
+}
+
+open class AtomsNode : ValueTypesNode(), AtomsInterface
+
+class InitialiseGeneratingNode(override val p0: TermNode) : TermNode(), InitialiseGeneratingInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        return p0
     }
 }
 

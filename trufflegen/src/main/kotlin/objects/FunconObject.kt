@@ -79,7 +79,7 @@ class FunconObject(
 
 class DatatypeFunconObject(
     ctx: FunconExpressionContext,
-    private val superclass: AlgebraicDatatypeObject,
+    internal val superclass: AlgebraicDatatypeObject,
 ) : AbstractFunconObject(ctx) {
     override val superClassStr: String get() = makeFunCall(if (reducibleIndices.isEmpty()) superclass.nodeName else TERMNODE)
     override val keyWords: List<String> = emptyList()

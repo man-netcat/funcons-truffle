@@ -4,12 +4,11 @@ object Vars {
     const val GENERATEDPATHSTR = "../fctlang/src/main/kotlin/generated"
     const val CBSFILEPATH = "../../CBS-beta/Funcons-beta/"
     val configFiles = listOf<String>(
-//        "Computations/Normal/Binding/tests/bind-recursively.config",
 //        "Values/Composite/Classes/tests/class.config",
 //        "Computations/Normal/Binding/tests/accumulate.config",
 //        "Computations/Normal/Flowing/tests/atomic.config",
 //        "Computations/Normal/Binding/tests/bind-recursively.config",
-//        "Computations/Normal/Binding/tests/closed.config",
+        "Computations/Normal/Binding/tests/closed.config",
         "Computations/Normal/Giving/tests/fold-left.config", // Maybe correct?
         "Computations/Normal/Binding/tests/environments.config",
         "Values/Value-Types/tests/is-in-type.config",

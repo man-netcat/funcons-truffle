@@ -30,13 +30,14 @@ open class EntityObject(
     }
 
     fun getStr(): String {
-        return "${getFunc(name)} as? $nodeName ?: $nodeName()"
+        val sequenceStr = if (!params[0].type.isSequence) "SequenceNode()" else ""
+        return "${getFunc(name)} as? $nodeName ?: $nodeName($sequenceStr)"
     }
 
     fun putStr(value: String) = putFunc(name, value)
 
     override val superClassStr: String
         get() {
-            return makeFunCall(entityClassName, listOf("p0"))
+            return makeFunCall(entityClassName, listOf(if (!params[0].type.isSequence) "p0.toSequence()" else "p0"))
         }
 }

@@ -1,5 +1,9 @@
 package language
 
+import builtin.ComplementTypeNode
+import builtin.IntersectionTypeNode
+import builtin.TermNode
+import builtin.UnionTypeNode
 import com.oracle.truffle.api.CallTarget
 import com.oracle.truffle.api.TruffleLanguage
 import com.oracle.truffle.api.frame.FrameDescriptor

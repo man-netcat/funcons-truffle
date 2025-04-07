@@ -1,5 +1,7 @@
 package language
 
+import builtin.SequenceNode
+import builtin.TermNode
 import com.oracle.truffle.api.frame.FrameDescriptor
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.RootNode

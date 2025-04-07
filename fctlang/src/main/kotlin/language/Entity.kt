@@ -1,7 +1,10 @@
 package language
 
+import builtin.SequenceNode
+
 abstract class Entity(val value: SequenceNode) {
     fun emptyValue() = value.isEmpty()
+    fun hasValue() = value.isNotEmpty()
 
     operator fun get(index: Int) = value
 }

@@ -19,6 +19,14 @@ import java.nio.file.Path
 
 val globalObjects: MutableMap<String, Object?> = mutableMapOf()
 val globalFiles: MutableMap<String, File> = mutableMapOf()
+val builtinOverride: MutableSet<String> = mutableSetOf(
+    "left-to-right", "right-to-left",       // Ambiguous semantics
+    "choice",                               // Utilises random
+    "sequential",                           // Param after sequence
+    "some-element", "stuck", "abstraction", // No rules, implement manually
+    "read",                                 // Annoying
+    "identifiers", "identifier-tagged"      // ???
+)
 
 class TruffleGen(
     private val cbsDir: File,
@@ -124,7 +132,7 @@ class TruffleGen(
 
                     is AlgebraicDatatypeObject -> {
                         obj.dependencies.add(globalObjects["datatype-values"]!!)
-                        obj.definitions.forEach { dep -> dep.dependencies.add(obj) }
+                        obj.definitions.forEach { dep -> obj.dependencies.add(dep) }
                     }
 
                     else -> visitDependencies(obj!!)
@@ -181,6 +189,7 @@ class TruffleGen(
 
         stringBuilder.appendLine("package generated")
         stringBuilder.appendLine("import language.*")
+        stringBuilder.appendLine("import builtin.*")
         stringBuilder.appendLine()
 
         stringBuilder.appendLine("val aliasMap: Map<String, String> = mapOf(")

@@ -1,4 +1,4 @@
-package language
+package builtin
 
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.NullValueNode

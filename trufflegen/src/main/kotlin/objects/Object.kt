@@ -3,6 +3,7 @@ package main.objects
 import cbs.CBSParser.*
 import main.*
 import main.dataclasses.Param
+import objects.DatatypeFunconObject
 import org.antlr.v4.runtime.tree.ParseTree
 
 abstract class Object(val ctx: ParseTree) {
@@ -10,21 +11,8 @@ abstract class Object(val ctx: ParseTree) {
         println("Generating object ${name}...")
     }
 
-    private val skipCriteria: Boolean
-        get() = listOf(
-            builtin,                                    // Builtins should be implemented manually
-            name in listOf(
-                "left-to-right", "right-to-left",       // Ambiguous semantics
-                "choice",                               // Utilises random
-                "sequential",                           // Param after sequence
-                "some-element", "stuck", "abstraction", // No rules, implement manually
-                "read",                                 // Annoying
-                "identifiers",                          // ???
-            )
-        ).contains(true)
-
     val builtin
-        get() = when (ctx) {
+        get() = name in builtinOverride || when (ctx) {
             is FunconDefinitionContext -> ctx.modifier?.text == "Built-in"
             is TypeDefinitionContext -> ctx.modifier?.text == "Built-in"
             is DatatypeDefinitionContext -> ctx.modifier?.text == "Built-in"
@@ -82,7 +70,7 @@ abstract class Object(val ctx: ParseTree) {
     val asVarName = toVariableName(name)
 
     fun makeCode(): String {
-        return if (!skipCriteria) makeClass(
+        return if (!builtin && !(this is DatatypeFunconObject && superclass.builtin)) makeClass(
             nodeName,
             content = listOf(
                 contentStr
