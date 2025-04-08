@@ -366,7 +366,7 @@ class Rule(
         val valueStr = if (label.value != null && label.value.text != "_?") {
             "${rewrite(ruleDef, label.value, rewriteData)}.toSequence()"
         } else "SequenceNode()"
-        val newEntityStr = "${labelObj.nodeName}($valueStr)"
+        val newEntityStr = "${labelObj.entityName}($valueStr)"
         return labelObj.putStr(newEntityStr)
     }
 

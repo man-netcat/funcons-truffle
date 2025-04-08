@@ -15,6 +15,8 @@ open class EntityObject(
         EntityType.OUTPUT to OUTPUTENTITY
     )
 
+    val entityName: String = toEntityName(name)
+
     private val entityClassName
         get() = entityClassMap[entityType]!!
 
@@ -31,7 +33,7 @@ open class EntityObject(
 
     fun getStr(): String {
         val sequenceStr = if (!params[0].type.isSequence) "SequenceNode()" else ""
-        return "${getFunc(name)} as? $nodeName ?: $nodeName($sequenceStr)"
+        return "${getFunc(name)} as? $entityName ?: $entityName($sequenceStr)"
     }
 
     fun putStr(value: String) = putFunc(name, value)

@@ -6,6 +6,7 @@ import fct.FCTLexer
 import fct.FCTParser
 import main.exceptions.DetailedException
 import main.objects.AlgebraicDatatypeObject
+import main.objects.EntityObject
 import main.objects.Object
 import main.objects.TypeObject
 import main.visitors.CBSDependencyVisitor
@@ -214,7 +215,12 @@ class TruffleGen(
                 obj!!.aliases
                     .asSequence()
                     .filterNot { alias -> alias == obj.name }
-                    .map { alias -> makeTypeAlias(toNodeName(alias), toNodeName(obj.name)) }
+                    .map { alias ->
+                        makeTypeAlias(
+                            toNodeName(alias),
+                            if (obj is EntityObject) obj.entityName else obj.nodeName
+                        )
+                    }
             }
             .joinToString("\n")
             .let(stringBuilder::appendLine)

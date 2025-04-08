@@ -14,6 +14,7 @@ fun toCamelCase(input: String): String {
 
 fun toNodeName(input: String): String = toCamelCase(input) + "Node"
 fun toInterfaceName(input: String): String = toCamelCase(input) + "Interface"
+fun toEntityName(input: String): String = toCamelCase(input) + "Entity"
 
 fun toVariableName(input: String): String {
     return input.split("-").mapIndexed { index, word ->

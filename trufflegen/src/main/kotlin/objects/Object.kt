@@ -27,7 +27,7 @@ abstract class Object(val ctx: ParseTree) {
     open val contentStr: String = ""
     open val annotations: List<String> = emptyList()
     open val superClassStr: String = emptySuperClass(TERMNODE)
-    open val keyWords: List<String> = listOf("open")
+    open val keyWords: List<String> = emptyList()
     open val properties: List<String> = listOf()
 
     val sequenceIndex: Int get() = params.indexOfFirst { it.type.isSequence }
@@ -71,7 +71,7 @@ abstract class Object(val ctx: ParseTree) {
 
     fun makeCode(): String {
         return if (!builtin && !(this is DatatypeFunconObject && superclass.builtin)) makeClass(
-            nodeName,
+            if (this is EntityObject) entityName else nodeName,
             content = listOf(
                 contentStr
             ).joinToString("\n"),
