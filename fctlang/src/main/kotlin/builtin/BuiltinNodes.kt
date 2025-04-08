@@ -3,7 +3,6 @@ package builtin
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
 import generated.*
-import language.MutableEntity
 
 open class ValueTypesNode : ValuesNode(), ValueTypesInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = this
@@ -248,8 +247,8 @@ data class StringNode(override val value: String) : StringsNode() {
 
 class ReadNode : TermNode(), ReadInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val standardIn = getGlobal("standard-in") as? StandardInEntity ?: StandardInEntity()
-        val stdInHead = standardIn.p0.popFirst()
+        val standardIn = getGlobal("standard-in") as SequenceNode
+        val stdInHead = standardIn.popFirst()
 
         return when (stdInHead) {
             !is NullTypeNode -> stdInHead
@@ -260,11 +259,9 @@ class ReadNode : TermNode(), ReadInterface {
 
 open class AtomsNode : ValueTypesNode(), AtomsInterface
 
-class UsedAtomSetEntity(var p0: TermNode) : MutableEntity(p0.toSequence())
-
 class InitialiseGeneratingNode(override val p0: TermNode) : TermNode(), InitialiseGeneratingInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val environment = getGlobal("used-atom-set") as? UsedAtomSetEntity ?: UsedAtomSetEntity(SequenceNode())
+        val environment = getGlobal("used-atom-set") ?: SequenceNode()
         return p0
     }
 }

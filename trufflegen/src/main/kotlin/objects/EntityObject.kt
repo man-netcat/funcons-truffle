@@ -16,27 +16,27 @@ open class EntityObject(
     )
 
     val entityName: String = toEntityName(name)
+    val varName: String = toVariableName(name)
 
     private val entityClassName
         get() = entityClassMap[entityType]!!
 
-    val getFunc = when (entityType) {
-        EntityType.CONTEXTUAL -> ::getInScopeStr
-        else -> ::getGlobalStr
-    }
-
-    val putFunc = when (entityType) {
-        EntityType.CONTEXTUAL -> ::putInScopeStr
-        EntityType.OUTPUT, EntityType.INPUT -> ::appendGlobalStr
-        else -> ::putGlobalStr
-    }
-
     fun getStr(): String {
-        val sequenceStr = if (!params[0].type.isSequence) "SequenceNode()" else ""
-        return "${getFunc(name)} as? $entityName ?: $entityName($sequenceStr)"
+        val getFunc = when (entityType) {
+            EntityType.CONTEXTUAL -> ::getInScopeStr
+            else -> ::getGlobalStr
+        }
+        return getFunc(name)
     }
 
-    fun putStr(value: String) = putFunc(name, value)
+    fun putStr(value: String): String {
+        val putFunc = when (entityType) {
+            EntityType.CONTEXTUAL -> ::putInScopeStr
+            EntityType.OUTPUT, EntityType.INPUT -> ::appendGlobalStr
+            else -> ::putGlobalStr
+        }
+        return putFunc(name, value)
+    }
 
     override val superClassStr: String
         get() {

@@ -125,6 +125,9 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
                 } else {
                     when (sequenceRelativeIndex) {
                         0 -> "$base.head"
+                        1 -> "$base.second"
+                        2 -> "$base.third"
+                        3 -> "$base.fourth"
                         else -> "$base.get($sequenceRelativeIndex)"
                     }
                 }

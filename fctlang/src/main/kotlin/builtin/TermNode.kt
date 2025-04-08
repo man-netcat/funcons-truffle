@@ -3,7 +3,10 @@ package builtin
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
 import generated.*
-import language.*
+import language.FCTContext
+import language.FCTLanguage
+import language.InfiniteLoopException
+import language.StuckException
 import language.Util.DEBUG
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
@@ -46,9 +49,9 @@ abstract class TermNode : Node() {
         return FCTContext.Companion.get(this)!!
     }
 
-    private fun getLocalContext(frame: VirtualFrame): MutableMap<String, Entity?> {
-        return frame.getObject(FrameSlots.LOCAL_CONTEXT.ordinal) as? MutableMap<String, Entity?>
-            ?: mutableMapOf<String, Entity?>().also {
+    private fun getLocalContext(frame: VirtualFrame): MutableMap<String, TermNode?> {
+        return frame.getObject(FrameSlots.LOCAL_CONTEXT.ordinal) as? MutableMap<String, TermNode?>
+            ?: mutableMapOf<String, TermNode?>().also {
                 frame.setObject(FrameSlots.LOCAL_CONTEXT.ordinal, it)
             }
     }
@@ -56,17 +59,17 @@ abstract class TermNode : Node() {
     internal fun printLocalContext(frame: VirtualFrame) {
         val context = getLocalContext(frame)
         if (context.isNotEmpty()) {
-            val str = "{\n" + context.map { (name, entity) -> "    $name: ${entity?.value?.value}" }
+            val str = "{\n" + context.map { (name, entity) -> "    $name: ${entity?.value}" }
                 .joinToString("\n") + "\n}"
             println(str)
         } else println("{}")
     }
 
-    fun getInScope(frame: VirtualFrame, key: String): Entity? {
-        return getLocalContext(frame)[key]
+    fun getInScope(frame: VirtualFrame, key: String): TermNode {
+        return getLocalContext(frame)[key] ?: SequenceNode()
     }
 
-    fun putInScope(frame: VirtualFrame, key: String, value: Entity?) {
+    fun putInScope(frame: VirtualFrame, key: String, value: TermNode?) {
         getLocalContext(frame)[key] = value
     }
 
@@ -74,22 +77,20 @@ abstract class TermNode : Node() {
         return getLocalContext(frame).containsKey(key)
     }
 
-    fun getGlobal(key: String): Entity? {
-        return getContext().globalVariables.getEntity(key)
+    fun getGlobal(key: String): TermNode {
+        return getContext().globalVariables.getEntity(key) ?: SequenceNode()
     }
 
-    fun putGlobal(key: String, entity: Entity) {
+    fun putGlobal(key: String, entity: TermNode) {
         getContext().globalVariables.putEntity(key, entity)
     }
 
-    fun appendGlobal(key: String, entity: Entity) {
-        val existing = getContext().globalVariables.getEntity(key) as StandardOutEntity?
-        if (existing != null) {
-            val newElements = existing.value.elements.toMutableList()
-            newElements.addAll(entity.value.elements)
-            val newSequence = SequenceNode(*newElements.toTypedArray())
-            getContext().globalVariables.putEntity(key, StandardOutEntity(newSequence))
-        } else putGlobal(key, entity)
+    fun appendGlobal(key: String, entity: TermNode) {
+        val existing = getContext().globalVariables.getEntity(key) as? SequenceNode ?: SequenceNode()
+        val newElements = existing.elements.toMutableList()
+        newElements.addAll(entity.elements)
+        val newSequence = SequenceNode(*newElements.toTypedArray())
+        getContext().globalVariables.putEntity(key, newSequence)
     }
 
     open fun isReducible(): Boolean = when (this) {
@@ -217,7 +218,7 @@ abstract class TermNode : Node() {
                 if (iterationCount > 1000) throw InfiniteLoopException()
             }
         } catch (e: StuckException) {
-            println("Failed to properly reduce.")
+            println("Failed to properly reduce: $e")
         } catch (e: InfiniteLoopException) {
             println("Infinite loop detected")
         }
@@ -233,7 +234,7 @@ abstract class TermNode : Node() {
     open val tail: SequenceNode get() = abort("not a sequence")
     open val size: Int get() = abort("not a sequence")
     open val elements: Array<out TermNode> get() = abort("not a sequence")
-    open fun isEmpty(): Boolean = abort("not a sequence")
-    open fun isNotEmpty(): Boolean = abort("not a sequence")
+    fun isEmpty(): Boolean = this is SequenceNode && this.elements.isEmpty()
+    fun isNotEmpty(): Boolean = !this.isEmpty()
     open fun sliceFrom(startIndex: Int, endIndexOffset: Int = 0): SequenceNode = abort("not a sequence")
 }

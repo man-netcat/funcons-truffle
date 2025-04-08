@@ -1,24 +1,21 @@
 package language
 
-class GlobalScope {
-    private val variables: MutableMap<String?, Entity?> = HashMap()
+import builtin.TermNode
 
-    fun putEntity(name: String?, value: Entity?): Boolean {
+class GlobalScope {
+    private val variables: MutableMap<String?, TermNode?> = HashMap()
+
+    fun putEntity(name: String, value: TermNode?): Boolean {
         val existingValue = this.variables.put(name, value)
         return existingValue == null
     }
 
-    fun update(name: String?, value: Entity?): Boolean {
-        val existingValue = this.variables.computeIfPresent(name) { k, v -> value }
-        return existingValue != null
-    }
-
-    fun getEntity(name: String?): Entity? {
+    fun getEntity(name: String): TermNode? {
         return this.variables[name]
     }
 
     override fun toString(): String {
-        return "{\n" + variables.map { (name, entity) -> "    $name: ${entity?.value?.value}" }
+        return "{\n" + variables.map { (name, entity) -> "    $name: ${entity?.value}" }
             .joinToString("\n") + "\n}"
     }
 

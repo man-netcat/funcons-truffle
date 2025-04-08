@@ -196,7 +196,7 @@ class TruffleGen(
         stringBuilder.appendLine("val aliasMap: Map<String, String> = mapOf(")
         globalObjects
             .values.distinct()
-            .filter { obj -> obj in generatedDependencies }
+            .filter { obj -> obj in generatedDependencies && obj !is EntityObject }
             .flatMap { obj ->
                 obj!!.aliases
                     .asSequence()
@@ -210,16 +210,13 @@ class TruffleGen(
         stringBuilder.appendLine()
         globalObjects
             .values.distinct()
-            .filter { obj -> obj in generatedDependencies }
+            .filter { obj -> obj in generatedDependencies && obj !is EntityObject }
             .flatMap { obj ->
                 obj!!.aliases
                     .asSequence()
                     .filterNot { alias -> alias == obj.name }
                     .map { alias ->
-                        makeTypeAlias(
-                            toNodeName(alias),
-                            if (obj is EntityObject) obj.entityName else obj.nodeName
-                        )
+                        makeTypeAlias(toNodeName(alias), obj.nodeName)
                     }
             }
             .joinToString("\n")

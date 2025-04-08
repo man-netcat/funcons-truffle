@@ -12,9 +12,6 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
 
     override val size: Int by lazy { elements.size }
 
-    override fun isEmpty(): Boolean = elements.isEmpty()
-    override fun isNotEmpty(): Boolean = elements.isNotEmpty()
-
     override fun sliceFrom(startIndex: Int, endIndexOffset: Int): SequenceNode {
         val endIndex = size - endIndexOffset
         require(endIndexOffset >= 0 && endIndex <= size && startIndex <= endIndex) {
