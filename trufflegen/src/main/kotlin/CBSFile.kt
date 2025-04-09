@@ -10,7 +10,7 @@ import objects.FunconObject
 import org.antlr.v4.runtime.ParserRuleContext
 
 class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
-    val objects = mutableMapOf<String, Object?>()
+    val objects = mutableMapOf<String, Object>()
     private var fileMetavariables: Set<Pair<ExprContext, ExprContext>> = emptySet()
 
     private fun addObjectReference(obj: Object) {
@@ -31,7 +31,7 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
             ctx,
             rules = ctx.ruleDefinition(),
             rewritesTo = ctx.rewritesTo,
-            metaVariables = fileMetavariables
+            fileMetavariables
         )
 
         addObjectReference(dataContainer)
@@ -39,20 +39,19 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
 
     override fun visitDatatypeDefinition(ctx: DatatypeDefinitionContext) {
         val operator = ctx.op?.text ?: ""
-        val definitions = extractAndOrExprs(ctx.definition)
 
         when (operator) {
             "<:" -> {
-                val datatypeDataContainer =
-                    SupertypeDatatypeObject(ctx, definitions)
+                val datatypeDataContainer = SupertypeDatatypeObject(ctx, fileMetavariables)
                 addObjectReference(datatypeDataContainer)
 
             }
 
             "::=" -> {
-                val datatypeDataContainer = AlgebraicDatatypeObject(ctx)
+                val datatypeDataContainer = AlgebraicDatatypeObject(ctx, fileMetavariables)
                 addObjectReference(datatypeDataContainer)
 
+                val definitions = extractAndOrExprs(ctx.definition)
 
                 definitions.forEach { funcon ->
                     when (funcon) {
@@ -60,7 +59,8 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
                             val dataContainer =
                                 DatatypeFunconObject(
                                     funcon,
-                                    datatypeDataContainer
+                                    datatypeDataContainer,
+                                    fileMetavariables
                                 )
                             addObjectReference(dataContainer)
                             datatypeDataContainer.definitions.add(dataContainer)
@@ -80,12 +80,12 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
     }
 
     override fun visitTypeDefinition(ctx: TypeDefinitionContext) {
-        val dataContainer = TypeObject(ctx)
+        val dataContainer = TypeObject(ctx, fileMetavariables)
         addObjectReference(dataContainer)
     }
 
     private fun processEntityDefinition(ctx: ParserRuleContext, entityType: EntityType) {
-        val dataContainer = EntityObject(ctx, entityType)
+        val dataContainer = EntityObject(ctx, entityType, fileMetavariables)
         addObjectReference(dataContainer)
     }
 
@@ -110,7 +110,8 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
 
     fun generateCode(generatedDependencies: MutableSet<Object>): String? {
         val included = generatedDependencies.ifEmpty { globalObjects.values.toSet() }
-        val toProcess = objects.values.distinct().filterNotNull().filter { obj -> obj in included }
+        val toProcess =
+            objects.values.distinct().filter { obj -> obj in included || obj.builtin || obj !is FunconObject }
 
         if (toProcess.isEmpty()) return null
 
@@ -141,9 +142,12 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
             val code = obj.makeCode()
             stringBuilder.appendLine()
             stringBuilder.appendLine(code)
-            if (obj is AlgebraicDatatypeObject && obj.makeElementInFunction.isNotEmpty()) {
+            if (obj is AlgebraicDatatypeObject && obj.elementInBody.isNotEmpty()) {
                 stringBuilder.appendLine()
-                stringBuilder.appendLine(obj.makeElementInFunction)
+                stringBuilder.appendLine(obj.elementInBody)
+            } else if (obj is TypeObject && obj.elementInBody.isNotEmpty()) {
+                stringBuilder.appendLine()
+                stringBuilder.appendLine(obj.elementInBody)
             }
 
             //            } catch (e: StringNotFoundException) {

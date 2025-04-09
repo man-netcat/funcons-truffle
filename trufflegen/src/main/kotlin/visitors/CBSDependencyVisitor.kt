@@ -26,9 +26,10 @@ class CBSDependencyVisitor : CBSBaseVisitor<Unit>() {
         return super.visitListExpression(ctx)
     }
 
-    override fun visitTupleExpression(ctx: TupleExpressionContext) {
+    // TODO: This might be wrong
+    override fun visitSequenceExpression(ctx: SequenceExpressionContext) {
         dependencies.add("tuple")
-        return super.visitTupleExpression(ctx)
+        return super.visitSequenceExpression(ctx)
     }
 
     override fun visitLabel(ctx: LabelContext) {

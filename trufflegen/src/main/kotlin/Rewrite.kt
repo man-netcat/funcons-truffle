@@ -61,7 +61,7 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
                 "ValueMapNode(SequenceNode($pairStr))"
             }
 
-            is TupleExpressionContext -> {
+            is SequenceExpressionContext -> {
                 val pairStr = toRewrite.exprs()?.expr()?.joinToString { expr ->
                     rewriteRecursive(expr)
                 }
@@ -170,7 +170,7 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
                     listOf(RewriteData(arg, type, newStr))
                 }
 
-                is TupleExpressionContext -> {
+                is SequenceExpressionContext -> {
                     val newStr = makeParamStr(argIndex, args.size, obj, parentStr, argIsSequence = true)
                     listOf(RewriteData(arg, null, newStr))
                 }

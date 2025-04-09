@@ -2,6 +2,7 @@ package builtin
 
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.NullValueNode
+import language.Util.DEBUG
 
 class SequenceNode(@Children override vararg var elements: TermNode) : TermNode() {
     init {
@@ -44,6 +45,7 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
                     newElements[index] = newElements[index].reduce(frame)
                     return SequenceNode(*newElements.toTypedArray())
                 } catch (e: Exception) {
+                    if (DEBUG) println("Stuck with exception $e")
                 }
             }
         }

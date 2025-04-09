@@ -3,7 +3,10 @@ package builtin
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
 import generated.*
-import language.*
+import language.FCTContext
+import language.FCTLanguage
+import language.InfiniteLoopException
+import language.StuckException
 import language.Util.DEBUG
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
@@ -11,6 +14,9 @@ import kotlin.reflect.full.primaryConstructor
 
 @Suppress("UNCHECKED_CAST")
 abstract class TermNode : Node() {
+    @Retention(AnnotationRetention.RUNTIME)
+    annotation class Eager
+
     enum class FrameSlots {
         LOCAL_CONTEXT
     }
@@ -27,8 +33,8 @@ abstract class TermNode : Node() {
 
     open val value: Any
         get() = when (this) {
-            is FalseNode -> false
-            is TrueNode -> true
+            is FalseNode -> "false"
+            is TrueNode -> "true"
             is NullValueNode -> "null-value"
             is FailedNode -> "failed"
             else -> this::class.simpleName!!
@@ -62,7 +68,8 @@ abstract class TermNode : Node() {
         return getLocalContext(frame)[key] ?: SequenceNode()
     }
 
-    fun putInScope(frame: VirtualFrame, key: String, value: TermNode?) {
+    fun putInScope(frame: VirtualFrame, key: String, value: TermNode) {
+        if (DEBUG) println("putting ${value::class.simpleName} in $key")
         getLocalContext(frame)[key] = value
     }
 
@@ -75,6 +82,7 @@ abstract class TermNode : Node() {
     }
 
     fun putGlobal(key: String, entity: TermNode) {
+        if (DEBUG) println("putting ${entity::class.simpleName} in $key")
         getContext().globalVariables.putEntity(key, entity)
     }
 
@@ -116,6 +124,7 @@ abstract class TermNode : Node() {
                 newParams[i] = currentParam.reduce(frame)
                 return primaryConstructor.call(*newParams.toTypedArray())
             } catch (e: Exception) {
+                if (DEBUG) println("Stuck with exception $e")
             }
         }
 
@@ -195,26 +204,20 @@ abstract class TermNode : Node() {
 
     fun rewrite(frame: VirtualFrame): TermNode {
         var term = this
-        try {
-            var iterationCount = 0
-            while (term.isReducible()) {
-                if (DEBUG) {
-                    println("------------------")
-                    println("Iteration $iterationCount: Current result is ${term::class.simpleName}")
-                    term.printTree()
-                    println("Global entities")
-                    if (!term.getContext().globalVariables.isEmpty()) {
-                        println(term.getContext().globalVariables)
-                    } else println("{}")
-                }
-                term = term.reduce(frame)
-                iterationCount++
-                if (iterationCount > 1000) throw InfiniteLoopException()
+        var iterationCount = 0
+        while (term.isReducible()) {
+            if (DEBUG) {
+                println("------------------")
+                println("Iteration $iterationCount: Current result is ${term::class.simpleName}")
+                term.printTree()
+                println("Global entities")
+                if (!term.getContext().globalVariables.isEmpty()) {
+                    println(term.getContext().globalVariables)
+                } else println("{}")
             }
-        } catch (e: StuckException) {
-            println("Failed to properly reduce: $e")
-        } catch (e: InfiniteLoopException) {
-            println("Infinite loop detected")
+            term = term.reduce(frame)
+            iterationCount++
+            if (iterationCount > 1000) throw InfiniteLoopException()
         }
         return term
     }

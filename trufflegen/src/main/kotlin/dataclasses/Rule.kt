@@ -4,18 +4,16 @@ import cbs.CBSParser.*
 import main.*
 import main.exceptions.DetailedException
 import main.exceptions.StringNotFoundException
-import main.objects.AlgebraicDatatypeObject
 import main.objects.EntityObject
 import main.objects.Object
-import main.objects.TypeObject
-import objects.DatatypeFunconObject
 
 class Rule(
     premises: List<PremiseExprContext>,
     conclusion: PremiseExprContext,
-    metaVariables: Set<Pair<ExprContext, ExprContext>>,
+    val metaVariableMap: Map<String, ExprContext>,
     val outerVariables: MutableMap<String, String>,
-) {
+
+    ) {
     data class Condition(val expr: String, val priority: Int = 1)
 
     val conditions = mutableListOf<Condition>()
@@ -23,7 +21,6 @@ class Rule(
     private val assignments = mutableListOf<String>()
     private val rewriteStr: String
     private var intermediateCounter = 0
-    private val metavariableMap = metaVariables.associate { (variable, type) -> variable.text to type }
     var rulePriority = 1
 
     val rewriteData: MutableList<RewriteData> = mutableListOf()
@@ -40,24 +37,6 @@ class Rule(
     }
 
     private fun newVar() = "i${intermediateCounter++}"
-
-    private fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
-        val (obj, isComplement) = when (typeExpr) {
-            is ComplementExpressionContext -> getObject(typeExpr.expr()) to true
-            else -> getObject(typeExpr) to false
-        }
-
-        val complementStr = if (isComplement) "!" else ""
-        return when {
-            obj is AlgebraicDatatypeObject || (obj is TypeObject && obj.operator != "~>")
-                -> "${complementStr}$paramStr.isIn${obj.camelCaseName}()"
-
-            else -> {
-                val explicitValue = if (obj is DatatypeFunconObject && obj.params.isNotEmpty()) "Value" else ""
-                "$paramStr ${complementStr}is $explicitValue${obj.nodeName}"
-            }
-        }
-    }
 
     private fun argsConditions(funconExpr: FunconExpressionContext) {
         val obj = getObject(funconExpr)
@@ -89,7 +68,7 @@ class Rule(
                 }
 
                 is VariableContext -> {
-                    val typeCondition = makeTypeCondition(paramStr, metavariableMap[argType.text]!!)
+                    val typeCondition = makeTypeCondition(paramStr, metaVariableMap[argType.text]!!)
                     addCondition(typeCondition)
                 }
             }
@@ -108,7 +87,7 @@ class Rule(
                     return when (arg) {
                         is TypeExpressionContext -> processArg(arg.value)
                         is SuffixExpressionContext -> if (arg.op.text == "+") 1 else 0
-                        is TupleExpressionContext -> 0
+                        is SequenceExpressionContext -> 0
                         else -> 1
                     }
                 }
@@ -124,7 +103,7 @@ class Rule(
                         "$sequenceParamStr.isNotEmpty()"
                     }
 
-                    else -> if (sequenceArgs[0] is TupleExpressionContext) {
+                    else -> if (sequenceArgs[0] is SequenceExpressionContext) {
                         "$sequenceParamStr.isEmpty()"
                     } else {
                         "$sequenceParamStr.size >= $offsetValue"
@@ -152,7 +131,7 @@ class Rule(
         } else if (expr is NestedExpressionContext && expr.expr() is TypeExpressionContext) {
             val typeExpr = expr.expr() as TypeExpressionContext
             RewriteData(typeExpr.value, typeExpr.type, str)
-        } else if (expr is TupleExpressionContext) {
+        } else if (expr is SequenceExpressionContext) {
             RewriteData(null, null, str)
         } else {
             RewriteData(expr, null, str)

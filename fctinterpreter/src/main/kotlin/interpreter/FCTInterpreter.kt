@@ -2,6 +2,7 @@ package interpreter
 
 import org.graalvm.polyglot.Context
 import org.graalvm.polyglot.Source
+import org.graalvm.polyglot.Value
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.io.path.pathString
@@ -31,8 +32,7 @@ fun main(args: Array<String>) {
         .newBuilder("fctlang", code, filePath.pathString)
         .build()
 
-    val result = context.eval(source)
-
+    val result: Value = context.eval(source)
     if (result.hasArrayElements()) {
         val resultTerm = result.getArrayElement(0)
         val standardOut = (1 until result.arraySize).map { i ->

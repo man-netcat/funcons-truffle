@@ -6,18 +6,20 @@ import main.dataclasses.Param
 import objects.DatatypeFunconObject
 import org.antlr.v4.runtime.tree.ParseTree
 
-abstract class Object(val ctx: ParseTree) {
+abstract class Object(val ctx: ParseTree, metaVariables: Set<Pair<ExprContext, ExprContext>>) {
     init {
         println("Generating object ${name}...")
     }
 
-    val builtin
+    val metavariableMap = metaVariables.associate { (variable, type) -> variable.text to type }
+
+    val builtin: Boolean
         get() = name in builtinOverride || when (ctx) {
             is FunconDefinitionContext -> ctx.modifier?.text == "Built-in"
             is TypeDefinitionContext -> ctx.modifier?.text == "Built-in"
             is DatatypeDefinitionContext -> ctx.modifier?.text == "Built-in"
             else -> false
-        }
+        } || (this is DatatypeFunconObject && this.superclass.builtin)
 
     val name get() = getObjectName(ctx)
     val aliases get() = getObjectAliases(ctx)
@@ -71,7 +73,7 @@ abstract class Object(val ctx: ParseTree) {
     val asVarName = toVariableName(name)
 
     fun makeCode(): String {
-        return if (!builtin && !(this is DatatypeFunconObject && superclass.builtin)) makeClass(
+        return if (!builtin) makeClass(
             if (this is EntityObject) entityName else nodeName,
             content = listOf(
                 contentStr

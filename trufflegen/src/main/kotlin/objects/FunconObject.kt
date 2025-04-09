@@ -9,7 +9,10 @@ import main.objects.EntityObject
 import main.objects.Object
 import org.antlr.v4.runtime.tree.ParseTree
 
-abstract class AbstractFunconObject(ctx: ParseTree) : Object(ctx) {
+abstract class AbstractFunconObject(
+    ctx: ParseTree,
+    metaVariables: Set<Pair<ExprContext, ExprContext>>,
+) : Object(ctx, metaVariables) {
     val reducibleIndices = computeReducibles()
     override val keyWords: List<String> = listOf()
 
@@ -29,10 +32,11 @@ class FunconObject(
     ctx: FunconDefinitionContext,
     val rules: List<RuleDefinitionContext> = emptyList(),
     val rewritesTo: ExprContext? = null,
-    val metaVariables: Set<Pair<ExprContext, ExprContext>>,
-) : AbstractFunconObject(ctx) {
+    metaVariables: Set<Pair<ExprContext, ExprContext>>,
+) : AbstractFunconObject(ctx, metaVariables) {
     override val contentStr: String
         get() {
+            val newChildren = mutableListOf<String>()
             val stringBuilder = StringBuilder()
 
             val returnStr = "return " + when {
@@ -41,7 +45,7 @@ class FunconObject(
                     val outerVariables = mutableMapOf<String, String>()
                     val ruleObjs = rules.map { rule ->
                         val premises = rule.premises()?.premiseExpr()?.toList() ?: emptyList()
-                        Rule(premises, rule.conclusion, metaVariables, outerVariables)
+                        Rule(premises, rule.conclusion, metavariableMap, outerVariables)
                     }
                     val entityVars = generateEntityVariables(ruleObjs)
 
@@ -51,7 +55,12 @@ class FunconObject(
                     if (entityVars.isNotEmpty()) stringBuilder.appendLine(entityVars)
 
                     outerVariables.forEach { (rewrite, varName) ->
-                        val rewriteStr = makeVariable(varName, "$rewrite.rewrite(frame)")
+                        var initVarName = "${varName}Init"
+                        newChildren.add("@Child private lateinit var $initVarName: $TERMNODE")
+                        val insertStr = "$initVarName = insert($rewrite)"
+                        val insertIf = makeIfStatement(listOf("!::$initVarName.isInitialized" to insertStr))
+                        stringBuilder.appendLine(insertStr)
+                        val rewriteStr = makeVariable(varName, "$initVarName.rewrite(frame)")
                         stringBuilder.appendLine(rewriteStr)
                     }
 
@@ -62,7 +71,17 @@ class FunconObject(
             }
 
             stringBuilder.appendLine(returnStr)
-            return makeReduceFunction(stringBuilder.toString(), TERMNODE)
+
+            val outerStringBuilder = StringBuilder()
+            if (newChildren.isNotEmpty()) {
+                newChildren.forEach { newChild ->
+                    outerStringBuilder.appendLine(newChild)
+                }
+                outerStringBuilder.appendLine()
+            }
+            val reduceFunc = makeReduceFunction(stringBuilder.toString(), TERMNODE)
+            outerStringBuilder.appendLine(reduceFunc)
+            return outerStringBuilder.toString()
         }
 
     override val keyWords: List<String> = emptyList()
@@ -71,7 +90,8 @@ class FunconObject(
 class DatatypeFunconObject(
     ctx: FunconExpressionContext,
     internal val superclass: AlgebraicDatatypeObject,
-) : AbstractFunconObject(ctx) {
+    metaVariables: Set<Pair<ExprContext, ExprContext>>,
+) : AbstractFunconObject(ctx, metaVariables) {
     override val superClassStr: String get() = makeFunCall(if (reducibleIndices.isEmpty()) superclass.nodeName else TERMNODE)
     override val keyWords: List<String> = emptyList()
 

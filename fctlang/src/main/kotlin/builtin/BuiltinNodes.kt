@@ -2,7 +2,6 @@ package builtin
 
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
-import language.Eager
 
 open class ValueTypesNode : ValuesNode(), ValueTypesInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = this
@@ -15,7 +14,7 @@ open class ValuesNode : TermNode(), ValuesInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = this
 }
 
-fun TermNode.isInValues(): Boolean = true
+fun TermNode.isInValues(): Boolean = this !is SequenceNode
 
 open class EmptyTypeNode : ValueTypesNode(), EmptyTypeInterface
 
@@ -35,13 +34,11 @@ open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
 
 fun TermNode.isInDatatypeValues(): Boolean = this is DatatypeValuesNode
 
-open class MapsNode(var tp0: TermNode, var tp1: TermNode) : ValueTypesNode(), MapsInterface
-
-fun TermNode.isInMaps(): Boolean = this is ValueMapNode
-
 open class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
+open class IntegersUpToNode(@Child override var p0: TermNode) : IntegersNode(), IntegersUpToInterface
 
 class ComputationTypesNode() : ValueTypesNode(), ComputationTypesInterface
+
 class AbstractionNode(@Child override var p0: TermNode) : AbstractionsNode(ComputationTypesNode()),
     AbstractionInterface
 
@@ -124,83 +121,14 @@ class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode(Va
 
 open class Identifiers : DatatypeValuesNode(), IdentifiersInterface
 
-class IdentifierTaggedNode(override val p0: TermNode, override val p1: TermNode) : Identifiers(),
+class IdentifierTaggedNode(@Eager @Child override var p0: TermNode, @Eager @Child override var p1: TermNode) :
+    Identifiers(),
     IdentifierTaggedInterface
 
 fun TermNode.isInIdentifiers(): Boolean = this is StringNode || this is IdentifierTaggedNode
 
 //class ValueFunctionNode(@Child var p0: TermNode) : FunctionsNode(ValuesNode(), ValuesNode()) {
 //    override val value get() = "fun ${p0.value}"
-//}
-
-class MapNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), MapInterface {
-    override fun reduceRules(frame: VirtualFrame): TermNode {
-        return ValueMapNode(p0)
-    }
-}
-
-class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : MapsNode(GroundValuesNode(), ValuesNode()) {
-    override val value
-        get() = "{${
-            p0.elements.joinToString { tuple ->
-                tuple as ValueTupleNode
-                require(tuple.p0.size == 2) { "Invalid map" }
-                "${tuple.p0.elements[0].value} |-> ${tuple.p0.elements[1].value}"
-            }
-        }}"
-}
-
-class MapLookupNode(@Child override var p0: TermNode, @Child override var p1: TermNode) : TermNode(),
-    MapLookupInterface {
-    override fun reduceRules(frame: VirtualFrame): TermNode {
-        return when {
-            get(0) is ValueMapNode && get(1) is GroundValuesNode -> {
-                get(0).get(0).elements.firstOrNull { element -> element == get(1) } ?: SequenceNode()
-            }
-
-            else -> FailNode()
-        }
-    }
-}
-
-class MapOverrideNode(override val p0: SequenceNode) : TermNode(), MapOverrideInterface {
-    override fun reduceRules(frame: VirtualFrame): TermNode {
-        val resultMap = linkedMapOf<TermNode, TermNode>()
-
-        for (mapNode in p0.elements) {
-            mapNode as ValueMapNode
-            for (tuple in mapNode.p0.elements) {
-                tuple as ValueTupleNode
-                require(tuple.p0.size == 2) { "Invalid map entry" }
-
-                val key = tuple.p0.elements[0]
-                val value = tuple.p0.elements[1]
-
-                if (!resultMap.containsKey(key)) {
-                    resultMap[key] = value
-                }
-            }
-        }
-
-        val tuples = resultMap.entries.map { (k, v) ->
-            ValueTupleNode(SequenceNode(k, v))
-        }.toTypedArray()
-
-        return ValueMapNode(SequenceNode(*tuples))
-    }
-}
-
-
-//class MapDomainNode(@Child override var p0: TermNode) : TermNode(), MapDomainInterface {
-//    override fun reduceRules(frame: VirtualFrame): TermNode {
-//        return when {
-//            get(0) is ValueMapNode && get(1) is GroundValuesNode -> {
-//                get(0).get(0).elements.firstOrNull { element -> element == get(1) } ?: SequenceNode()
-//            }
-//
-//            else -> FailNode()
-//        }
-//    }
 //}
 
 class IdentifiersNode() : DatatypeValuesNode(), IdentifiersInterface
@@ -257,7 +185,14 @@ class ReadNode : TermNode(), ReadInterface {
 
 open class AtomsNode : ValueTypesNode(), AtomsInterface
 
-class InitialiseGeneratingNode(override val p0: TermNode) : TermNode(), InitialiseGeneratingInterface {
+class ValueVariableNode(@Child var p0: TermNode, @Child var p1: TermNode) : VariablesNode() {
+    override val value: Any
+        get() = "${p0.value}: ${p1.value}"
+}
+
+fun TermNode.isInAtoms(): Boolean = true // TODO: What is this?
+
+class InitialiseGeneratingNode(@Child override var p0: TermNode) : TermNode(), InitialiseGeneratingInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val environment = getGlobal("used-atom-set")
         return p0

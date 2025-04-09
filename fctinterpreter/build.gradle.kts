@@ -15,20 +15,6 @@ dependencies {
     implementation(Deps.graalSdk)
     implementation(Deps.truffleApi)
 }
-//
-//tasks.named<JavaExec>("run") {
-//    dependsOn(":fctlang:jar")
-//
-//    mainClass.set("interpreter.FCTInterpreterKt")
-//    args = listOf("../../CBS-beta/Funcons-beta/Computations/Normal/Flowing/tests/do-while.config")
-//
-//    // Get reference to fctlang JAR
-//    val fctlangJar = project(":fctlang").tasks.jar.flatMap { it.archiveFile }
-//
-//    // Set classpath and JVM args
-//    classpath = files(fctlangJar) + sourceSets.main.get().runtimeClasspath
-//    jvmArgs = listOf("-Dpolyglot.engine.WarnInterpreterOnly=false")
-//}
 
 tasks.register("testFilesRun") {
     group = "application"
@@ -41,16 +27,33 @@ tasks.register("testFilesRun") {
         // Get reference to the fctlang JAR.
         val fctlangJar = project(":fctlang").tasks.jar.get().archiveFile.get().asFile
 
+        var successCount = 0
+        var failCount = 0
+
         // Iterate over each file and run the interpreter.
         testFiles.forEach { fileName ->
             println("Executing file: $fileName")
-            javaexec {
+
+            val result = javaexec {
                 mainClass.set("interpreter.FCTInterpreterKt")
                 args = listOf(fileName, "test")
                 classpath = sourceSets["main"].runtimeClasspath + files(fctlangJar)
                 jvmArgs = listOf("-Dpolyglot.engine.WarnInterpreterOnly=false")
+                isIgnoreExitValue = true
+            }
+
+            if (result.exitValue == 0) {
+                println("Success")
+                successCount++
+            } else {
+                println("Failed (exit code: ${result.exitValue})")
+                failCount++
             }
             println("-----------------------")
         }
+
+        println("Total succeeded: $successCount / ${testFiles.size}")
+        println("Total failed: $failCount / ${testFiles.size}")
     }
 }
+

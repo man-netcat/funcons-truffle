@@ -3,7 +3,10 @@ package main
 import cbs.CBSParser.*
 import main.dataclasses.Param
 import main.exceptions.DetailedException
+import main.objects.AlgebraicDatatypeObject
 import main.objects.Object
+import main.objects.TypeObject
+import objects.DatatypeFunconObject
 import org.antlr.v4.runtime.tree.ParseTree
 
 fun toCamelCase(input: String): String {
@@ -242,7 +245,7 @@ fun makeClass(
 }
 
 fun makeValueTypesCompanionObject(funBody: String): String {
-    return makeCompanionObject(listOf(makeContainsFunction(funBody)))
+    return makeCompanionObject(listOf(makeElementInFunction(funBody)))
 }
 
 fun makeCompanionObject(
@@ -261,7 +264,7 @@ fun makeCompanionObject(
     return result.toString()
 }
 
-fun makeContainsFunction(body: String): String = makeFunction(
+fun makeElementInFunction(body: String): String = makeFunction(
     "hasElement", returnType = "Boolean", parameters = listOf(
         makeParam(name = "value", type = "TermNode")
     ),
@@ -423,7 +426,7 @@ fun makeArgList(args: ArgsContext): List<ExprContext> {
     return when (args) {
         is NoArgsContext -> emptyList()
         is SingleArgsContext -> {
-            if (args.expr() !is TupleExpressionContext) {
+            if (args.expr() !is SequenceExpressionContext) {
                 listOf(args.expr())
             } else emptyList()
         }
@@ -435,7 +438,7 @@ fun makeArgList(args: ArgsContext): List<ExprContext> {
 
 fun partitionArgs(args: List<ExprContext?>): Pair<List<ExprContext>, List<ExprContext>> {
     return args.filterNotNull().partition { arg ->
-        arg is SuffixExpressionContext || (arg is TypeExpressionContext && arg.value is SuffixExpressionContext) || arg is TupleExpressionContext
+        arg is SuffixExpressionContext || (arg is TypeExpressionContext && arg.value is SuffixExpressionContext) || arg is SequenceExpressionContext
     }
 }
 
@@ -469,4 +472,22 @@ fun getObject(definition: ParseTree): Object {
         else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
     }
     return globalObjects[name]!!
+}
+
+fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
+    val (obj, isComplement) = when (typeExpr) {
+        is ComplementExpressionContext -> getObject(typeExpr.expr()) to true
+        else -> getObject(typeExpr) to false
+    }
+
+    val complementStr = if (isComplement) "!" else ""
+    return when {
+        obj is AlgebraicDatatypeObject || obj is TypeObject
+            -> "${complementStr}$paramStr.isIn${obj.camelCaseName}()"
+
+        else -> {
+            val explicitValue = if (obj is DatatypeFunconObject && obj.params.isNotEmpty()) "Value" else ""
+            "$paramStr ${complementStr}is $explicitValue${obj.nodeName}"
+        }
+    }
 }

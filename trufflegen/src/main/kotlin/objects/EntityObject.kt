@@ -1,12 +1,14 @@
 package main.objects
 
+import cbs.CBSParser
 import main.*
 import org.antlr.v4.runtime.tree.ParseTree
 
 open class EntityObject(
     ctx: ParseTree,
     val entityType: EntityType,
-) : Object(ctx) {
+    metaVariables: Set<Pair<CBSParser.ExprContext, CBSParser.ExprContext>>,
+) : Object(ctx, metaVariables) {
     private val entityClassMap = mapOf(
         EntityType.CONTEXTUAL to CONTEXTUALENTITY,
         EntityType.CONTROL to CONTROLENTITY,

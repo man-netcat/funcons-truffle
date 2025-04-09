@@ -6,7 +6,8 @@ import main.exceptions.DetailedException
 
 class TypeObject(
     ctx: TypeDefinitionContext,
-) : Object(ctx) {
+    metaVariables: Set<Pair<ExprContext, ExprContext>>,
+) : Object(ctx, metaVariables) {
     val operator = ctx.op?.text
     override val keyWords: List<String> = listOf("open")
     private val definitionExpr = ctx.definition
@@ -43,11 +44,17 @@ class TypeObject(
             }
         }
 
-    val makeElementInFunction: String
-        get() = when (operator) {
-            null -> ""
-            "<:" -> ""
-            "~>" -> ""
-            else -> throw DetailedException("Unexpected operator: $operator")
-        }
+    val elementInBody: String
+        get() = if (definitionExpr != null) {
+            val conditionStr = when (definitionExpr) {
+                is AndExpressionContext -> {
+                    val defs = extractAndOrExprs(definitionExpr)
+                    defs.joinToString(" && ") { def -> makeTypeCondition("this", def) }
+                }
+
+                else -> makeTypeCondition("this", definitionExpr)
+
+            }
+            makeIsInTypeFunction(camelCaseName, "return $conditionStr")
+        } else ""
 }

@@ -64,7 +64,7 @@ expr
    | '[' elements = exprs? ']' # ListExpression
    | '{' elements = exprs? '}' # SetExpression
    | '{' pairs '}' # MapExpression
-   | '(' elements = exprs? ')' # TupleExpression
+   | '(' elements = exprs? ')' # SequenceExpression
    | string = STRING # String
    | value = NUMBER # Number
    | varname = VARIABLE squote* # Variable
