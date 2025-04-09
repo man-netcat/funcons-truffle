@@ -1,7 +1,6 @@
 package builtin
 
 import com.oracle.truffle.api.frame.VirtualFrame
-import com.oracle.truffle.api.nodes.Node
 import generated.*
 
 open class ValueTypesNode : ValuesNode(), ValueTypesInterface {
@@ -42,7 +41,7 @@ fun TermNode.isInMaps(): Boolean = this is ValueMapNode
 open class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
 
 class ComputationTypesNode() : ValueTypesNode(), ComputationTypesInterface
-class AbstractionNode(@Node.Child override var p0: TermNode) : AbstractionsNode(ComputationTypesNode()),
+class AbstractionNode(@Child override var p0: TermNode) : AbstractionsNode(ComputationTypesNode()),
     AbstractionInterface
 
 class StuckNode() : TermNode(), StuckInterface {
@@ -115,11 +114,11 @@ class IntegerAddNode(@Child override var p0: SequenceNode = SequenceNode()) : Te
     }
 }
 
-class ValueTupleNode(@Node.Child var p0: SequenceNode = SequenceNode()) : TuplesNode() {
+class ValueTupleNode(@Child var p0: SequenceNode = SequenceNode()) : TuplesNode() {
     override val value get() = "tuple(${p0.value})"
 }
 
-class ValueListNode(@Node.Child var p0: SequenceNode = SequenceNode()) : ListsNode(ValuesNode()) {
+class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode(ValuesNode()) {
     override val value get() = "[${p0.value}]"
 }
 
@@ -261,7 +260,7 @@ open class AtomsNode : ValueTypesNode(), AtomsInterface
 
 class InitialiseGeneratingNode(override val p0: TermNode) : TermNode(), InitialiseGeneratingInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val environment = getGlobal("used-atom-set") ?: SequenceNode()
+        val environment = getGlobal("used-atom-set")
         return p0
     }
 }

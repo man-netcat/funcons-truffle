@@ -1,5 +1,8 @@
 package language
 
 object Util {
-    var DEBUG = false
+    const val DEBUG = false
 }
+
+@Retention(AnnotationRetention.RUNTIME)
+annotation class Eager

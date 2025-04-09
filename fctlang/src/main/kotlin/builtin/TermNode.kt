@@ -3,11 +3,9 @@ package builtin
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
 import generated.*
-import language.FCTContext
-import language.FCTLanguage
-import language.InfiniteLoopException
-import language.StuckException
+import language.*
 import language.Util.DEBUG
+import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
 
@@ -112,20 +110,23 @@ abstract class TermNode : Node() {
     open fun reduceComputations(frame: VirtualFrame): TermNode? {
         val newParams = params.toMutableList()
         var attemptedReduction = false
-        for (index in eager) {
-            val currentParam = newParams[index]
+
+        for ((i, param) in primaryConstructor.parameters.withIndex()) {
+            val isEager = param.findAnnotation<Eager>() != null
+            if (!isEager) continue
+
+            val currentParam = newParams[i]
             if (!currentParam.isReducible()) continue
 
             try {
                 attemptedReduction = true
-                newParams[index] = currentParam.reduce(frame)
+                newParams[i] = currentParam.reduce(frame)
                 return primaryConstructor.call(*newParams.toTypedArray())
             } catch (e: Exception) {
             }
         }
+
         return null
-//        return if (!attemptedReduction) null
-//        else throw IllegalStateException("All reductions failed")
     }
 
     open fun isInType(type: TermNode): Boolean {

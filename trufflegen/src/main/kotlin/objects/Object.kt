@@ -40,7 +40,8 @@ abstract class Object(val ctx: ParseTree) {
             return params.map { param ->
                 val annotation = makeAnnotation(
                     isVararg = param.type.isVararg,
-                    isEntity = this !is EntityObject
+                    isEntity = this !is EntityObject,
+                    isEager = !param.type.computes
                 )
                 val paramTypeStr = if (param.type.isSequence) SEQUENCE else TERMNODE
                 val default = if (param.type.isOptional || param.type.isSequence) "SequenceNode()" else ""
