@@ -15,6 +15,7 @@ repositories {
 dependencies {
     implementation(Deps.kotlinStdLib)
     testImplementation(Deps.junitJupiter)
+    implementation(kotlin("stdlib-jdk8"))
 }
 
 tasks.test {

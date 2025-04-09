@@ -1,8 +1,8 @@
 package builtin
 
 import com.oracle.truffle.api.frame.VirtualFrame
-import com.oracle.truffle.api.nodes.Node
 import generated.*
+import language.Eager
 
 open class ValueTypesNode : ValuesNode(), ValueTypesInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = this
@@ -42,7 +42,7 @@ fun TermNode.isInMaps(): Boolean = this is ValueMapNode
 open class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
 
 class ComputationTypesNode() : ValueTypesNode(), ComputationTypesInterface
-class AbstractionNode(@Node.Child override var p0: TermNode) : AbstractionsNode(ComputationTypesNode()),
+class AbstractionNode(@Child override var p0: TermNode) : AbstractionsNode(ComputationTypesNode()),
     AbstractionInterface
 
 class StuckNode() : TermNode(), StuckInterface {
@@ -106,8 +106,7 @@ class ChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNo
     }
 }
 
-class IntegerAddNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), IntegerAddInterface {
-    override val eager = listOf(0)
+class IntegerAddNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), IntegerAddInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         // TODO Check type
         val sum = p0.elements.fold(0) { acc, node -> acc + (node.value as Int) }
@@ -115,11 +114,11 @@ class IntegerAddNode(@Child override var p0: SequenceNode = SequenceNode()) : Te
     }
 }
 
-class ValueTupleNode(@Node.Child var p0: SequenceNode = SequenceNode()) : TuplesNode() {
+class ValueTupleNode(@Child var p0: SequenceNode = SequenceNode()) : TuplesNode() {
     override val value get() = "tuple(${p0.value})"
 }
 
-class ValueListNode(@Node.Child var p0: SequenceNode = SequenceNode()) : ListsNode(ValuesNode()) {
+class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode(ValuesNode()) {
     override val value get() = "[${p0.value}]"
 }
 
@@ -134,8 +133,7 @@ fun TermNode.isInIdentifiers(): Boolean = this is StringNode || this is Identifi
 //    override val value get() = "fun ${p0.value}"
 //}
 
-class MapNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), MapInterface {
-    override val eager = listOf(0)
+class MapNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), MapInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         return ValueMapNode(p0)
     }
@@ -261,7 +259,7 @@ open class AtomsNode : ValueTypesNode(), AtomsInterface
 
 class InitialiseGeneratingNode(override val p0: TermNode) : TermNode(), InitialiseGeneratingInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val environment = getGlobal("used-atom-set") ?: SequenceNode()
+        val environment = getGlobal("used-atom-set")
         return p0
     }
 }

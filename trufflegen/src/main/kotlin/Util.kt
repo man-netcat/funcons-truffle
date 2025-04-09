@@ -362,8 +362,15 @@ tailrec fun extractAndOrExprs(
 
 fun emptySuperClass(name: String): String = makeFunCall(name, emptyList())
 
-fun makeAnnotation(isVararg: Boolean = false, isOverride: Boolean = false, isEntity: Boolean = false): String {
+fun makeAnnotation(
+    isVararg: Boolean = false,
+    isOverride: Boolean = false,
+    isEntity: Boolean = false,
+    isEager: Boolean,
+): String {
     val annotationBuilder = StringBuilder()
+
+    if (isEager) annotationBuilder.append("@param:Eager ")
 
     if (isEntity) annotationBuilder.append(if (isVararg) "@Children " else "@Child ")
 

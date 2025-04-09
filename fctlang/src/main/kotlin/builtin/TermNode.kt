@@ -3,11 +3,9 @@ package builtin
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
 import generated.*
-import language.FCTContext
-import language.FCTLanguage
-import language.InfiniteLoopException
-import language.StuckException
+import language.*
 import language.Util.DEBUG
+import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
 
@@ -17,20 +15,15 @@ abstract class TermNode : Node() {
         LOCAL_CONTEXT
     }
 
-    // Indices for parameters that are not lazily evaluated
-    open val eager = emptyList<Int>()
     val primaryConstructor = this::class.primaryConstructor!!
     val memberProperties = this::class.memberProperties
     val members = this::class.members
 
-    // Pre-generate the list of params during initialization
     private val params: List<TermNode> by lazy {
         primaryConstructor.parameters.mapNotNull { param ->
             memberProperties.first { it.name == param.name }.getter.call(this) as? TermNode
         }
     }
-
-    val nonLazyParams: List<TermNode> by lazy { eager.map { index -> params[index] } }
 
     open val value: Any
         get() = when (this) {
@@ -78,7 +71,7 @@ abstract class TermNode : Node() {
     }
 
     fun getGlobal(key: String): TermNode {
-        return getContext().globalVariables.getEntity(key) ?: SequenceNode()
+        return getContext().globalVariables.getEntity(key)
     }
 
     fun putGlobal(key: String, entity: TermNode) {
@@ -98,8 +91,7 @@ abstract class TermNode : Node() {
             elements.any { it !is ValuesNode }
         } else false
 
-        !is ValuesNode -> true
-        else -> nonLazyParams.any { it.isReducible() }
+        else -> this !is ValuesNode
     }
 
     internal open fun reduce(frame: VirtualFrame): TermNode {
@@ -112,20 +104,22 @@ abstract class TermNode : Node() {
     open fun reduceComputations(frame: VirtualFrame): TermNode? {
         val newParams = params.toMutableList()
         var attemptedReduction = false
-        for (index in eager) {
-            val currentParam = newParams[index]
+
+        for ((i, param) in primaryConstructor.parameters.withIndex()) {
+            if (param.findAnnotation<Eager>() == null) continue
+
+            val currentParam = newParams[i]
             if (!currentParam.isReducible()) continue
 
             try {
                 attemptedReduction = true
-                newParams[index] = currentParam.reduce(frame)
+                newParams[i] = currentParam.reduce(frame)
                 return primaryConstructor.call(*newParams.toTypedArray())
             } catch (e: Exception) {
             }
         }
+
         return null
-//        return if (!attemptedReduction) null
-//        else throw IllegalStateException("All reductions failed")
     }
 
     open fun isInType(type: TermNode): Boolean {

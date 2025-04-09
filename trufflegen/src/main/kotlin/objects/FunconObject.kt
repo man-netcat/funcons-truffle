@@ -12,15 +12,6 @@ import org.antlr.v4.runtime.tree.ParseTree
 abstract class AbstractFunconObject(ctx: ParseTree) : Object(ctx) {
     val reducibleIndices = computeReducibles()
     override val keyWords: List<String> = listOf()
-    override val properties = if (reducibleIndices.isNotEmpty()) {
-        listOf(
-            makeVariable(
-                "eager",
-                value = "listOf(${reducibleIndices.joinToString()})",
-                override = true
-            )
-        )
-    } else emptyList()
 
     protected fun computeReducibles(): List<Int> =
         params.mapIndexedNotNull { index, param -> if (!param.type.computes) index else null }
