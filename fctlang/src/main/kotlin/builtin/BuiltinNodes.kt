@@ -35,7 +35,7 @@ open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
 fun TermNode.isInDatatypeValues(): Boolean = this is DatatypeValuesNode
 
 open class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
-open class IntegersUpToNode(@Child override var p0: TermNode) : IntegersNode(), IntegersUpToInterface
+//open class IntegersUpToNode(@Child override var p0: TermNode) : IntegersNode(), IntegersUpToInterface
 
 class ComputationTypesNode() : ValueTypesNode(), ComputationTypesInterface
 
@@ -185,10 +185,10 @@ class ReadNode : TermNode(), ReadInterface {
 
 open class AtomsNode : ValueTypesNode(), AtomsInterface
 
-class ValueVariableNode(@Child var p0: TermNode, @Child var p1: TermNode) : VariablesNode() {
-    override val value: Any
-        get() = "${p0.value}: ${p1.value}"
-}
+//class ValueVariableNode(@Child var p0: TermNode, @Child var p1: TermNode) : VariablesNode() {
+//    override val value: Any
+//        get() = "${p0.value}: ${p1.value}"
+//}
 
 fun TermNode.isInAtoms(): Boolean = true // TODO: What is this?
 

@@ -452,7 +452,7 @@ class Rule(
         emptyPremises: Boolean = false,
     ) {
         val labels = when {
-            premiseExpr is TransitionPremiseWithContextualEntityContext && !isPremise && emptyPremises ->
+            premiseExpr is TransitionPremiseWithContextualEntityContext && !isPremise ->
                 listOf(premiseExpr.context_ to labelToObject(premiseExpr.context_))
 
             premiseExpr is TransitionPremiseWithControlEntityContext && isPremise && !emptyPremises ->

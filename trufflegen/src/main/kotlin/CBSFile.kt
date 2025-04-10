@@ -111,7 +111,7 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
     fun generateCode(generatedDependencies: MutableSet<Object>): String? {
         val included = generatedDependencies.ifEmpty { globalObjects.values.toSet() }
         val toProcess =
-            objects.values.distinct().filter { obj -> obj in included || obj.builtin || obj !is FunconObject }
+            objects.values.distinct().filter { obj -> obj in included }
 
         if (toProcess.isEmpty()) return null
 
