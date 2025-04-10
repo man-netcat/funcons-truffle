@@ -118,6 +118,10 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
                 FCTNodeFactory.createNode(funconName, children)
             }
 
+            is EmptySetContext -> {
+                FCTNodeFactory.createNode("set", emptyList())
+            }
+
             is ListExpressionContext -> {
                 val elements = parseTree.listExpr().sequenceExpr()?.expr()?.map { buildTree(it) } ?: emptyList()
                 FCTNodeFactory.createNode("list", elements)

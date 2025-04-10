@@ -52,6 +52,7 @@ expr
    | unOp operand = expr # UnopExpression
    | lhs = expr binOp rhs = expr # BinOpExpression
    | listExpr # ListExpression
+   | '{' WS* '}' # EmptySet
    | mapExpr # MapExpression
    | setExpr # SetExpression
    | tupleExpr # TupleExpression

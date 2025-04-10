@@ -1,21 +1,25 @@
 package builtin
 
-//open class SetsNode(@Child var tp0: TermNode) : DatatypeValuesNode(), SetsInterface
-//
-//fun TermNode.isInSets(): Boolean {
-//    return this::class in setOf(ValueSetNode::class)
-//}
-//
-//class ValueSetNode(@Child var p0: SequenceNode = SequenceNode()) : SetsNode(ValuesNode()) {
-//    override val value get() = "{${p0.value}}"
-//}
-//
-//class SetNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), SetInterface {
-//    override fun reduceRules(frame: VirtualFrame): TermNode {
-//        return ValueSetNode(p0)
-//    }
-//}
-//
+import com.oracle.truffle.api.frame.VirtualFrame
+import generated.SetInterface
+import generated.SetsInterface
+
+open class SetsNode(@Child var tp0: TermNode) : DatatypeValuesNode(), SetsInterface
+
+fun TermNode.isInSets(): Boolean {
+    return this::class in setOf(ValueSetNode::class)
+}
+
+class ValueSetNode(@Child var p0: SequenceNode = SequenceNode()) : SetsNode(ValuesNode()) {
+    override val value get() = "{${p0.value}}"
+}
+
+class SetNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), SetInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        return ValueSetNode(p0)
+    }
+}
+
 //class ElementNotInNode(
 //    @Eager @Child override var p0: TermNode,
 //    @Eager @Child override var p1: TermNode,
