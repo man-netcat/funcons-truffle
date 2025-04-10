@@ -74,7 +74,7 @@ class Rule(
             }
 
             when (argValue) {
-                is NumberContext -> addCondition("$paramStr == ${argValue.text}")
+                is NumberContext -> addCondition("$paramStr == IntegerNode(${argValue.text})")
                 is SuffixExpressionContext -> {}
             }
         }

@@ -111,6 +111,21 @@ class IntegerAddNode(@Eager @Child override var p0: SequenceNode = SequenceNode(
     }
 }
 
+class NaturalPredecessorNode(@Eager @Child override var p0: TermNode) : TermNode(), NaturalPredecessorInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        if (p0 is NaturalNumberNode && p0.value == 0) {
+            return SequenceNode()
+        }
+
+        if (p0 is NaturalNumberNode) {
+            val predecessorValue = (p0.value as Int) - 1
+            return NaturalNumberNode(predecessorValue)
+        }
+
+        return FailNode()
+    }
+}
+
 class ValueTupleNode(@Child var p0: SequenceNode = SequenceNode()) : TuplesNode() {
     override val value get() = "tuple(${p0.value})"
 }
