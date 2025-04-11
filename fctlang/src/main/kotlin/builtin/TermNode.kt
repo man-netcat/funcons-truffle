@@ -222,16 +222,25 @@ abstract class TermNode : Node() {
         return term
     }
 
-    open operator fun get(index: Int): TermNode = params[index]
+    open operator fun get(index: Int): TermNode {
+        return try {
+            params[index]
+        } catch (e: IndexOutOfBoundsException) {
+            FailNode()
+        }
+    }
 
     open val head: TermNode get() = abort("not a sequence")
     open val second: TermNode get() = abort("not a sequence")
     open val third: TermNode get() = abort("not a sequence")
     open val fourth: TermNode get() = abort("not a sequence")
+    open val last: TermNode get() = abort("not a sequence")
     open val tail: SequenceNode get() = abort("not a sequence")
+    open val init: SequenceNode get() = abort("not a sequence")
     open val size: Int get() = abort("not a sequence")
     open val elements: Array<out TermNode> get() = abort("not a sequence")
     fun isEmpty(): Boolean = this is SequenceNode && this.elements.isEmpty()
     fun isNotEmpty(): Boolean = !this.isEmpty()
     open fun sliceFrom(startIndex: Int, endIndexOffset: Int = 0): SequenceNode = abort("not a sequence")
+    open fun sliceUntil(endIndexOffset: Int, startIndexOffset: Int = 0): SequenceNode = abort("not a sequence")
 }

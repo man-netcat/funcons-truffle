@@ -95,14 +95,13 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
     fun makeParamStr(
         argIndex: Int, argsSize: Int, obj: Object, parentStr: String, argIsSequence: Boolean = false,
     ): String {
-        // Calculate the number of arguments passed to the vararg
+        // Calculate the number of arguments passed to the sequence
         val nSequenceArgs = argsSize - (obj.params.size - 1)
         if (obj.sequenceIndex >= 0) argsSize - (obj.sequenceIndex + nSequenceArgs) else 0
 
         // Utility function to build parameter string based on provided condition
-        fun buildParamString(paramIndex: Int, suffix: String = ""): String {
-            return listOf(parentStr, "get($paramIndex)").filterNot { it.isEmpty() }.joinToString(".") + suffix
-        }
+        fun buildParamString(paramIndex: Int): String =
+            listOf(parentStr, "get($paramIndex)").filterNot { it.isEmpty() }.joinToString(".")
 
         return when {
             // Case when there is no sequence (obj.sequenceIndex == -1)
@@ -116,13 +115,15 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
                 assert(sequenceRelativeIndex >= 0) { "Index out of bounds" }
 
                 val base = buildParamString(obj.sequenceIndex)
-                if (argIsSequence) {
+                if (argIsSequence && sequenceRelativeIndex == nSequenceArgs - 1) {
                     when (sequenceRelativeIndex) {
                         0 -> base
                         1 -> "$base.tail"
                         else -> "$base.sliceFrom($sequenceRelativeIndex)"
                     }
-                } else {
+                } else if (argIsSequence && sequenceRelativeIndex != nSequenceArgs - 1) {
+                    "$base.init"
+                } else if (!argIsSequence && sequenceRelativeIndex != nSequenceArgs - 1) {
                     when (sequenceRelativeIndex) {
                         0 -> "$base.head"
                         1 -> "$base.second"
@@ -130,7 +131,7 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
                         3 -> "$base.fourth"
                         else -> "$base.get($sequenceRelativeIndex)"
                     }
-                }
+                } else "$base.last"
             }
 
             else -> throw IndexOutOfBoundsException("argIndex $argIndex out of bounds.")

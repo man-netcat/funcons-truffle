@@ -29,6 +29,7 @@ tasks.register("testFilesRun") {
 
         var successCount = 0
         var failCount = 0
+        val failed = mutableListOf<String>()
 
         // Iterate over each file and run the interpreter.
         testFiles.forEach { fileName ->
@@ -48,12 +49,15 @@ tasks.register("testFilesRun") {
             } else {
                 println("Failed (exit code: ${result.exitValue})")
                 failCount++
+                failed.add(fileName)
             }
             println("-----------------------")
         }
 
         println("Total succeeded: $successCount / ${testFiles.size}")
         println("Total failed: $failCount / ${testFiles.size}")
+        if (failed.isNotEmpty()) println("Failed files:")
+        failed.forEach { println(it) }
     }
 }
 

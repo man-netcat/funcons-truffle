@@ -135,15 +135,12 @@ fun makeInterface(
 ): String {
     val result = StringBuilder()
 
-    // Add annotations
     if (annotations.isNotEmpty()) {
         annotations.forEach { result.append("@$it\n") }
     }
 
-    // Add interface header
     result.append("interface $name")
 
-    // Add type parameters (if any)
     if (typeParams.isNotEmpty()) {
         result.append("<")
         result.append(typeParams.joinToString { (metavar, superClass) ->
@@ -152,20 +149,16 @@ fun makeInterface(
         result.append("> ")
     }
 
-    // Add super interfaces (if any)
     if (superInterfaces.isNotEmpty()) {
         result.append(" : ")
         result.append(superInterfaces.joinToString())
     }
 
-    // Add properties and functions
     if (properties.isNotEmpty() || functions.isNotEmpty()) {
         result.append(" {\n")
 
-        // Add properties
         properties.forEach { result.append("    $it\n") }
 
-        // Add functions
         functions.forEach { func ->
             result.append("    $func\n")
         }
@@ -189,21 +182,17 @@ fun makeClass(
 ): String {
     val result = StringBuilder()
 
-    // Annotations
     if (annotations.isNotEmpty()) {
         annotations.forEach { result.append("@$it\n") }
     }
 
-    // Keywords
     if (keywords.isNotEmpty()) {
         result.append(keywords.joinToString(" "))
         result.append(" ")
     }
 
-    // Class header
     result.append("class $name")
 
-    // Type parameters
     if (typeParams.isNotEmpty()) {
         result.append("<")
         result.append(typeParams.joinToString { (metavar, superClass) ->
@@ -212,14 +201,12 @@ fun makeClass(
         result.append("> ")
     }
 
-    // Constructor arguments
     if (constructorArgs.isNotEmpty()) {
         result.append("(")
         result.append(constructorArgs.joinToString())
         result.append(")")
     }
 
-    // Inheritance
     val inheritance = buildList {
         if (superClass.isNotEmpty()) add(superClass)
         addAll(interfaces)

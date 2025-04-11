@@ -105,24 +105,32 @@ class ChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNo
 
 class IntegerAddNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), IntegerAddInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        // TODO Check type
+        if (p0.elements.any { !it.isInIntegers() }) return FailNode()
         val sum = p0.elements.fold(0) { acc, node -> acc + (node.value as Int) }
         return IntegerNode(sum)
     }
 }
 
+class NaturalSuccessorNode(@Eager @Child override var p0: TermNode) : TermNode(), NaturalSuccessorInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        if (!p0.isInIntegers()) return FailNode()
+
+        val successor = (p0.value as Int) + 1
+        return NaturalNumberNode(successor)
+    }
+}
+
 class NaturalPredecessorNode(@Eager @Child override var p0: TermNode) : TermNode(), NaturalPredecessorInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (p0 is NaturalNumberNode && p0.value == 0) {
-            return SequenceNode()
-        }
+        if (!p0.isInIntegers()) return FailNode()
 
-        if (p0 is NaturalNumberNode) {
-            val predecessorValue = (p0.value as Int) - 1
-            return NaturalNumberNode(predecessorValue)
+        return when (p0.value) {
+            0 -> SequenceNode()
+            else -> {
+                val predecessor = (p0.value as Int) - 1
+                return NaturalNumberNode(predecessor)
+            }
         }
-
-        return FailNode()
     }
 }
 

@@ -1,6 +1,7 @@
 package builtin
 
 import com.oracle.truffle.api.frame.VirtualFrame
+import generated.FailNode
 import generated.NullValueNode
 import language.Util.DEBUG
 
@@ -13,20 +14,29 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
 
     override val size: Int by lazy { elements.size }
 
-    override fun sliceFrom(startIndex: Int, endIndexOffset: Int): SequenceNode {
-        val endIndex = size - endIndexOffset
-        require(endIndexOffset >= 0 && endIndex <= size && startIndex <= endIndex) {
-            "Invalid end index offset."
-        }
-
+    private fun slice(startIndex: Int, endIndex: Int): SequenceNode {
         val sliced = elements.sliceArray(startIndex until endIndex)
         return SequenceNode(*sliced)
     }
+
+    override fun sliceFrom(startIndex: Int, endIndexOffset: Int): SequenceNode {
+        val endIndex = size - endIndexOffset
+        return slice(startIndex, endIndex)
+    }
+
+    override fun sliceUntil(endIndex: Int, startIndexOffset: Int): SequenceNode {
+        val adjustedEndIndex = if (endIndex == 0) size else size - endIndex
+        val startIndex = startIndexOffset
+        return slice(startIndex, adjustedEndIndex)
+    }
+
 
     override val head: TermNode by lazy { get(0) }
     override val second: TermNode by lazy { get(1) }
     override val third: TermNode by lazy { get(2) }
     override val fourth: TermNode by lazy { get(3) }
+    override val last: TermNode by lazy { get(elements.size - 1) }
+    override val init: SequenceNode by lazy { sliceUntil(1) }
     override val tail: SequenceNode by lazy { sliceFrom(1) }
 
     fun random(): TermNode {
@@ -80,7 +90,7 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         return try {
             elements[index]
         } catch (e: ArrayIndexOutOfBoundsException) {
-            SequenceNode()
+            FailNode()
         }
     }
 }

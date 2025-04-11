@@ -19,6 +19,7 @@ class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : MapsNode(Grou
             get(0).elements.joinToString { tuple ->
                 tuple as ValueTupleNode
                 when (tuple.get(0).size) {
+                    0 -> "map( )"
                     1 -> "${tuple.get(0).elements[0].value} |-> ( )"
                     2 -> "${tuple.get(0).elements[0].value} |-> ${tuple.get(0).elements[1].value}"
                     else -> abort("value-map")
