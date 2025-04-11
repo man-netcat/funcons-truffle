@@ -1,0 +1,63 @@
+class ElseNode(@Child var p0: TermNode, @Child var p1: SequenceNode = SequenceNode()) : TermNode() {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        return when {
+            get(0).isReducible() -> {
+                val i0 = get(0).reduce(frame)
+                val abrupted = getGlobal("abrupted")
+
+                when {
+                    get(1).size == 1 && abrupted.isEmpty() -> {
+                        putGlobal("abrupted", SequenceNode())
+                        ElseNode(i0, SequenceNode(get(1).last))
+                    }
+
+                    get(1).size == 1 && abrupted is FailedNode -> {
+                        putGlobal("abrupted", SequenceNode())
+                        get(1).last
+                    }
+
+                    get(1).size == 1 && !abrupted.isInFailing() -> {
+                        putGlobal("abrupted", abrupted)
+                        ElseNode(i0, SequenceNode(get(1).last))
+                    }
+
+
+                    get(1).size >= 2 -> ElseNode(get(0), SequenceNode(ElseNode(get(1).head, SequenceNode(get(1).tail))))
+                    else > FailNode()
+                }
+            }
+
+            get(0).isInValues() -> get(0)
+
+            else -> FailNode()
+        }
+    }
+}
+
+class FinallyNode(@Child var p0: TermNode, @Child var p1: TermNode) : TermNode() {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        return when {
+            get(0).isReducible() -> {
+                val i0 = get(0).reduce(frame)
+                val abrupted = getGlobal("abrupted")
+
+                when {
+                    abrupted.isEmpty() -> {
+                        putGlobal("abrupted", SequenceNode())
+                        FinallyNode(i0, get(1))
+                    }
+
+                    abrupted.isNotEmpty() && abrupted.isInValues() -> {
+                        putGlobal("abrupted", SequenceNode())
+                        SequentialNode(SequenceNode(get(1)), AbruptNode(abrupted))
+                    }
+
+                    else -> FailNode()
+                }
+            }
+
+            get(0).isInValues() -> SequentialNode(SequenceNode(get(1)), get(0))
+            else -> FailNode()
+        }
+    }
+}

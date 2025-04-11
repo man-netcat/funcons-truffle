@@ -8,8 +8,9 @@ object Vars {
 //        "Computations/Normal/Binding/tests/accumulate.config",
 //        "Computations/Normal/Flowing/tests/atomic.config",
 //        "Computations/Normal/Binding/tests/bind-recursively.config",
-        "Computations/Normal/Giving/tests/fold-left.config", // Maybe correct?
-        "Computations/Normal/Giving/tests/fold-right.config",
+//        "Computations/Normal/Giving/tests/fold-left.config",
+//        "Computations/Normal/Giving/tests/fold-right.config",
+        "Computations/Abnormal/Abrupting/tests/finally.config",
         "Computations/Normal/Binding/tests/bind-value.config",
         "Computations/Normal/Binding/tests/closed.config",
         "Computations/Normal/Binding/tests/environments.config",
