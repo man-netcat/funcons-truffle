@@ -180,55 +180,56 @@ fun makeClass(
     superClass: String = "",
     interfaces: List<String> = emptyList(),
 ): String {
-    val result = StringBuilder()
-
-    if (annotations.isNotEmpty()) {
-        annotations.forEach { result.append("@$it\n") }
-    }
-
-    if (keywords.isNotEmpty()) {
-        result.append(keywords.joinToString(" "))
-        result.append(" ")
-    }
-
-    result.append("class $name")
-
-    if (typeParams.isNotEmpty()) {
-        result.append("<")
-        result.append(typeParams.joinToString { (metavar, superClass) ->
-            if (superClass != null) "$metavar : $superClass" else metavar
-        })
-        result.append("> ")
-    }
-
-    if (constructorArgs.isNotEmpty()) {
-        result.append("(")
-        result.append(constructorArgs.joinToString())
-        result.append(")")
-    }
-
-    val inheritance = buildList {
-        if (superClass.isNotEmpty()) add(superClass)
-        addAll(interfaces)
-    }
-    if (inheritance.isNotEmpty()) {
-        result.append(" : ")
-        result.append(inheritance.joinToString(" : "))
-    }
-
-    if (properties.isNotEmpty() || content.isNotBlank()) {
-        result.append(" {\n")
-        if (properties.isNotEmpty()) {
-            properties.forEach { prop ->
-                result.append("    $prop")
-            }
-            if (content.isNotBlank()) result.append("\n")
+    return buildString {
+        if (annotations.isNotEmpty()) {
+            annotations.forEach { appendLine("@$it") }
         }
-        if (content.isNotBlank()) result.append(makeBody(content))
-        result.append("\n}")
-    }
 
-    return result.toString()
+        if (keywords.isNotEmpty()) {
+            append(keywords.joinToString(" "))
+            append(" ")
+        }
+
+        append("class $name")
+
+        if (typeParams.isNotEmpty()) {
+            append("<")
+            append(typeParams.joinToString { (metavar, upperBound) ->
+                if (upperBound != null) "$metavar : $upperBound" else metavar
+            })
+            append("> ")
+        }
+
+        if (constructorArgs.isNotEmpty()) {
+            append(constructorArgs.joinToString(prefix = "(", postfix = ")"))
+        }
+
+        val inheritance = buildList {
+            if (superClass.isNotBlank()) add(superClass)
+            addAll(interfaces)
+        }
+
+        if (inheritance.isNotEmpty()) {
+            append(" : ")
+            append(inheritance.joinToString(" : "))
+        }
+
+        val body = buildString {
+            if (properties.isNotEmpty()) {
+                properties.forEach { appendLine("    $it") }
+            }
+            if (content.isNotBlank()) {
+                if (isNotEmpty()) appendLine()
+                append(makeBody(content).trimEnd())
+            }
+        }
+
+        if (body.isNotBlank()) {
+            append(" {\n")
+            append(body.trimEnd())
+            append("\n}")
+        }
+    }.trimEnd()
 }
 
 fun makeValueTypesCompanionObject(funBody: String): String {
@@ -258,35 +259,19 @@ fun makeElementInFunction(body: String): String = makeFunction(
     body = body, indent = 1
 )
 
-fun makeWhenStatement(cases: List<Pair<String, String>>, elseBranch: String? = null): String {
-    val result = StringBuilder("when {\n")
-
-    cases.forEach { (condition, block) ->
-        val formattedBlock = makeBody(block, indentLevel = 0)
-        if ('\n' in formattedBlock) {
-            result.append("    $condition -> {\n")
-            result.append(formattedBlock.prependIndent("        "))
-            result.append("\n    }\n\n")
-        } else {
-            result.append("    $condition -> $formattedBlock\n")
-        }
+fun makeWhenStatement(cases: List<Pair<String, String>>, elseBranch: String? = null): String =
+    buildString {
+        appendLine("when {")
+        (cases + listOfNotNull(elseBranch?.let { "else" to it })).joinToString("\n") { (cond, block) ->
+            val body = makeBody(block, 0)
+            if ('\n' in body)
+                "    $cond -> {\n${body.prependIndent("        ")}\n    }"
+            else
+                "    $cond -> $body"
+        }.also { append(it) }
+        append("\n}")
     }
 
-    if (elseBranch != null) {
-        val formattedElse = makeBody(elseBranch, indentLevel = 0)
-        if ('\n' in formattedElse) {
-            result.append("    else -> {\n")
-            result.append(formattedElse.prependIndent("        "))
-            result.append("\n    }\n\n")
-        } else {
-            result.append("    else -> $formattedElse")
-        }
-    }
-
-    result.append("\n}")
-
-    return result.toString()
-}
 
 fun getObjectName(ctx: ParseTree): String {
     return when (ctx) {

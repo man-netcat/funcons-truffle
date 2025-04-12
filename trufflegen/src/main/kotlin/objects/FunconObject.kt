@@ -45,31 +45,32 @@ class FunconObject(
 
     val stepVariables = Variables("s")
     val rewriteVariables = Variables("r")
-    val contextualEntityWrites = mutableSetOf<String>()
-    val controlEntityWrites = mutableSetOf<String>()
-    val contextualEntityReads = mutableSetOf<String>()
-    val controlEntityReads = mutableSetOf<String>()
+    var contextualWrite: String = ""
+    var contextualRead: String = ""
+    val controlReads = mutableSetOf<String>()
 
     inner class Rule(
         premises: List<PremiseExprContext>,
         conclusion: PremiseExprContext,
         val metaVariableMap: Map<String, ExprContext>,
     ) {
+        val controlWrites = mutableSetOf<String>()
+        var stepVariable: Pair<String, String>? = null
+
         inner class Condition(val expr: String, val priority: Int = 1)
 
         val conditions = mutableListOf<Condition>()
-        val entityVars = mutableSetOf<Object>()
-        private val assignments = mutableListOf<String>()
         private val rewriteStr: String
         var rulePriority = 1
 
         val rewriteData: MutableList<RewriteData> = mutableListOf()
 
         val bodyStr: String
-            get() = (assignments + rewriteStr).joinToString("\n")
+            get() = (controlWrites + listOf(rewriteStr)).joinToString("\n")
 
         private fun addCondition(expr: String, priority: Int = 1) = conditions.add(Condition(expr, priority))
-        internal fun getSortedConditions(): List<String> = conditions.sortedBy { it.priority }.map { it.expr }
+        internal fun getSortedConditions(): String =
+            conditions.sortedBy { it.priority }.joinToString(" && ") { it.expr }
 
         private fun argsConditions(funconExpr: FunconExpressionContext) {
             val obj = getObject(funconExpr)
@@ -183,8 +184,8 @@ class FunconObject(
             when (premise) {
                 is RewritePremiseContext -> {
                     val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
-                    val variable = rewriteVariables.getVar(rewriteLhs)
-                    val newRewriteData = makeRewriteDataObject(rhs, variable)
+                    val rewriteRhs = rewriteVariables.getVar(rewriteLhs)
+                    val newRewriteData = makeRewriteDataObject(rhs, rewriteRhs)
                     rewriteData.add(newRewriteData)
                 }
 
@@ -194,49 +195,28 @@ class FunconObject(
                 is TransitionPremiseWithMutableEntityContext,
                     -> {
                     val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
-                    val variable = stepVariables.getVar(rewriteLhs)
-                    val newRewriteData = RewriteData(rhs, null, variable)
+                    val rewriteRhs = stepVariables.getVar(rewriteLhs)
+                    val newRewriteData = makeRewriteDataObject(rhs, rewriteRhs)
                     rewriteData.add(newRewriteData)
-
-                    if (rhs.text == "_") return
-                    val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
-
-                    val rewrite = makeVariable(rewriteRhs, "$rewriteLhs.reduce(frame)")
-                    assignments.add(rewrite)
-
-                    val condition = when {
-                        rhs is VariableContext -> "$rewriteLhs.isReducible()"
-                        lhs is FunconExpressionContext -> {
-                            // In the case of `atomic(X') --yielded( )->2 X''`
-                            val lhsFuncon = getObject(lhs)
-                            "$rewriteLhs is ${lhsFuncon.nodeName}"
-                        }
-
-                        else -> throw DetailedException("Unexpected premise: ${premise.text}")
-                    }
-
-                    addCondition(condition)
 
                     when (premise) {
                         is TransitionPremiseWithContextualEntityContext -> {
                             val label = premise.context_
                             val labelObj = labelToObject(label)
-
-                            val assignment = makeEntityAssignment(ruleDef, label, labelObj)
-                            assignments.addFirst(assignment)
+                            contextualWrite = makeEntityAssignment(ruleDef, label, labelObj)
                         }
 
                         is TransitionPremiseWithControlEntityContext -> {
                             val labels = getControlEntityLabels(premise)
-                            if (labels.isNotEmpty()) {
-                                labels.forEach { (label, labelObj) ->
-                                    processEntityCondition(label)
-                                    entityVars.add(labelObj)
-                                }
+                            labels.forEach { (label, labelObj) ->
+                                processEntityCondition(label)
+                                var controlRead = makeVariable(labelObj.asVarName, labelObj.getStr())
+                                controlReads.add(controlRead)
                             }
                         }
 
                         is TransitionPremiseWithMutableEntityContext -> {
+                            // TODO: Add this too
                             val rewriteEntityLhs = rewrite(ruleDef, premise.entityLhs.value, rewriteData)
                             val variable = stepVariables.getVar(rewriteEntityLhs)
                             val newRewriteData = RewriteData(premise.entityRhs.value, null, variable)
@@ -245,14 +225,14 @@ class FunconObject(
                             val label = premise.entityRhs
                             val labelObj = labelToObject(label)
                             processEntityCondition(label)
-                            entityVars.add(labelObj)
+                            makeVariable(labelObj.asVarName, labelObj.getStr())
 
                             val rewriteEntityRhs = rewrite(ruleDef, premise.entityRhs.value, rewriteData)
                             val entityRewrite = makeVariable(rewriteEntityRhs, "$rewriteEntityLhs.reduce(frame)")
-
-                            assignments.add(entityRewrite)
                         }
                     }
+
+                    stepVariable = rewriteLhs to rewriteRhs
                 }
 
                 is BooleanPremiseContext -> {
@@ -328,10 +308,6 @@ class FunconObject(
                 val emptyCondition = "${labelObj.asVarName}.isEmpty()"
                 rulePriority = 0
                 addCondition(emptyCondition, 0)
-            } else if (label.value.text == "_") {
-                val emptyCondition = "${labelObj.asVarName}.isNotEmpty() || ${labelObj.asVarName}.isEmpty()"
-                rulePriority = 1
-                addCondition(emptyCondition, 0)
             } else {
                 val emptyCondition = "${labelObj.asVarName}.isNotEmpty()"
                 rulePriority = 2
@@ -344,22 +320,18 @@ class FunconObject(
                 is TransitionPremiseWithContextualEntityContext -> {
                     val label = conclusion.context_
                     val labelObj = labelToObject(label)
-                    if (label.value == null) {
-                        val emptyCondition = "${labelObj.asVarName}.isEmpty()"
-                        rulePriority = 0
-                        addCondition(emptyCondition, 0)
-                    }
-                    entityVars.add(labelObj)
+                    processEntityCondition(label)
+                    contextualRead = makeVariable(labelObj.asVarName, labelObj.getStr())
                 }
 
                 is TransitionPremiseWithControlEntityContext -> {
                     val steps = conclusion.steps().step().sortedBy { it.sequenceNumber.text.toInt() }
-                    val labels = steps.flatMap { step ->
-                        step.labels().label().map { label -> label to labelToObject(label) }
-                    }
-                    labels.forEach { (label, labelObj) ->
-                        val assignment = makeEntityAssignment(ruleDef, label, labelObj)
-                        assignments.addFirst(assignment)
+                    steps.forEach { step ->
+                        step.labels().label().forEach { label ->
+                            val labelObj = labelToObject(label)
+                            val controlWrite = makeEntityAssignment(ruleDef, label, labelObj)
+                            controlWrites.add(controlWrite)
+                        }
                     }
                 }
 
@@ -367,10 +339,9 @@ class FunconObject(
                     val label = conclusion.entityLhs
                     val labelObj = labelToObject(label)
                     processEntityCondition(label)
-                    entityVars.add(labelObj)
+                    makeVariable(labelObj.asVarName, labelObj.getStr())
 
                     val assignment = makeEntityAssignment(ruleDef, label, labelObj)
-                    assignments.addFirst(assignment)
                 }
             }
         }
@@ -452,17 +423,9 @@ class FunconObject(
                         val premises = rule.premises()?.premiseExpr()?.toList() ?: emptyList()
                         Rule(premises, rule.conclusion, metavariableMap)
                     }
-                    val entityVars = buildString {
-                        ruleObjs.flatMap { it.entityVars }.distinct().forEach { entityObj ->
-                            entityObj as EntityObject
-                            appendLine(makeVariable(entityObj.asVarName, entityObj.getStr()))
-                        }
-                    }
 
-                    val pairs = ruleObjs.sortedBy { it.rulePriority }
-                        .map { it.getSortedConditions().joinToString(" && ") to it.bodyStr }
-
-                    if (entityVars.isNotEmpty()) stringBuilder.appendLine(entityVars)
+                    if (contextualRead.isNotEmpty()) stringBuilder.appendLine(contextualRead)
+                    if (contextualWrite.isNotEmpty()) stringBuilder.appendLine(contextualWrite)
 
                     rewriteVariables.variables.forEach { (rewrite, varName) ->
                         var initVarName = "${varName}Init"
@@ -474,7 +437,35 @@ class FunconObject(
                         stringBuilder.appendLine(rewriteStr)
                     }
 
-                    makeWhenStatement(pairs, elseBranch = "FailNode()")
+                    val stepVariableSet = stepVariables.variables.entries.map { it.toPair() }.toMutableSet()
+                    val pairs = stepVariableSet.map { stepVar ->
+                        val (rewriteLhs, rewriteRhs) = stepVar
+                        val condition = "$rewriteLhs.isReducible()"
+                        val step = makeVariable(rewriteRhs, "$rewriteLhs.reduce(frame)")
+                        val rulesForStepVar = ruleObjs
+                            .filter { rule -> rule.stepVariable == stepVar }
+                            .sortedBy { rule -> rule.rulePriority }
+                        val innerPairs = rulesForStepVar.map { rule ->
+                            rule.getSortedConditions() to rule.bodyStr
+                        }
+                        val ruleBody = makeWhenStatement(innerPairs, elseBranch = "FailNode()")
+                        val controlReadStr = if (controlReads.isEmpty()) "" else controlReads.joinToString("\n")
+
+                        val body = listOf(step, controlReadStr, ruleBody)
+                            .filter { it.isNotEmpty() }
+                            .joinToString("\n")
+                        condition to body
+                    }
+
+                    val rulesWithoutStepVar = ruleObjs.filter { rule -> rule.stepVariable == null }
+                    val withoutPairs = rulesWithoutStepVar.map { rule ->
+                        rule.getSortedConditions() to rule.bodyStr
+                    }
+                    val withoutWhen = makeWhenStatement(withoutPairs, elseBranch = "FailNode()")
+
+                    if (pairs.isEmpty()) withoutWhen
+                    else if (withoutPairs.isEmpty()) makeWhenStatement(pairs, elseBranch = "FailNode()")
+                    else makeWhenStatement(pairs, withoutWhen)
                 }
 
                 else -> throw DetailedException("Funcon $name does not have any associated rules.")
