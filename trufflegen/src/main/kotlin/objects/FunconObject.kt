@@ -22,6 +22,8 @@ abstract class AbstractFunconObject(
 
 }
 
+data class Condition(val expr: String, val priority: Int = 1)
+
 class FunconObject(
     ctx: FunconDefinitionContext,
     val rules: List<RuleDefinitionContext> = emptyList(),
@@ -44,9 +46,11 @@ class FunconObject(
     }
 
     val stepVariables = Variables("s")
+    val mutableVariables = Variables("m")
     val rewriteVariables = Variables("r")
-    var contextualWrite: String = ""
-    var contextualRead: String = ""
+    var contextualWrite = ""
+    var contextualRead = ""
+    var mutableRead = ""
     val controlReads = mutableSetOf<String>()
 
     inner class Rule(
@@ -55,22 +59,45 @@ class FunconObject(
         val metaVariableMap: Map<String, ExprContext>,
     ) {
         val controlWrites = mutableSetOf<String>()
+        var mutableWrite = ""
         var stepVariable: Pair<String, String>? = null
 
-        inner class Condition(val expr: String, val priority: Int = 1)
-
-        val conditions = mutableListOf<Condition>()
+        val conditions = mutableSetOf<Condition>()
         private val rewriteStr: String
         var rulePriority = 1
 
         val rewriteData: MutableList<RewriteData> = mutableListOf()
 
         val bodyStr: String
-            get() = (controlWrites + listOf(rewriteStr)).joinToString("\n")
+            get() = (controlWrites + listOf(mutableWrite) + listOf(rewriteStr)).filter { it.isNotEmpty() }.joinToString("\n")
 
         private fun addCondition(expr: String, priority: Int = 1) = conditions.add(Condition(expr, priority))
         internal fun getSortedConditions(): String =
             conditions.sortedBy { it.priority }.joinToString(" && ") { it.expr }
+
+        fun getSizeCondition(sequenceArgs: List<ExprContext>, sequenceIndex: Int, offsetValue: Int): String = when {
+            sequenceArgs.isNotEmpty() -> when (offsetValue) {
+                1 -> {
+                    rulePriority = 2
+                    "get(${sequenceIndex}).isNotEmpty()"
+                }
+
+                else -> if (sequenceArgs[0] is SequenceExpressionContext) {
+                    "get(${sequenceIndex}).isEmpty()"
+                } else {
+                    "get(${sequenceIndex}).size >= $offsetValue"
+                }
+            }
+
+            else -> when (offsetValue) {
+                0 -> {
+                    rulePriority = 0
+                    "get(${sequenceIndex}).isEmpty()"
+                }
+
+                else -> "get(${sequenceIndex}).size == $offsetValue"
+            }
+        }
 
         private fun argsConditions(funconExpr: FunconExpressionContext) {
             val obj = getObject(funconExpr)
@@ -129,29 +156,7 @@ class FunconObject(
                 }
 
                 val offsetValue = sumVarargMin + nonSequenceArgs.size - (obj.params.size - 1)
-                val condition = when {
-                    sequenceArgs.isNotEmpty() -> when (offsetValue) {
-                        1 -> {
-                            rulePriority = 2
-                            "get(${obj.sequenceIndex}).isNotEmpty()"
-                        }
-
-                        else -> if (sequenceArgs[0] is SequenceExpressionContext) {
-                            "get(${obj.sequenceIndex}).isEmpty()"
-                        } else {
-                            "get(${obj.sequenceIndex}).size >= $offsetValue"
-                        }
-                    }
-
-                    else -> when (offsetValue) {
-                        0 -> {
-                            rulePriority = 0
-                            "get(${obj.sequenceIndex}).isEmpty()"
-                        }
-
-                        else -> "get(${obj.sequenceIndex}).size == $offsetValue"
-                    }
-                }
+                val condition = getSizeCondition(sequenceArgs, obj.sequenceIndex, offsetValue)
                 addCondition(condition, priority = 0)
             } else {
 //            println("funconExpr: ${funconExpr.text}, rewriteData: $rewriteData")
@@ -216,19 +221,18 @@ class FunconObject(
                         }
 
                         is TransitionPremiseWithMutableEntityContext -> {
-                            // TODO: Add this too
-                            val rewriteEntityLhs = rewrite(ruleDef, premise.entityLhs.value, rewriteData)
-                            val variable = stepVariables.getVar(rewriteEntityLhs)
-                            val newRewriteData = RewriteData(premise.entityRhs.value, null, variable)
-                            rewriteData.add(newRewriteData)
-
-                            val label = premise.entityRhs
-                            val labelObj = labelToObject(label)
-                            processEntityCondition(label)
-                            makeVariable(labelObj.asVarName, labelObj.getStr())
-
-                            val rewriteEntityRhs = rewrite(ruleDef, premise.entityRhs.value, rewriteData)
-                            val entityRewrite = makeVariable(rewriteEntityRhs, "$rewriteEntityLhs.reduce(frame)")
+//                            val rewriteEntityLhs = rewrite(ruleDef, premise.entityLhs.value, rewriteData)
+//                            val variableLhs = mutableVariables.getVar(rewriteEntityLhs)
+//                            val newRewriteDataLhs = RewriteData(premise.entityRhs.value, null, variableLhs)
+//                            rewriteData.add(newRewriteDataLhs)
+//                            val rewriteEntityRhs = rewrite(ruleDef, premise.entityRhs.value, rewriteData)
+//                            val variableRhs = mutableVariables.getVar(rewriteEntityRhs)
+//                            val newRewriteDataRhs = RewriteData(premise.entityRhs.value, null, variableRhs)
+//                            rewriteData.add(newRewriteDataRhs)
+//                            val labelObjLhs = labelToObject(premise.entityLhs)
+//                            val labelObjRhs = labelToObject(premise.entityRhs)
+//                            val variableStrLhs = makeVariable(variableLhs, labelObjLhs.getStr())
+//                            val variableStrRhs = makeVariable(variableRhs, labelObjRhs.getStr())
                         }
                     }
 
@@ -336,12 +340,17 @@ class FunconObject(
                 }
 
                 is TransitionPremiseWithMutableEntityContext -> {
-                    val label = conclusion.entityLhs
-                    val labelObj = labelToObject(label)
-                    processEntityCondition(label)
-                    makeVariable(labelObj.asVarName, labelObj.getStr())
+                    val labelLhs = conclusion.entityLhs
+                    val labelLhsObj = labelToObject(labelLhs)
+                    processEntityCondition(labelLhs)
+                    mutableRead = makeVariable(labelLhsObj.asVarName, labelLhsObj.getStr())
+                    println(mutableRead)
 
-                    val assignment = makeEntityAssignment(ruleDef, label, labelObj)
+                    val labelRhs = conclusion.entityRhs
+                    val labelRhsObj = labelToObject(labelRhs)
+                    processEntityCondition(labelRhs)
+                    mutableWrite = makeEntityAssignment(ruleDef, labelRhs, labelRhsObj)
+                    println(mutableWrite)
                 }
             }
         }
@@ -372,7 +381,7 @@ class FunconObject(
                 premiseExpr is TransitionPremiseWithControlEntityContext && isPremise && !emptyPremises ->
                     getControlEntityLabels(premiseExpr)
 
-                premiseExpr is TransitionPremiseWithMutableEntityContext ->
+                premiseExpr is TransitionPremiseWithMutableEntityContext && isPremise ->
                     listOf(premiseExpr.entityLhs to labelToObject(premiseExpr.entityLhs))
 
                 else -> emptyList()
@@ -426,6 +435,7 @@ class FunconObject(
 
                     if (contextualRead.isNotEmpty()) stringBuilder.appendLine(contextualRead)
                     if (contextualWrite.isNotEmpty()) stringBuilder.appendLine(contextualWrite)
+                    if (mutableRead.isNotEmpty()) stringBuilder.appendLine(mutableRead)
 
                     rewriteVariables.variables.forEach { (rewrite, varName) ->
                         var initVarName = "${varName}Init"
