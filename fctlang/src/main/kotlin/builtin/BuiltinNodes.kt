@@ -206,6 +206,13 @@ class ReadNode : TermNode(), ReadInterface {
     }
 }
 
+class PrintNode(@param:Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), PrintInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        appendGlobal("standard-out", get(0))
+        return NullValueNode()
+    }
+}
+
 open class AtomsNode : ValueTypesNode(), AtomsInterface
 
 //class ValueVariableNode(@Child var p0: TermNode, @Child var p1: TermNode) : VariablesNode() {

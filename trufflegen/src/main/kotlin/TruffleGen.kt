@@ -25,7 +25,7 @@ val builtinOverride: MutableSet<String> = mutableSetOf(
     "choice",                               // Utilises random
     "sequential",                           // Param after sequence
     "some-element", "stuck", "abstraction", // No rules, implement manually
-    "read",                                 // Annoying
+    "read", "print",                        // Input/Output
     "identifiers", "identifier-tagged"      // ???
 )
 
