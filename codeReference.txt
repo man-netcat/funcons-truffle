@@ -27,9 +27,12 @@ class ElseNode(@Child var p0: TermNode, @Child var p1: SequenceNode = SequenceNo
                 }
             }
 
-            get(0).isInValues() -> get(0)
-
-            else -> FailNode()
+            else -> {
+                when {
+                    get(0).isInValues() -> get(0)
+                    else -> FailNode()
+                }
+            }
         }
     }
 }

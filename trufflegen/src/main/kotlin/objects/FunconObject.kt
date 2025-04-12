@@ -4,7 +4,6 @@ import cbs.CBSParser.*
 import main.*
 import main.dataclasses.RewriteData
 import main.exceptions.DetailedException
-import main.exceptions.StringNotFoundException
 import main.objects.AlgebraicDatatypeObject
 import main.objects.EntityObject
 import main.objects.Object
@@ -176,43 +175,11 @@ class FunconObject(
                     rewriteData.add(newRewriteData)
                 }
 
-                is TransitionPremiseWithContextualEntityContext -> {
-                    val newRewriteData = RewriteData(rhs, null, newVar())
-                    rewriteData.add(newRewriteData)
-
-                    if (rhs.text == "_") return
-                    val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
-                    val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
-
-                    val label = premise.context_
-                    val labelObj = labelToObject(label)
-
-                    try {
-                        val assignment = makeEntityAssignment(ruleDef, label, labelObj)
-                        assignments.addFirst(assignment)
-                    } catch (e: StringNotFoundException) {
-                        entityVars.add(labelObj)
-
-                        val newRewriteData = if (label.value is FunconExpressionContext) {
-                            getParamStrs(label.value, prefix = labelObj.asVarName)
-                        } else {
-                            val newRewriteDataObject = makeRewriteDataObject(label.value, labelObj.asVarName)
-                            listOf(newRewriteDataObject)
-                        }
-                        rewriteData.addAll(newRewriteData)
-                    }
-
-                    val rewrite = makeVariable(rewriteRhs, "$rewriteLhs.reduce(frame)")
-                    assignments.add(rewrite)
-
-                    val condition = when {
-                        rhs is VariableContext -> "$rewriteLhs.isReducible()"
-                        else -> throw DetailedException("Unexpected premise: ${premise.text}")
-                    }
-                    addCondition(condition)
-                }
-
-                is TransitionPremiseContext -> {
+                is TransitionPremiseContext,
+                is TransitionPremiseWithContextualEntityContext,
+                is TransitionPremiseWithControlEntityContext,
+                is TransitionPremiseWithMutableEntityContext,
+                    -> {
                     val newRewriteData = RewriteData(rhs, null, newVar())
                     rewriteData.add(newRewriteData)
 
@@ -222,38 +189,6 @@ class FunconObject(
 
                     val rewrite = makeVariable(rewriteRhs, "$rewriteLhs.reduce(frame)")
                     assignments.add(rewrite)
-
-                    val condition = "$rewriteLhs.isReducible()"
-                    addCondition(condition)
-
-                }
-
-                is TransitionPremiseWithControlEntityContext -> {
-                    val newRewriteData = RewriteData(rhs, null, newVar())
-                    rewriteData.add(newRewriteData)
-
-                    if (rhs.text == "_") return
-                    val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
-                    val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
-
-                    val rewrite = makeVariable(rewriteRhs, "$rewriteLhs.reduce(frame)")
-                    assignments.add(rewrite)
-
-                    val labels = getControlEntityLabels(premise)
-                    if (labels.isNotEmpty()) {
-                        labels.forEach { (label, labelObj) ->
-                            if (label.value == null) {
-                                val emptyCondition = "${labelObj.asVarName}.isEmpty()"
-                                addCondition(emptyCondition)
-                                rulePriority = 0
-                            } else {
-                                val emptyCondition = "${labelObj.asVarName}.isNotEmpty()"
-                                addCondition(emptyCondition, 0)
-                                rulePriority = 2
-                            }
-                            entityVars.add(labelObj)
-                        }
-                    }
 
                     val condition = when {
                         rhs is VariableContext -> "$rewriteLhs.isReducible()"
@@ -265,41 +200,43 @@ class FunconObject(
 
                         else -> throw DetailedException("Unexpected premise: ${premise.text}")
                     }
+
                     addCondition(condition)
-                }
 
-                is TransitionPremiseWithMutableEntityContext -> {
-                    rewriteData.add(RewriteData(rhs, null, newVar()))
-                    rewriteData.add(RewriteData(premise.entityRhs.value, null, newVar()))
+                    when (premise) {
+                        is TransitionPremiseWithContextualEntityContext -> {
+                            val label = premise.context_
+                            val labelObj = labelToObject(label)
 
-                    if (rhs.text == "_") return
-                    val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
-                    val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
+                            val assignment = makeEntityAssignment(ruleDef, label, labelObj)
+                            assignments.addFirst(assignment)
+                        }
 
-                    val rewrite = makeVariable(rewriteRhs, "$rewriteLhs.reduce(frame)")
-                    assignments.add(rewrite)
+                        is TransitionPremiseWithControlEntityContext -> {
+                            val labels = getControlEntityLabels(premise)
+                            if (labels.isNotEmpty()) {
+                                labels.forEach { (label, labelObj) ->
+                                    processEntityCondition(label)
+                                    entityVars.add(labelObj)
+                                }
+                            }
+                        }
 
-                    val label = premise.entityRhs
-                    val labelObj = labelToObject(label)
-                    if (label.value == null) {
-                        val emptyCondition = "${labelObj.asVarName}.isEmpty()"
-                        addCondition(emptyCondition)
-                        rulePriority = 0
-                    } else {
-                        val emptyCondition = "${labelObj.asVarName}.isNotEmpty()"
-                        addCondition(emptyCondition, 0)
-                        rulePriority = 2
+                        is TransitionPremiseWithMutableEntityContext -> {
+                            rewriteData.add(RewriteData(premise.entityRhs.value, null, newVar()))
+
+                            val label = premise.entityRhs
+                            val labelObj = labelToObject(label)
+                            processEntityCondition(label)
+                            entityVars.add(labelObj)
+
+                            val rewriteEntityLhs = rewrite(ruleDef, premise.entityLhs.value, rewriteData)
+                            val rewriteEntityRhs = rewrite(ruleDef, premise.entityRhs.value, rewriteData)
+                            val entityRewrite = makeVariable(rewriteEntityRhs, "$rewriteEntityLhs.reduce(frame)")
+
+                            assignments.add(entityRewrite)
+                        }
                     }
-                    entityVars.add(labelObj)
-
-                    val condition = "$rewriteLhs.isReducible()"
-                    addCondition(condition)
-
-                    val rewriteEntityLhs = rewrite(ruleDef, premise.entityLhs.value, rewriteData)
-                    val rewriteEntityRhs = rewrite(ruleDef, premise.entityRhs.value, rewriteData)
-                    val entityRewrite = makeVariable(rewriteEntityRhs, "$rewriteEntityLhs.reduce(frame)")
-
-                    assignments.add(entityRewrite)
                 }
 
                 is BooleanPremiseContext -> {
@@ -369,6 +306,23 @@ class FunconObject(
             return labelObj.putStr(valueStr)
         }
 
+        private fun processEntityCondition(label: LabelContext) {
+            val labelObj = labelToObject(label)
+            if (label.value == null) {
+                val emptyCondition = "${labelObj.asVarName}.isEmpty()"
+                rulePriority = 0
+                addCondition(emptyCondition, 0)
+            } else if (label.value.text == "_") {
+                val emptyCondition = "${labelObj.asVarName}.isNotEmpty() || ${labelObj.asVarName}.isEmpty()"
+                rulePriority = 1
+                addCondition(emptyCondition, 0)
+            } else {
+                val emptyCondition = "${labelObj.asVarName}.isNotEmpty()"
+                rulePriority = 2
+                addCondition(emptyCondition, 0)
+            }
+        }
+
         private fun processConclusion(ruleDef: ExprContext, conclusion: PremiseExprContext) {
             when (conclusion) {
                 is TransitionPremiseWithContextualEntityContext -> {
@@ -388,43 +342,19 @@ class FunconObject(
                         step.labels().label().map { label -> label to labelToObject(label) }
                     }
                     labels.forEach { (label, labelObj) ->
-                        try {
-                            val assignment = makeEntityAssignment(ruleDef, label, labelObj)
-                            assignments.addFirst(assignment)
-                        } catch (e: StringNotFoundException) {
-                            entityVars.add(labelObj)
-                            val newRewriteData = makeLabelRewrite(label, labelObj)
-                            rewriteData.addAll(newRewriteData)
-                        }
+                        val assignment = makeEntityAssignment(ruleDef, label, labelObj)
+                        assignments.addFirst(assignment)
                     }
                 }
 
                 is TransitionPremiseWithMutableEntityContext -> {
                     val label = conclusion.entityLhs
                     val labelObj = labelToObject(label)
-                    if (label.value == null) {
-                        val emptyCondition = "${labelObj.asVarName}.isEmpty()"
-                        rulePriority = 0
-                        addCondition(emptyCondition, 0)
-                    } else if (label.value.text == "_") {
-                        val emptyCondition = "${labelObj.asVarName}.isNotEmpty() || ${labelObj.asVarName}.isEmpty()"
-                        rulePriority = 1
-                        addCondition(emptyCondition, 0)
-                    } else {
-                        val emptyCondition = "${labelObj.asVarName}.isNotEmpty()"
-                        rulePriority = 2
-                        addCondition(emptyCondition, 0)
-                    }
+                    processEntityCondition(label)
                     entityVars.add(labelObj)
 
-                    try {
-                        val assignment = makeEntityAssignment(ruleDef, label, labelObj)
-                        assignments.addFirst(assignment)
-                    } catch (e: StringNotFoundException) {
-                        entityVars.add(labelObj)
-                        val newRewriteData = makeLabelRewrite(label, labelObj)
-                        rewriteData.addAll(newRewriteData)
-                    }
+                    val assignment = makeEntityAssignment(ruleDef, label, labelObj)
+                    assignments.addFirst(assignment)
                 }
             }
         }

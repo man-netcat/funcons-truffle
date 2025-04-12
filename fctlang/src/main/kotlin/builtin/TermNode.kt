@@ -167,7 +167,7 @@ abstract class TermNode : Node() {
             }
         }
 
-        for ((index, child) in children.withIndex()) {
+        children.forEachIndexed { index, child ->
             val isLast = index == children.lastIndex
             val newIndent = indent + if (hasMoreSiblings) "│   " else "    "
             (child as TermNode).printTree(newIndent, if (isLast) "└── " else "├── ", hasMoreSiblings = !isLast)
