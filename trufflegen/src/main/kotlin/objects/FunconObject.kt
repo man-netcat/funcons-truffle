@@ -29,9 +29,26 @@ class FunconObject(
     metaVariables: Set<Pair<ExprContext, ExprContext>>,
 ) : AbstractFunconObject(ctx, metaVariables) {
 
-    val outerVariables = mutableMapOf<String, String>()
-    private var intermediateCounter = 0
-    private fun newVar() = "i${intermediateCounter++}"
+    inner class Variables(val prefix: String) {
+        private var counter = 0
+        val variables = mutableMapOf<String, String>()
+        private fun newVar() = "$prefix${counter++}"
+
+        fun getVar(rewrite: String): String {
+            return if (rewrite !in variables.keys) {
+                val newVar = newVar()
+                variables.put(rewrite, newVar)
+                newVar
+            } else variables[rewrite]!!
+        }
+    }
+
+    val stepVariables = Variables("s")
+    val rewriteVariables = Variables("r")
+    val contextualEntityWrites = mutableSetOf<String>()
+    val controlEntityWrites = mutableSetOf<String>()
+    val contextualEntityReads = mutableSetOf<String>()
+    val controlEntityReads = mutableSetOf<String>()
 
     inner class Rule(
         premises: List<PremiseExprContext>,
@@ -165,12 +182,8 @@ class FunconObject(
 
             when (premise) {
                 is RewritePremiseContext -> {
-                    val rewrite = rewrite(ruleDef, lhs, rewriteData)
-                    val variable = if (rewrite !in outerVariables.keys) {
-                        val newVar = newVar()
-                        outerVariables.put(rewrite, newVar)
-                        newVar
-                    } else outerVariables[rewrite]!!
+                    val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
+                    val variable = rewriteVariables.getVar(rewriteLhs)
                     val newRewriteData = makeRewriteDataObject(rhs, variable)
                     rewriteData.add(newRewriteData)
                 }
@@ -180,11 +193,12 @@ class FunconObject(
                 is TransitionPremiseWithControlEntityContext,
                 is TransitionPremiseWithMutableEntityContext,
                     -> {
-                    val newRewriteData = RewriteData(rhs, null, newVar())
+                    val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
+                    val variable = stepVariables.getVar(rewriteLhs)
+                    val newRewriteData = RewriteData(rhs, null, variable)
                     rewriteData.add(newRewriteData)
 
                     if (rhs.text == "_") return
-                    val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
                     val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
 
                     val rewrite = makeVariable(rewriteRhs, "$rewriteLhs.reduce(frame)")
@@ -223,14 +237,16 @@ class FunconObject(
                         }
 
                         is TransitionPremiseWithMutableEntityContext -> {
-                            rewriteData.add(RewriteData(premise.entityRhs.value, null, newVar()))
+                            val rewriteEntityLhs = rewrite(ruleDef, premise.entityLhs.value, rewriteData)
+                            val variable = stepVariables.getVar(rewriteEntityLhs)
+                            val newRewriteData = RewriteData(premise.entityRhs.value, null, variable)
+                            rewriteData.add(newRewriteData)
 
                             val label = premise.entityRhs
                             val labelObj = labelToObject(label)
                             processEntityCondition(label)
                             entityVars.add(labelObj)
 
-                            val rewriteEntityLhs = rewrite(ruleDef, premise.entityLhs.value, rewriteData)
                             val rewriteEntityRhs = rewrite(ruleDef, premise.entityRhs.value, rewriteData)
                             val entityRewrite = makeVariable(rewriteEntityRhs, "$rewriteEntityLhs.reduce(frame)")
 
@@ -448,7 +464,7 @@ class FunconObject(
 
                     if (entityVars.isNotEmpty()) stringBuilder.appendLine(entityVars)
 
-                    outerVariables.forEach { (rewrite, varName) ->
+                    rewriteVariables.variables.forEach { (rewrite, varName) ->
                         var initVarName = "${varName}Init"
                         newChildren.add("@Child private lateinit var $initVarName: $TERMNODE")
                         val insertStr = "$initVarName = insert($rewrite)"
