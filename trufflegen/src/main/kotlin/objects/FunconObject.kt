@@ -69,7 +69,8 @@ class FunconObject(
         val rewriteData: MutableList<RewriteData> = mutableListOf()
 
         val bodyStr: String
-            get() = (controlWrites + listOf(mutableWrite) + listOf(rewriteStr)).filter { it.isNotEmpty() }.joinToString("\n")
+            get() = (controlWrites + listOf(mutableWrite) + listOf(rewriteStr)).filter { it.isNotEmpty() }
+                .joinToString("\n")
 
         private fun addCondition(expr: String, priority: Int = 1) = conditions.add(Condition(expr, priority))
         internal fun getSortedConditions(): String =
@@ -83,6 +84,7 @@ class FunconObject(
                 }
 
                 else -> if (sequenceArgs[0] is SequenceExpressionContext) {
+                    rulePriority = 0
                     "get(${sequenceIndex}).isEmpty()"
                 } else {
                     "get(${sequenceIndex}).size >= $offsetValue"
@@ -116,6 +118,7 @@ class FunconObject(
                     is SuffixExpressionContext -> if (argType.op.text == "+") {
                         // If it's an expression of the type "X+" it cannot be empty.
                         val typeCondition = "${paramStr}.isNotEmpty()"
+                        rulePriority = 2
                         addCondition(typeCondition)
                     }
 
@@ -312,7 +315,7 @@ class FunconObject(
                 val emptyCondition = "${labelObj.asVarName}.isEmpty()"
                 rulePriority = 0
                 addCondition(emptyCondition, 0)
-            } else {
+            } else if (label.value.text !in listOf("_", "_?")) {
                 val emptyCondition = "${labelObj.asVarName}.isNotEmpty()"
                 rulePriority = 2
                 addCondition(emptyCondition, 0)
@@ -348,7 +351,6 @@ class FunconObject(
 
                     val labelRhs = conclusion.entityRhs
                     val labelRhsObj = labelToObject(labelRhs)
-                    processEntityCondition(labelRhs)
                     mutableWrite = makeEntityAssignment(ruleDef, labelRhs, labelRhsObj)
                     println(mutableWrite)
                 }
@@ -453,10 +455,12 @@ class FunconObject(
                         val condition = "$rewriteLhs.isReducible()"
                         val step = makeVariable(rewriteRhs, "$rewriteLhs.reduce(frame)")
                         val rulesForStepVar = ruleObjs
-                            .filter { rule -> rule.stepVariable == stepVar }
                             .sortedBy { rule -> rule.rulePriority }
+                            .filter { rule -> rule.stepVariable == stepVar }
                         val innerPairs = rulesForStepVar.map { rule ->
-                            rule.getSortedConditions() to rule.bodyStr
+                            val conditions = rule.getSortedConditions()
+                            if (conditions.isEmpty()) "true" to rule.bodyStr
+                            else conditions to rule.bodyStr
                         }
                         val ruleBody = makeWhenStatement(innerPairs, elseBranch = "FailNode()")
                         val controlReadStr = if (controlReads.isEmpty()) "" else controlReads.joinToString("\n")
@@ -467,9 +471,13 @@ class FunconObject(
                         condition to body
                     }
 
-                    val rulesWithoutStepVar = ruleObjs.filter { rule -> rule.stepVariable == null }
+                    val rulesWithoutStepVar = ruleObjs
+                        .sortedBy { rule -> rule.rulePriority }
+                        .filter { rule -> rule.stepVariable == null }
                     val withoutPairs = rulesWithoutStepVar.map { rule ->
-                        rule.getSortedConditions() to rule.bodyStr
+                        val conditions = rule.getSortedConditions()
+                        if (conditions.isEmpty()) "true" to rule.bodyStr
+                        else conditions to rule.bodyStr
                     }
                     val withoutWhen = makeWhenStatement(withoutPairs, elseBranch = "FailNode()")
 
