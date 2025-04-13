@@ -3,7 +3,6 @@ package builtin
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
 import generated.*
-import language.FCTContext
 import language.FCTLanguage
 import language.InfiniteLoopException
 import language.StuckException
@@ -44,10 +43,6 @@ abstract class TermNode : Node() {
         return FCTLanguage.Companion.get(this)
     }
 
-    private fun getContext(): FCTContext {
-        return FCTContext.Companion.get(this)!!
-    }
-
     private fun getLocalContext(frame: VirtualFrame): MutableMap<String, TermNode?> {
         return frame.getObject(FrameSlots.LOCAL_CONTEXT.ordinal) as? MutableMap<String, TermNode?>
             ?: mutableMapOf<String, TermNode?>().also {
@@ -64,34 +59,21 @@ abstract class TermNode : Node() {
         } else println("{}")
     }
 
-    fun getInScope(frame: VirtualFrame, key: String): TermNode {
+    fun getEntity(frame: VirtualFrame, key: String): TermNode {
         return getLocalContext(frame)[key] ?: SequenceNode()
     }
 
-    fun putInScope(frame: VirtualFrame, key: String, value: TermNode) {
+    fun putEntity(frame: VirtualFrame, key: String, value: TermNode) {
         if (DEBUG) println("putting ${value::class.simpleName} in $key")
         getLocalContext(frame)[key] = value
     }
 
-    fun isInScope(frame: VirtualFrame, key: String): Boolean {
-        return getLocalContext(frame).containsKey(key)
-    }
-
-    fun getGlobal(key: String): TermNode {
-        return getContext().globalVariables.getEntity(key)
-    }
-
-    fun putGlobal(key: String, entity: TermNode) {
-        if (DEBUG) println("putting ${entity::class.simpleName} in $key")
-        getContext().globalVariables.putEntity(key, entity)
-    }
-
-    fun appendGlobal(key: String, entity: TermNode) {
-        val existing = getContext().globalVariables.getEntity(key) as? SequenceNode ?: SequenceNode()
+    fun appendEntity(frame: VirtualFrame, key: String, entity: TermNode) {
+        val existing = getEntity(frame, key) as? SequenceNode ?: SequenceNode()
         val newElements = existing.elements.toMutableList()
         newElements.addAll(entity.elements)
         val newSequence = SequenceNode(*newElements.toTypedArray())
-        getContext().globalVariables.putEntity(key, newSequence)
+        putEntity(frame, key, newSequence)
     }
 
     open fun isReducible(): Boolean = when (this) {
@@ -210,10 +192,6 @@ abstract class TermNode : Node() {
                 println("------------------")
                 println("Iteration $iterationCount: Current result is ${term::class.simpleName}")
                 term.printTree()
-                println("Global entities")
-                if (!term.getContext().globalVariables.isEmpty()) {
-                    println(term.getContext().globalVariables)
-                } else println("{}")
             }
             term = term.reduce(frame)
             iterationCount++

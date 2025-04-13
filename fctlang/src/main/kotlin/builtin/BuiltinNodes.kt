@@ -82,14 +82,15 @@ class SequentialNode(
     SequentialInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         return when {
-            p0.size == 0 -> p1
             p0.isReducible() -> {
-                val r = p0.reduce(frame).toSequence()
+                val r = p0.reduce(frame) as SequenceNode
                 SequentialNode(r, p1)
             }
 
-            p0.size >= 1 && p0.head is NullValueNode -> SequentialNode(p0.tail, p1)
-            else -> FailNode()
+            else -> when {
+                p0.size > 1 && p0.head is NullValueNode -> SequentialNode(p0.tail, p1)
+                else -> p1
+            }
         }
     }
 }
@@ -196,7 +197,7 @@ data class StringNode(override val value: String) : StringsNode() {
 
 class ReadNode : TermNode(), ReadInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val standardIn = getGlobal("standard-in") as SequenceNode
+        val standardIn = getEntity(frame, "standard-in") as SequenceNode
         val stdInHead = standardIn.popFirst()
 
         return when (stdInHead) {
@@ -208,7 +209,7 @@ class ReadNode : TermNode(), ReadInterface {
 
 class PrintNode(@param:Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), PrintInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        appendGlobal("standard-out", get(0))
+        appendEntity(frame, "standard-out", get(0))
         return NullValueNode()
     }
 }
@@ -224,7 +225,7 @@ fun TermNode.isInAtoms(): Boolean = true // TODO: What is this?
 
 class InitialiseGeneratingNode(@Child override var p0: TermNode) : TermNode(), InitialiseGeneratingInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val environment = getGlobal("used-atom-set")
+        val environment = getEntity(frame, "used-atom-set")
         return p0
     }
 }
@@ -234,3 +235,11 @@ open class UnionTypeNode(@Children vararg var types: TermNode) : ValueTypesNode(
 open class IntersectionTypeNode(@Children vararg var types: TermNode) : ValueTypesNode()
 
 open class ComplementTypeNode(@Child var type: TermNode) : ValueTypesNode()
+
+class ValueReturnedNode(@Child var p0: TermNode) : ReturningNode() {
+    override val value get() = "returned(${p0.value})"
+}
+
+class ValueThrownNode(@Child var p0: TermNode) : ThrowingNode() {
+    override val value get() = "thrown(${p0.value})"
+}

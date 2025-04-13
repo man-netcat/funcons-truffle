@@ -12,7 +12,6 @@ import com.oracle.truffle.api.nodes.Node
 import fct.FCTLexer
 import fct.FCTParser
 import fct.FCTParser.*
-import language.Util.DEBUG
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import org.antlr.v4.runtime.tree.ParseTree
@@ -48,13 +47,10 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
         val tests = root.testsBlock()
         val inputs = root.inputsBlock()
 
-        if (DEBUG) {
-            println("expected:")
-            println("result-term: ${tests.resultTerm()?.text}")
-            println("standard-out: ${tests.standardOut()?.text}")
-            println()
-        }
-
+        println("expected:")
+        println("result-term: ${tests.resultTerm()?.expr()?.text}")
+        println("standard-out: ${tests.standardOut()?.expr()?.text ?: "[]"}")
+        println()
 
         val rootNode = convertToFCTNode(mainContext)
 

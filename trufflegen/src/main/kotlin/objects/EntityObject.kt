@@ -23,19 +23,12 @@ open class EntityObject(
     private val entityClassName
         get() = entityClassMap[entityType]!!
 
-    fun getStr(): String {
-        val getFunc = when (entityType) {
-            EntityType.CONTEXTUAL -> ::getInScopeStr
-            else -> ::getGlobalStr
-        }
-        return getFunc(name)
-    }
+    fun getStr(): String = getInScopeStr(name)
 
     fun putStr(value: String): String {
         val putFunc = when (entityType) {
-            EntityType.CONTEXTUAL -> ::putInScopeStr
             EntityType.OUTPUT, EntityType.INPUT -> ::appendGlobalStr
-            else -> ::putGlobalStr
+            else -> ::putInScopeStr
         }
         return putFunc(name, value)
     }
