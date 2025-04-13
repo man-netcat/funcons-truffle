@@ -77,7 +77,7 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         return SequenceNode(*newElements.toTypedArray())
     }
 
-    override val value: Any by lazy { elements.joinToString { it.value.toString() } }
+    override val value: Any by lazy { elements.joinToString(",") { it.value.toString() } }
 
     fun popFirst(): TermNode {
         if (elements.isEmpty()) return NullValueNode()

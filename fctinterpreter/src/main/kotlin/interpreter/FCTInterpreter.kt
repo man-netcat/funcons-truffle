@@ -37,8 +37,8 @@ fun main(args: Array<String>) {
         val resultTerm = result.getArrayElement(0)
         val standardOut = (1 until result.arraySize).map { i ->
             result.getArrayElement(i)
-        }
+        }.joinToString(",")
         println("result-term: $resultTerm")
-        println("standard-out: $standardOut")
+        println("standard-out: [$standardOut]")
     }
 }

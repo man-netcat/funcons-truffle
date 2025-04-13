@@ -14,7 +14,7 @@ open class ValuesNode : TermNode(), ValuesInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = this
 }
 
-fun TermNode.isInValues(): Boolean = this !is SequenceNode
+fun TermNode.isInValues(): Boolean = this is ValuesNode
 
 open class EmptyTypeNode : ValueTypesNode(), EmptyTypeInterface
 

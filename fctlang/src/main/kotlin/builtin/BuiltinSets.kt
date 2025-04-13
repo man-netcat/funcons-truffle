@@ -73,7 +73,7 @@ class SomeElementNode(@Eager @Child override var p0: SequenceNode) : TermNode(),
     override fun reduceRules(frame: VirtualFrame): TermNode {
         if (p0.elements.isEmpty()) return SequenceNode()
 
-        return p0.random()
+        return p0.elements.random()
     }
 }
 

@@ -14,18 +14,18 @@ class MapNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : Te
 }
 
 class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : MapsNode(GroundValuesNode(), ValuesNode()) {
-    override val value
-        get() = "{${
-            get(0).elements.joinToString { tuple ->
+    override val value: String
+        get() {
+            val str = get(0).elements.joinToString(",") { tuple ->
                 tuple as ValueTupleNode
                 when (tuple.get(0).size) {
-                    0 -> "map( )"
-                    1 -> "${tuple.get(0).elements[0].value} |-> ( )"
-                    2 -> "${tuple.get(0).elements[0].value} |-> ${tuple.get(0).elements[1].value}"
+                    1 -> "${tuple.get(0).elements[0].value}|->()"
+                    2 -> "${tuple.get(0).elements[0].value}|->${tuple.get(0).elements[1].value}"
                     else -> abort("value-map")
                 }
             }
-        }}"
+            return if (get(0).isNotEmpty()) "{${str}}" else "map()"
+        }
 }
 
 class MapOverrideNode(@Eager @Child override var p0: SequenceNode) : TermNode(), MapOverrideInterface {
@@ -195,4 +195,11 @@ class MapDeleteNode(
         return ValueMapNode(SequenceNode(*keptTuples.toTypedArray()))
     }
 }
+
+class MapEmptyNode : TermNode() {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        return ValueMapNode()
+    }
+}
+
 

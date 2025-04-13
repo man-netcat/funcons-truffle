@@ -479,11 +479,9 @@ class FunconObject(
                         if (conditions.isEmpty()) "true" to rule.bodyStr
                         else conditions to rule.bodyStr
                     }
-                    val withoutWhen = makeWhenStatement(withoutPairs, elseBranch = "FailNode()")
-
-                    if (pairs.isEmpty()) withoutWhen
-                    else if (withoutPairs.isEmpty()) makeWhenStatement(pairs, elseBranch = "FailNode()")
-                    else makeWhenStatement(pairs, withoutWhen)
+                    if (pairs.isEmpty()) makeWhenStatement(withoutPairs, elseBranch = "FailNode()")
+                    if (withoutPairs.isEmpty()) makeWhenStatement(pairs, elseBranch = "FailNode()")
+                    else makeWhenStatement(withoutPairs + pairs, elseBranch = "FailNode()")
                 }
 
                 else -> throw DetailedException("Funcon $name does not have any associated rules.")
