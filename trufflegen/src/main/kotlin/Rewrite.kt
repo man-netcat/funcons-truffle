@@ -37,15 +37,9 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
             }
 
             val parts = mutableListOf<String>()
-            if (nonSequence.isNotEmpty()) {
-                parts.add(nonSequence.joinToString())
-            }
-            if (sequence.isNotEmpty()) {
-                parts.add("SequenceNode(${sequence.joinToString()})")
-            }
-            if (postSequence.isNotEmpty()) {
-                parts.add(postSequence.joinToString())
-            }
+            if (nonSequence.isNotEmpty()) parts.add(nonSequence.joinToString())
+            if (sequence.isNotEmpty()) parts.add("SequenceNode(${sequence.joinToString()})")
+            if (postSequence.isNotEmpty()) parts.add(postSequence.joinToString())
             val argStr = parts.joinToString()
 
             return "${obj.nodeName}($argStr)"
@@ -148,20 +142,17 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
         return args.flatMapIndexed { argIndex, (arg, type) ->
             when (arg) {
                 null -> {
-                    // Argument is a type
                     val newStr = makeParamStr(argIndex, args.size, obj, parentStr)
                     listOf(RewriteData(type, null, newStr))
                 }
 
                 is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext -> {
                     val newStr = makeParamStr(argIndex, args.size, obj, parentStr)
+
+                    val sizeCondition = makeSizeCondition(arg, newStr)
+
                     val funconArgs = extractArgsRecursive(arg, newStr)
-                    listOf(RewriteData(null, arg, newStr)) + funconArgs.ifEmpty {
-                        val funconObject = getObject(arg)
-                        if (funconObject.params.isNotEmpty()) {
-                            listOf(RewriteData(null, null, "$newStr.get(0)"))
-                        } else listOf()
-                    }
+                    listOf(RewriteData(null, arg, newStr, sizeCondition = sizeCondition)) + funconArgs
                 }
 
                 is SuffixExpressionContext, is VariableContext, is NumberContext -> {
@@ -173,7 +164,8 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
 
                 is SequenceExpressionContext -> {
                     val newStr = makeParamStr(argIndex, args.size, obj, parentStr, argIsSequence = true)
-                    listOf(RewriteData(arg, null, newStr))
+
+                    listOf(RewriteData(arg, null, newStr, sizeCondition = "${newStr}.isEmpty()" to 0))
                 }
 
                 else -> throw DetailedException("Unexpected arg type: ${arg::class.simpleName}, ${arg.text}")

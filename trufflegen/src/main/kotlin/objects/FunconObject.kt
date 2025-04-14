@@ -76,43 +76,10 @@ class FunconObject(
         internal fun getSortedConditions(): String =
             conditions.sortedBy { it.priority }.joinToString(" && ") { it.expr }
 
-        fun getSizeCondition(sequenceArgs: List<ExprContext>, sequenceIndex: Int, offsetValue: Int): String = when {
-            sequenceArgs.isNotEmpty() -> when (offsetValue) {
-                1 -> {
-                    rulePriority = 2
-                    "get(${sequenceIndex}).isNotEmpty()"
-                }
-
-                else -> if (sequenceArgs[0] is SequenceExpressionContext) {
-                    rulePriority = 0
-                    "get(${sequenceIndex}).isEmpty()"
-                } else {
-                    "get(${sequenceIndex}).size >= $offsetValue"
-                }
-            }
-
-            else -> when (offsetValue) {
-                0 -> {
-                    rulePriority = 0
-                    "get(${sequenceIndex}).isEmpty()"
-                }
-
-                else -> "get(${sequenceIndex}).size == $offsetValue"
-            }
-        }
-
         private fun argsConditions(funconExpr: FunconExpressionContext) {
-            val obj = getObject(funconExpr)
-            val args = extractArgs(funconExpr)
-
             val paramStrs = getParamStrs(funconExpr)
             (paramStrs + rewriteData).forEach { data ->
                 val (argValue, argType, paramStr) = data
-
-                if (argType == null && argValue == null) {
-                    rulePriority = 0
-                    addCondition("${paramStr}.isEmpty()")
-                }
 
                 when (argType) {
                     is SuffixExpressionContext -> if (argType.op.text == "+") {
@@ -137,32 +104,20 @@ class FunconObject(
                     }
                 }
 
-                when (argValue) {
-                    is NumberContext -> addCondition("$paramStr == IntegerNode(${argValue.text})")
-                    is SuffixExpressionContext -> {}
+                if (argValue is NumberContext) addCondition("$paramStr == IntegerNode(${argValue.text})")
+
+                if (data.sizeCondition != null) {
+                    val (condition, priority) = data.sizeCondition
+                    addCondition(condition)
+                    rulePriority = priority
                 }
             }
 
-            if (obj.hasSequence) {
-                val (sequenceArgs, nonSequenceArgs) = partitionArgs(args)
-
-                val sumVarargMin = sequenceArgs.sumOf { arg ->
-                    fun processArg(arg: ExprContext): Int {
-                        return when (arg) {
-                            is TypeExpressionContext -> processArg(arg.value)
-                            is SuffixExpressionContext -> if (arg.op.text == "+") 1 else 0
-                            is SequenceExpressionContext -> 0
-                            else -> 1
-                        }
-                    }
-                    processArg(arg)
-                }
-
-                val offsetValue = sumVarargMin + nonSequenceArgs.size - (obj.params.size - 1)
-                val condition = getSizeCondition(sequenceArgs, obj.sequenceIndex, offsetValue)
-                addCondition(condition, priority = 0)
-            } else {
-//            println("funconExpr: ${funconExpr.text}, rewriteData: $rewriteData")
+            val sizeCondition = makeSizeCondition(funconExpr, "")
+            if (sizeCondition != null) {
+                val (condition, priority) = sizeCondition
+                addCondition(condition)
+                rulePriority = priority
             }
         }
 
@@ -347,12 +302,10 @@ class FunconObject(
                     val labelLhsObj = labelToObject(labelLhs)
                     processEntityCondition(labelLhs)
                     mutableRead = makeVariable(labelLhsObj.asVarName, labelLhsObj.getStr())
-                    println(mutableRead)
 
                     val labelRhs = conclusion.entityRhs
                     val labelRhsObj = labelToObject(labelRhs)
                     mutableWrite = makeEntityAssignment(ruleDef, labelRhs, labelRhsObj)
-                    println(mutableWrite)
                 }
             }
         }

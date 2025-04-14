@@ -262,7 +262,7 @@ fun makeElementInFunction(body: String): String = makeFunction(
 fun makeWhenStatement(cases: List<Pair<String, String>>, elseBranch: String? = null): String =
     buildString {
         appendLine("when {")
-        (cases + listOfNotNull(elseBranch?.let { "else" to it })).joinToString("\n") { (cond, block) ->
+        (cases + listOfNotNull(elseBranch?.let { "else" to it })).joinToString("\n\n") { (cond, block) ->
             val body = makeBody(block, 0)
             if ('\n' in body)
                 "    $cond -> {\n${body.prependIndent("        ")}\n    }"
@@ -345,7 +345,7 @@ fun makeAnnotation(
 ): String {
     val annotationBuilder = StringBuilder()
 
-    if (isEager) annotationBuilder.append("@param:Eager ")
+    if (isEager) annotationBuilder.append("@Eager ")
 
     if (isEntity) annotationBuilder.append(if (isVararg) "@Children " else "@Child ")
 
@@ -462,4 +462,65 @@ fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
             "$paramStr ${complementStr}is $explicitValue${obj.nodeName}"
         }
     }
+}
+
+fun makeSizeCondition(arg: ParseTree, paramStr: String): Pair<String, Int>? {
+    fun getSizeCondition(
+        sequenceArgs: List<ExprContext>,
+        paramStr: String,
+        offsetValue: Int,
+    ): Pair<String, Int> {
+        var rulePriority = 1
+        val condition = when {
+            sequenceArgs.isNotEmpty() -> when (offsetValue) {
+                1 -> {
+                    rulePriority = 2
+                    "$paramStr.isNotEmpty()"
+                }
+
+                else -> if (sequenceArgs[0] is SequenceExpressionContext) {
+                    rulePriority = 0
+                    "$paramStr.isEmpty()"
+                } else {
+                    "$paramStr.size >= $offsetValue"
+                }
+            }
+
+            else -> when (offsetValue) {
+                0 -> {
+                    rulePriority = 0
+                    "$paramStr.isEmpty()"
+                }
+
+                else -> "$paramStr.size == $offsetValue"
+            }
+
+        }
+        return condition to rulePriority
+    }
+
+    fun getVarargMin(sequenceArgs: List<ExprContext>): Int {
+        return sequenceArgs.sumOf { arg ->
+            fun processArg(arg: ExprContext): Int {
+                return when (arg) {
+                    is TypeExpressionContext -> processArg(arg.value)
+                    is SuffixExpressionContext -> if (arg.op.text == "+") 1 else 0
+                    is SequenceExpressionContext -> 0
+                    else -> 1
+                }
+            }
+            processArg(arg)
+        }
+    }
+
+    val argObj = getObject(arg)
+    val argArgs = extractArgs(arg)
+
+    return if (argObj.hasSequence) {
+        val (sequenceArgs, nonSequenceArgs) = partitionArgs(argArgs)
+        val sumVarargMin = getVarargMin(sequenceArgs)
+        val offsetValue = sumVarargMin + nonSequenceArgs.size - (argObj.params.size - 1)
+        val fullParamStr = (if (paramStr.isNotEmpty()) "$paramStr." else "") + "get(${argObj.sequenceIndex})"
+        getSizeCondition(sequenceArgs, fullParamStr, offsetValue)
+    } else null
 }

@@ -207,7 +207,7 @@ class ReadNode : TermNode(), ReadInterface {
     }
 }
 
-class PrintNode(@param:Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), PrintInterface {
+class PrintNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), PrintInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         appendEntity(frame, "standard-out", get(0))
         return NullValueNode()
