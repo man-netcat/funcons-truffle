@@ -138,7 +138,7 @@ class FunconObject(
                 val typeExpr = expr.expr() as TypeExpressionContext
                 RewriteData(typeExpr.value, typeExpr.type, str)
             } else if (expr is SequenceExpressionContext) {
-                RewriteData(null, null, str)
+                RewriteData(null, null, str, "$str.isEmpty()" to 0)
             } else {
                 RewriteData(expr, null, str)
             }
@@ -205,19 +205,22 @@ class FunconObject(
                 }
 
                 is BooleanPremiseContext -> {
-                    val condition = if (premise.rhs is FunconExpressionContext) {
-                        val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
-                        makeTypeCondition(rewriteLhs, premise.rhs)
-                    } else {
-                        val rewriteLhs = rewrite(ruleDef, premise.lhs, rewriteData)
-                        val rewriteRhs = rewrite(ruleDef, premise.rhs, rewriteData)
-                        val op = when (premise.op.text) {
-                            "==" -> "=="
-                            "=/=" -> "!="
-                            else -> throw DetailedException("Unexpected operator type: ${premise.op.text}")
-                        }
-                        "$rewriteLhs $op $rewriteRhs"
+                    val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
+                    val lhsVar = variables.getVar(rewriteLhs, "r")
+                    val lhsRewriteData = makeRewriteDataObject(lhs, lhsVar)
+                    rewriteData.add(lhsRewriteData)
+
+                    val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
+                    val rhsVar = variables.getVar(rewriteRhs, "r")
+                    val rhsRewriteData = makeRewriteDataObject(rhs, rhsVar)
+                    rewriteData.add(rhsRewriteData)
+
+                    val op = when (premise.op.text) {
+                        "==" -> "=="
+                        "=/=" -> "!="
+                        else -> throw DetailedException("Unexpected operator type: ${premise.op.text}")
                     }
+                    val condition = "$lhsVar $op $rhsVar"
                     addCondition(condition, priority = 2)
                 }
 
@@ -307,7 +310,6 @@ class FunconObject(
                 is TransitionPremiseWithMutableEntityContext -> {
                     val labelLhs = conclusion.entityLhs
                     val labelLhsObj = labelToObject(labelLhs)
-                    processEntityCondition(labelLhs)
                     mutableRead = makeVariable(labelLhsObj.asVarName, labelLhsObj.getStr())
 
                     val labelRhs = conclusion.entityRhs

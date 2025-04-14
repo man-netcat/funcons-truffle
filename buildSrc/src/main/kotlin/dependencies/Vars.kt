@@ -9,9 +9,9 @@ object Vars {
 //        "Computations/Abnormal/Failing/tests/else-choice.config", //TODO Requires random choice
 //        "Computations/Abnormal/Throwing/tests/handle-recursively.config",
 //        "Computations/Abnormal/Throwing/tests/catch-else-throw.config",
-//        "Computations/Normal/Binding/tests/bind-recursively.config",
 //        "Computations/Normal/Giving/tests/fold-left.config",
 //        "Computations/Normal/Giving/tests/fold-right.config",
+        "Computations/Normal/Binding/tests/bind-recursively.config",
         "Computations/Abnormal/Abrupting/tests/finally.config",
         "Computations/Abnormal/Abrupting/tests/handle-abrupt.config",
         "Computations/Abnormal/Breaking/tests/handle-break.config",

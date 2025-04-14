@@ -55,6 +55,7 @@ class TypeObject(
                 else -> makeTypeCondition("this", definitionExpr)
 
             }
+            // TODO: Also implement subtypes such as lists of chars for strings
             makeIsInTypeFunction(camelCaseName, "return $conditionStr")
         } else ""
 }

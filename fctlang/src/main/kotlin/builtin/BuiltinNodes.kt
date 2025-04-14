@@ -216,12 +216,16 @@ class PrintNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : 
 
 open class AtomsNode : ValueTypesNode(), AtomsInterface
 
-//class ValueVariableNode(@Child var p0: TermNode, @Child var p1: TermNode) : VariablesNode() {
-//    override val value: Any
-//        get() = "${p0.value}: ${p1.value}"
-//}
+fun TermNode.isInAtoms(): Boolean = this is AtomNode
 
-fun TermNode.isInAtoms(): Boolean = true // TODO: What is this?
+data class AtomNode(override val value: String) : AtomsNode() {
+    override fun equals(other: Any?): Boolean = when (other) {
+        is AtomNode -> this.value == other.value
+        else -> false
+    }
+
+    override fun hashCode(): Int = value.hashCode()
+}
 
 class InitialiseGeneratingNode(@Child override var p0: TermNode) : TermNode(), InitialiseGeneratingInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
@@ -250,4 +254,8 @@ class ValueVariableNode(@Child var p0: TermNode, @Child var p1: TermNode) : Vari
 
 class ValueLinkNode(@Child var p0: TermNode) : LinksNode() {
     override val value get() = "link(${p0.value})"
+}
+
+class ValueThunkNode(@Child var p0: TermNode) : ThunksNode(AbstractionsNode(ValuesNode())) {
+    override val value get() = "thunk(${p0.value})"
 }

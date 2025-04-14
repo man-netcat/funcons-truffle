@@ -28,10 +28,10 @@ class SetDifferenceNode(
         val set1 = get(0)
         val set2 = get(1)
 
-        if (set1 !is ValueSetNode || set2 !is ValueSetNode) return FailNode()
+        if (!set1.isInSets() || !set2.isInSets()) return FailNode()
 
         val elements1 = set1.get(0).elements
-        val elements2 = set2.get(0).elements.toSet()
+        val elements2 = set2.get(0).elements
 
         val difference = elements1.filterNot { it in elements2 }.toTypedArray()
 
@@ -43,7 +43,7 @@ class SetElementsNode(@Eager @Child override var p0: TermNode) : TermNode(), Set
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val set = get(0)
 
-        if (set !is ValueSetNode) return FailNode()
+        if (!set.isInSets()) return FailNode()
 
         return set.get(0)
     }
@@ -51,29 +51,22 @@ class SetElementsNode(@Eager @Child override var p0: TermNode) : TermNode(), Set
 
 class SetUniteNode(@Eager @Child override var p0: SequenceNode) : TermNode(), SetUniteInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (get(0).elements.isEmpty()) {
-            return ValueSetNode(SequenceNode())
+        val resultSet = mutableSetOf<TermNode>()
+
+        for (set in get(0).elements) {
+            if (set !is ValueSetNode) return FailNode()
+            resultSet.addAll(set.get(0).elements)
         }
 
-        val result = LinkedHashSet<TermNode>()
-
-        get(0).elements.forEach { term ->
-            if (term !is ValueSetNode) return FailNode()
-
-            term.get(0).elements.forEach { element ->
-                result.add(element)
-            }
-        }
-
-        return ValueSetNode(SequenceNode(*result.toTypedArray()))
+        return ValueSetNode(SequenceNode(*resultSet.toTypedArray()))
     }
 }
 
-class SomeElementNode(@Eager @Child override var p0: SequenceNode) : TermNode(), SomeElementInterface {
+class SomeElementNode(@Eager @Child override var p0: TermNode) : TermNode(), SomeElementInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (p0.elements.isEmpty()) return SequenceNode()
+        if (get(0).get(0).elements.isEmpty()) return SequenceNode()
 
-        return p0.elements.random()
+        return get(0).get(0).elements.random()
     }
 }
 
@@ -86,12 +79,12 @@ class ElementNotInNode(
         val type = get(0)
         val set = get(1)
 
-        if (set !is ValueSetNode) return FailNode()
+        if (!type.isInValueTypes()) return FailNode()
+        if (!set.isInSets()) return FailNode()
 
-        val elementsInSet = set.elements.toSet()
+        val elementsInSet = set.get(0).elements.toSet()
 
         return when (type) {
-            // Might need more types
             is BooleansNode -> {
                 when {
                     TrueNode() !in elementsInSet -> TrueNode()
@@ -119,6 +112,17 @@ class ElementNotInNode(
                 SequenceNode()
             }
 
+            is AtomsNode -> {
+                var i = 0
+                while (true) {
+                    val candidate = AtomNode("a$i")
+                    if (candidate !in elementsInSet) return candidate
+                    i++
+                    if (i < 0) break
+                }
+                SequenceNode()
+            }
+
             else -> FailNode()
         }
     }
@@ -129,7 +133,7 @@ class SetInsertNode(
     override val p1: TermNode,
 ) : TermNode(), SetInsertInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val elements = get(1).elements.toMutableList()
+        val elements = get(1).get(0).elements.toMutableList()
 
         if (elements.none { it == value }) elements.add(p0)
 
@@ -137,26 +141,15 @@ class SetInsertNode(
     }
 }
 
-
-//
-//class IsInSetNode(
-//    @Eager @Child override var p0: TermNode,
-//    @Eager @Child override var p1: TermNode,
-//) : TermNode(),
-//    IsInSetInterface {
-//    override fun reduceRules(frame: VirtualFrame): TermNode {
-//        return when {
-//            p1.elements.any { element -> element == p0 } -> TrueNode()
-//            else -> FalseNode()
-//        }
-//    }
-//}
-//
-//class SetElementsNode(@Eager @Child override var p0: TermNode) : TermNode(), SetElementsInterface {
-//    override fun reduceRules(frame: VirtualFrame): TermNode {
-//        if (p0 !is ValueSetNode) return FailNode()
-//
-//        return SequenceNode(*p0.elements)
-//    }
-//}
-//
+class IsInSetNode(
+    @Eager @Child override var p0: TermNode,
+    @Eager @Child override var p1: TermNode,
+) : TermNode(),
+    IsInSetInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        return when {
+            get(1).get(0).elements.any { element -> element == p0 } -> TrueNode()
+            else -> FalseNode()
+        }
+    }
+}

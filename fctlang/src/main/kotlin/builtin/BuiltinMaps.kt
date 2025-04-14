@@ -190,9 +190,9 @@ class MapDeleteNode(
             tuple as ValueTupleNode
             val key = tuple.get(0).elements[0]
             key !in keysToDelete
-        }
+        }.toTypedArray()
 
-        return ValueMapNode(SequenceNode(*keptTuples.toTypedArray()))
+        return ValueMapNode(SequenceNode(*keptTuples))
     }
 }
 
