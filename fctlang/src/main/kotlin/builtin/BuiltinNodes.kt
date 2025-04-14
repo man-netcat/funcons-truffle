@@ -243,3 +243,11 @@ class ValueReturnedNode(@Child var p0: TermNode) : ReturningNode() {
 class ValueThrownNode(@Child var p0: TermNode) : ThrowingNode() {
     override val value get() = "thrown(${p0.value})"
 }
+
+class ValueVariableNode(@Child var p0: TermNode, @Child var p1: TermNode) : VariablesNode() {
+    override val value get() = "var(${p0.value}: ${p1.value})"
+}
+
+class ValueLinkNode(@Child var p0: TermNode) : LinksNode() {
+    override val value get() = "link(${p0.value})"
+}

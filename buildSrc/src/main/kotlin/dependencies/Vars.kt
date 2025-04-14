@@ -5,7 +5,6 @@ object Vars {
     const val CBSFILEPATH = "../../CBS-beta/Funcons-beta/"
     val configFiles = listOf<String>(
 //        "Values/Composite/Classes/tests/class.config",
-//        "Computations/Normal/Binding/tests/accumulate.config",
 //        "Computations/Normal/Flowing/tests/atomic.config",
 //        "Computations/Abnormal/Failing/tests/else-choice.config", //TODO Requires random choice
 //        "Computations/Abnormal/Throwing/tests/handle-recursively.config",
@@ -13,7 +12,6 @@ object Vars {
 //        "Computations/Normal/Binding/tests/bind-recursively.config",
 //        "Computations/Normal/Giving/tests/fold-left.config",
 //        "Computations/Normal/Giving/tests/fold-right.config",
-        "Values/Composite/Vectors/tests/vector.config",
         "Computations/Abnormal/Abrupting/tests/finally.config",
         "Computations/Abnormal/Abrupting/tests/handle-abrupt.config",
         "Computations/Abnormal/Breaking/tests/handle-break.config",
@@ -24,7 +22,9 @@ object Vars {
         "Computations/Abnormal/Failing/tests/else.config",
         "Computations/Abnormal/Returning/tests/handle-return.config",
         "Computations/Abnormal/Throwing/tests/handle-thrown.config",
+        "Computations/Normal/Binding/tests/accumulate.config",
         "Computations/Normal/Binding/tests/bind-value.config",
+        "Computations/Normal/Binding/tests/bound-directly.config",
         "Computations/Normal/Binding/tests/closed.config",
         "Computations/Normal/Binding/tests/environments.config",
         "Computations/Normal/Flowing/tests/choice.config",
@@ -75,6 +75,7 @@ object Vars {
         "Values/Composite/Trees/tests/tree-root-value.config",
         "Values/Composite/Trees/tests/tree.config",
         "Values/Composite/Tuples/tests/tuple-zip.config",
+        "Values/Composite/Vectors/tests/vector.config",
         "Values/Primitive/Booleans/tests/and.config",
         "Values/Primitive/Booleans/tests/exclusive-or.config",
         "Values/Primitive/Booleans/tests/implies.config",

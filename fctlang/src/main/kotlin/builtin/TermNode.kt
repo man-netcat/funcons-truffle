@@ -117,6 +117,7 @@ abstract class TermNode : Node() {
         if (this::class == type::class) return true
         if (type::class == ValuesNode::class) return true
         if (type::class == NullTypeNode::class) return false
+
         return when (type) {
             is UnionTypeNode -> type.types.any { this.isInType(it) }
             is IntersectionTypeNode -> type.types.all { this.isInType(it) }
@@ -127,6 +128,7 @@ abstract class TermNode : Node() {
             is BooleansNode -> this is FalseNode || this is TrueNode
             is MapsNode -> this is ValueMapNode
             is ListsNode -> this is ValueListNode
+            is VectorsNode -> this is ValueVectorNode
             else -> type::class.isInstance(this)
         }
     }
