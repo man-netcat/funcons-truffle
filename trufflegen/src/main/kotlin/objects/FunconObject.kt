@@ -291,9 +291,11 @@ class FunconObject(
             when (conclusion) {
                 is TransitionPremiseWithContextualEntityContext -> {
                     val label = conclusion.context_
-                    val labelObj = labelToObject(label)
-                    processEntityCondition(label)
-                    contextualRead = makeVariable(labelObj.asVarName, labelObj.getStr())
+                    if (label.value?.text != "_?") {
+                        val labelObj = labelToObject(label)
+                        processEntityCondition(label)
+                        contextualRead = makeVariable(labelObj.asVarName, labelObj.getStr())
+                    }
                 }
 
                 is TransitionPremiseWithControlEntityContext -> {
@@ -395,6 +397,10 @@ class FunconObject(
                     val ruleObjs = rules.map { rule ->
                         val premises = rule.premises()?.premiseExpr()?.toList() ?: emptyList()
                         Rule(premises, rule.conclusion, metavariableMap)
+                    }
+
+                    if (ruleObjs.map { it.conditions }.toSet().size != ruleObjs.size) {
+                        throw DetailedException("rules for $name are not distinct.")
                     }
 
                     if (contextualRead.isNotEmpty()) stringBuilder.appendLine(contextualRead)
