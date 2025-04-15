@@ -40,7 +40,11 @@ open class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), 
 class ComputationTypesNode() : ValueTypesNode(), ComputationTypesInterface
 
 class AbstractionNode(@Child override var p0: TermNode) : AbstractionsNode(ComputationTypesNode()),
-    AbstractionInterface
+    AbstractionInterface {
+    override val value: Any = "abstraction(${p0.value})"
+}
+
+fun TermNode.isInAbstractions(): Boolean = this is AbstractionNode
 
 class StuckNode() : TermNode(), StuckInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = abort("stuck")
@@ -260,4 +264,21 @@ class ValueLinkNode(@Child var p0: TermNode) : LinksNode() {
 
 class ValueThunkNode(@Child var p0: TermNode) : ThunksNode(AbstractionsNode(ValuesNode())) {
     override val value get() = "thunk(${p0.value})"
+}
+
+class ValueClassNode(@Child var p0: TermNode, @Child var p1: TermNode, @Child var p2: TermNode) : ClassesNode() {
+    override val value get() = "class(${p0.value},${p1.value},${p2.value})"
+}
+
+class ValueObjectNode(
+    @Child var p0: TermNode,
+    @Child var p1: TermNode,
+    @Child var p2: TermNode,
+    @Child var p3: TermNode,
+) : ObjectsNode() {
+    override val value get() = "object(${p0.value},${p1.value},${p2.value},${p3.value})"
+}
+
+class ValueReferenceNode(@Child var p0: TermNode) : ReferencesNode(ValuesNode()) {
+    override val value get() = "reference(${p0.value})"
 }

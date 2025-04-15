@@ -9,6 +9,7 @@ import main.objects.AlgebraicDatatypeObject
 import main.objects.EntityObject
 import main.objects.Object
 import main.objects.TypeObject
+import objects.DatatypeFunconObject
 import main.visitors.CBSDependencyVisitor
 import main.visitors.FCTDependencyVisitor
 import main.visitors.IndexVisitor
@@ -18,7 +19,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 
-val globalObjects: MutableMap<String, Object?> = mutableMapOf()
+val globalObjects: MutableMap<String, Object> = mutableMapOf()
 val globalFiles: MutableMap<String, File> = mutableMapOf()
 val builtinOverride: MutableSet<String> = mutableSetOf(
     "left-to-right", "right-to-left",       // Ambiguous semantics
@@ -114,7 +115,7 @@ class TruffleGen(
 
         files.values.forEach { file ->
             file.objects.values.distinct().forEach { obj ->
-                println("Generating object dependencies for object ${obj?.name}...")
+                println("Generating object dependencies for object ${obj.name}...")
                 fun visitDependencies(obj: Object) {
                     val visitor = CBSDependencyVisitor()
                     visitor.visit(obj.ctx)
@@ -136,7 +137,12 @@ class TruffleGen(
                         obj.definitions.forEach { dep -> obj.dependencies.add(dep) }
                     }
 
-                    else -> visitDependencies(obj!!)
+                    is DatatypeFunconObject -> {
+                        obj.dependencies.add(obj.superclass)
+                        visitDependencies(obj.superclass)
+                    }
+
+                    else -> visitDependencies(obj)
                 }
             }
         }
@@ -151,23 +157,6 @@ class TruffleGen(
         usedFuncons.forEach { name ->
             globalObjects[name]?.let { visitObject(it) }
         }
-    }
-
-    private fun generateGraphViz() {
-        // Outdated, do not use until fixed
-        println("Generating Graphviz for dependencies...")
-        val sb = StringBuilder("digraph G {\n")
-        for (obj in generatedDependencies) {
-            for (dep in obj.dependencies) {
-                sb.append(
-                    "  \"${obj.name}\" -> \"${dep.name}\";\n"
-                )
-            }
-        }
-        sb.append("}")
-        val outputFile = File("dependencies.dot")
-        outputFile.writeText(sb.toString())
-        println("Graphviz has been written to ${outputFile.absolutePath}")
     }
 
     private fun generateCode() {
@@ -198,7 +187,7 @@ class TruffleGen(
             .values.distinct()
             .filter { obj -> obj in generatedDependencies && obj !is EntityObject }
             .flatMap { obj ->
-                obj!!.aliases
+                obj.aliases
                     .asSequence()
                     .filterNot { alias -> alias == obj.name }
                     .map { alias -> "\"$alias\" to \"${obj.name}\"" }
@@ -212,7 +201,7 @@ class TruffleGen(
             .values.distinct()
             .filter { obj -> obj in generatedDependencies && obj !is EntityObject }
             .flatMap { obj ->
-                obj!!.aliases
+                obj.aliases
                     .asSequence()
                     .filterNot { alias -> alias == obj.name }
                     .map { alias ->

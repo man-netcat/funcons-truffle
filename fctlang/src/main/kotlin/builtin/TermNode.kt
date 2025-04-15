@@ -70,9 +70,7 @@ abstract class TermNode : Node() {
 
     fun appendEntity(frame: VirtualFrame, key: String, entity: TermNode) {
         val existing = getEntity(frame, key) as? SequenceNode ?: SequenceNode()
-        val newElements = existing.elements.toMutableList()
-        newElements.addAll(entity.elements)
-        val newSequence = SequenceNode(*newElements.toTypedArray())
+        val newSequence = existing.append(entity.toSequence())
         putEntity(frame, key, newSequence)
     }
 

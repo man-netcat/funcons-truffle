@@ -18,7 +18,6 @@ open class EntityObject(
     )
 
     val entityName: String = toEntityName(name)
-    val varName: String = toVariableName(name)
 
     private val entityClassName
         get() = entityClassMap[entityType]!!

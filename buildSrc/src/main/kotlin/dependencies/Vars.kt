@@ -4,13 +4,13 @@ object Vars {
     const val GENERATEDPATHSTR = "../fctlang/src/main/kotlin/generated"
     const val CBSFILEPATH = "../CBS-beta/Funcons-beta/"
     val configFiles = listOf<String>(
-//        "Values/Composite/Classes/tests/class.config",
 //        "Computations/Normal/Flowing/tests/atomic.config",
 //        "Computations/Abnormal/Failing/tests/else-choice.config", //TODO Requires random choice
 //        "Computations/Abnormal/Throwing/tests/handle-recursively.config",
 //        "Computations/Abnormal/Throwing/tests/catch-else-throw.config",
 //        "Computations/Normal/Giving/tests/fold-left.config",
 //        "Computations/Normal/Giving/tests/fold-right.config",
+        "Values/Composite/Classes/tests/class.config",
         "Computations/Normal/Binding/tests/bind-recursively.config",
         "Computations/Abnormal/Abrupting/tests/finally.config",
         "Computations/Abnormal/Abrupting/tests/handle-abrupt.config",
