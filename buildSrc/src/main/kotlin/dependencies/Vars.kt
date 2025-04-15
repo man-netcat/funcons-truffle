@@ -2,7 +2,7 @@ package dependencies
 
 object Vars {
     const val GENERATEDPATHSTR = "../fctlang/src/main/kotlin/generated"
-    const val CBSFILEPATH = "../../CBS-beta/Funcons-beta/"
+    const val CBSFILEPATH = "../CBS-beta/Funcons-beta/"
     val configFiles = listOf<String>(
 //        "Values/Composite/Classes/tests/class.config",
 //        "Computations/Normal/Flowing/tests/atomic.config",

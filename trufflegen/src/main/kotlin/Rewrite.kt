@@ -46,13 +46,15 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
         }
 
         return when (toRewrite) {
-            is FunconExpressionContext -> rewriteFunconExpr(toRewrite)
-            is ListExpressionContext -> "Value${rewriteFunconExpr(toRewrite)}"
-            is SetExpressionContext -> "Value${rewriteFunconExpr(toRewrite)}"
-            is LabelContext -> rewriteFunconExpr(toRewrite)
+            is FunconExpressionContext,
+            is ListExpressionContext,
+            is SetExpressionContext,
+            is LabelContext,
+                -> rewriteFunconExpr(toRewrite)
+
             is MapExpressionContext -> {
                 val pairStr = toRewrite.pairs().pair().joinToString { pair -> rewriteRecursive(pair) }
-                "ValueMapNode(SequenceNode($pairStr))"
+                "MapNode(SequenceNode($pairStr))"
             }
 
             is SequenceExpressionContext -> {
@@ -75,7 +77,7 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
             is PairContext -> {
                 val key = rewriteRecursive(toRewrite.key)
                 val value = rewriteRecursive(toRewrite.value)
-                "ValueTupleNode(SequenceNode($key, $value))"
+                "TupleNode(SequenceNode($key, $value))"
             }
 
             else -> throw IllegalArgumentException("Unsupported context type: ${toRewrite::class.simpleName}, ${toRewrite.text}")

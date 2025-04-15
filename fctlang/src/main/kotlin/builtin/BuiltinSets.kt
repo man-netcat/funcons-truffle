@@ -82,13 +82,13 @@ class ElementNotInNode(
         if (!type.isInValueTypes()) return FailNode()
         if (!set.isInSets()) return FailNode()
 
-        val elementsInSet = set.get(0).elements.toSet()
+        val elementsInSet = set.get(0).elements.map { it.value }.toSet()
 
         return when (type) {
             is BooleansNode -> {
                 when {
-                    TrueNode() !in elementsInSet -> TrueNode()
-                    FalseNode() !in elementsInSet -> FalseNode()
+                    "true" !in elementsInSet -> TrueNode()
+                    "false" !in elementsInSet -> FalseNode()
                     else -> SequenceNode()
                 }
             }
@@ -96,8 +96,7 @@ class ElementNotInNode(
             is IntegersNode -> {
                 var i = 0
                 while (true) {
-                    val candidate = NaturalNumberNode(i)
-                    if (candidate !in elementsInSet) return candidate
+                    if (i !in elementsInSet) return NaturalNumberNode(i)
                     i++
                     if (i < 0) break
                 }
@@ -106,8 +105,7 @@ class ElementNotInNode(
 
             is CharactersNode -> {
                 for (c in 'a'..'z') {
-                    val candidate = CharacterNode(c)
-                    if (candidate !in elementsInSet) return candidate
+                    if (c !in elementsInSet) return CharacterNode(c)
                 }
                 SequenceNode()
             }
@@ -115,8 +113,8 @@ class ElementNotInNode(
             is AtomsNode -> {
                 var i = 0
                 while (true) {
-                    val candidate = AtomNode("a$i")
-                    if (candidate !in elementsInSet) return candidate
+                    val atomStr = "a$i"
+                    if (atomStr !in elementsInSet) return AtomNode(atomStr)
                     i++
                     if (i < 0) break
                 }
@@ -135,7 +133,7 @@ class SetInsertNode(
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val elements = get(1).get(0).elements.toMutableList()
 
-        if (elements.none { it == value }) elements.add(p0)
+        if (elements.none { element -> element == p0 }) elements.add(p0)
 
         return ValueSetNode(SequenceNode(*elements.toTypedArray()))
     }

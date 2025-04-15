@@ -127,8 +127,10 @@ abstract class TermNode : Node() {
             is IntegersNode -> this is NaturalNumberNode || this is IntegerNode
             is BooleansNode -> this is FalseNode || this is TrueNode
             is MapsNode -> this is ValueMapNode
+            is StringsNode -> this is StringNode
             is ListsNode -> this is ValueListNode
             is VectorsNode -> this is ValueVectorNode
+            is AtomsNode -> this is AtomNode
             else -> type::class.isInstance(this)
         }
     }
@@ -146,6 +148,7 @@ abstract class TermNode : Node() {
         }.flatMap {
             when (it) {
                 is Array<*> -> it.toList()
+                is SequenceNode -> it.children
                 is TermNode -> listOf(it)
                 else -> emptyList()
             }

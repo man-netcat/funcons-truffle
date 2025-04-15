@@ -327,11 +327,11 @@ fun makeFunCall(
 
 fun strStr(str: String): String = "\"${str}\""
 
-fun appendGlobalStr(name: String, value: String): String =
+fun appendEntityStr(name: String, value: String): String =
     makeFunCall("appendEntity", listOf("frame", strStr(name), value))
 
-fun getInScopeStr(name: String): String = makeFunCall("getEntity", listOf("frame", strStr(name)))
-fun putInScopeStr(name: String, value: String): String = makeFunCall("putEntity", listOf("frame", strStr(name), value))
+fun getEntityStr(name: String): String = makeFunCall("getEntity", listOf("frame", strStr(name)))
+fun putEntityStr(name: String, value: String): String = makeFunCall("putEntity", listOf("frame", strStr(name), value))
 
 tailrec fun extractAndOrExprs(
     expr: ExprContext, definitions: List<ExprContext> = emptyList(),

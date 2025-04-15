@@ -23,15 +23,8 @@ open class EntityObject(
     private val entityClassName
         get() = entityClassMap[entityType]!!
 
-    fun getStr(): String = getInScopeStr(name)
-
-    fun putStr(value: String): String {
-        val putFunc = when (entityType) {
-            EntityType.OUTPUT, EntityType.INPUT -> ::appendGlobalStr
-            else -> ::putInScopeStr
-        }
-        return putFunc(name, value)
-    }
+    fun getStr(): String = getEntityStr(name)
+    fun putStr(value: String): String = putEntityStr(name, value)
 
     override val superClassStr: String
         get() {

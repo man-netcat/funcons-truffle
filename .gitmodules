@@ -1,0 +1,3 @@
+[submodule "CBS-beta"]
+	path = CBS-beta
+	url = https://github.com/plancomps/CBS-beta

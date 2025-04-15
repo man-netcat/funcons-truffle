@@ -269,7 +269,11 @@ class FunconObject(
             labelObj: EntityObject,
         ): String {
             val valueStr = if (label.value != null && label.value.text != "_?") {
-                rewrite(ruleDef, label.value, rewriteData)
+                val rewriteStr = rewrite(ruleDef, label.value, rewriteData)
+                val variable = variables.getVar(rewriteStr, "r")
+                val newRewriteData = makeRewriteDataObject(label.value, variable)
+                rewriteData.add(newRewriteData)
+                variable
             } else "SequenceNode()"
             return labelObj.putStr(valueStr)
         }
@@ -303,7 +307,10 @@ class FunconObject(
                     steps.forEach { step ->
                         step.labels().label().forEach { label ->
                             val labelObj = labelToObject(label)
-                            val controlWrite = makeEntityAssignment(ruleDef, label, labelObj)
+                            val valueStr = if (label.value != null && label.value.text != "_?") {
+                                rewrite(ruleDef, label.value, rewriteData)
+                            } else "SequenceNode()"
+                            val controlWrite = labelObj.putStr(valueStr)
                             controlWrites.add(controlWrite)
                         }
                     }
@@ -315,8 +322,10 @@ class FunconObject(
                     mutableRead = makeVariable(labelLhsObj.asVarName, labelLhsObj.getStr())
 
                     val labelRhs = conclusion.entityRhs
-                    val labelRhsObj = labelToObject(labelRhs)
-                    mutableWrite = makeEntityAssignment(ruleDef, labelRhs, labelRhsObj)
+                    if (labelRhs.text != labelLhs.text) {
+                        val labelRhsObj = labelToObject(labelRhs)
+                        mutableWrite = makeEntityAssignment(ruleDef, labelRhs, labelRhsObj)
+                    }
                 }
             }
         }
@@ -404,9 +413,7 @@ class FunconObject(
                     }
 
                     if (contextualRead.isNotEmpty()) stringBuilder.appendLine(contextualRead)
-                    if (contextualWrite.isNotEmpty()) stringBuilder.appendLine(contextualWrite)
                     if (mutableRead.isNotEmpty()) stringBuilder.appendLine(mutableRead)
-
 
                     variables.variables.forEach { (rewrite, varName) ->
                         val prefix = varName[0]
@@ -418,6 +425,8 @@ class FunconObject(
                             stringBuilder.appendLine(makeVariable(varName, value = rewrite))
                         }
                     }
+
+                    if (contextualWrite.isNotEmpty()) stringBuilder.appendLine(contextualWrite)
 
                     val stepVariableSet =
                         variables.variables.entries.filter { it.value[0] == 's' }.map { it.toPair() }.toMutableSet()
@@ -433,7 +442,7 @@ class FunconObject(
                             if (conditions.isEmpty()) "true" to rule.bodyStr
                             else conditions to rule.bodyStr
                         }
-                        val ruleBody = makeWhenStatement(innerPairs, elseBranch = "FailNode()")
+                        val ruleBody = makeWhenStatement(innerPairs, elseBranch = "abort(${strStr(name)})")
                         val controlReadStr = if (controlReads.isEmpty()) "" else controlReads.joinToString("\n")
 
                         val body = listOf(step, controlReadStr, ruleBody)
@@ -450,9 +459,9 @@ class FunconObject(
                         if (conditions.isEmpty()) "true" to rule.bodyStr
                         else conditions to rule.bodyStr
                     }
-                    if (pairs.isEmpty()) makeWhenStatement(withoutPairs, elseBranch = "FailNode()")
-                    if (withoutPairs.isEmpty()) makeWhenStatement(pairs, elseBranch = "FailNode()")
-                    else makeWhenStatement(withoutPairs + pairs, elseBranch = "FailNode()")
+                    if (pairs.isEmpty()) makeWhenStatement(withoutPairs, elseBranch = "abort(${strStr(name)})")
+                    if (withoutPairs.isEmpty()) makeWhenStatement(pairs, elseBranch = "abort(${strStr(name)})")
+                    else makeWhenStatement(withoutPairs + pairs, elseBranch = "abort(${strStr(name)})")
                 }
 
                 else -> throw DetailedException("Funcon $name does not have any associated rules.")

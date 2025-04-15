@@ -229,7 +229,9 @@ data class AtomNode(override val value: String) : AtomsNode() {
 
 class InitialiseGeneratingNode(@Child override var p0: TermNode) : TermNode(), InitialiseGeneratingInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val environment = getEntity(frame, "used-atom-set")
+        putEntity(frame, "used-atom-set", ValueSetNode(SequenceNode(AtomNode("initatom"))))
+//        putEntity(frame, "used-atom-set", ValueSetNode(SequenceNode(AtomNode("a0"))))
+//        putEntity(frame, "used-atom-set", ValueSetNode(SequenceNode()))
         return p0
     }
 }
