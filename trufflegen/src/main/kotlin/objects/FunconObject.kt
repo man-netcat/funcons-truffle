@@ -411,12 +411,8 @@ class FunconObject(
                     variables.variables.forEach { (rewrite, varName) ->
                         val prefix = varName[0]
                         if (prefix == 'r') {
-                            var initVarName = "${varName}Init"
-                            newChildren.add("@Child private lateinit var $initVarName: $TERMNODE")
-                            val insertStr = "$initVarName = insert($rewrite)"
-                            val insertIf = makeIfStatement(listOf("!::$initVarName.isInitialized" to insertStr))
-                            stringBuilder.appendLine(insertStr)
-                            val rewriteStr = makeVariable(varName, "$initVarName.rewrite(frame)")
+                            newChildren.add("@Child private lateinit var $varName: $TERMNODE")
+                            val rewriteStr = makeVariable(varName, "insert($rewrite).rewrite(frame)", init = false)
                             stringBuilder.appendLine(rewriteStr)
                         } else if (prefix == 'm') {
                             stringBuilder.appendLine(makeVariable(varName, value = rewrite))

@@ -116,10 +116,16 @@ fun makeForLoop(variable: String, range: String, body: String): String {
     return "$loopHeader\n$content\n}"
 }
 
-fun makeVariable(name: String, value: String = "", type: String = "", override: Boolean = false): String {
+fun makeVariable(
+    name: String,
+    value: String = "",
+    type: String = "",
+    override: Boolean = false,
+    init: Boolean = true,
+): String {
     return buildString {
         if (override) append("override ")
-        append("val $name")
+        if (init) append("val $name") else append(name)
         if (type.isNotEmpty()) append(": $type")
         if (value.isNotEmpty()) append(" = $value")
     }
