@@ -3,7 +3,7 @@ package builtin
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
 
-open class MapsNode(var tp0: TermNode, var tp1: TermNode) : ValueTypesNode(), MapsInterface
+open class MapsNode(var tp0: TermNode, var tp1: TermNode) : GroundValuesNode(), MapsInterface
 
 fun TermNode.isInMaps(): Boolean = this is ValueMapNode
 
@@ -30,12 +30,14 @@ class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : MapsNode(Grou
 
 class MapOverrideNode(@Eager @Child override var p0: SequenceNode) : TermNode(), MapOverrideInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
+        val maps = get(0)
+
         val resultMap = linkedMapOf<TermNode, TermNode>()
 
-        get(0).elements.forEach { mapNode ->
-            mapNode as ValueMapNode
+        maps.elements.forEach { mapNode ->
+            if (mapNode !is ValueMapNode) return abort("map-override")
             mapNode.get(0).elements.forEach { tuple ->
-                tuple as ValueTupleNode
+                if (tuple !is ValueTupleNode) return abort("map-override")
                 val key = tuple.get(0).elements[0]
                 val value = when (tuple.get(0).size) {
                     1 -> SequenceNode()
@@ -59,10 +61,11 @@ class MapOverrideNode(@Eager @Child override var p0: SequenceNode) : TermNode(),
 
 class MapDomainNode(@Eager @Child override var p0: TermNode) : TermNode(), MapDomainInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (get(0) !is ValueMapNode) return FailNode()
+        val mapNode = get(0)
+        if (mapNode !is ValueMapNode) return abort("map-domain")
 
-        val domainElements = get(0).get(0).elements.map { tuple ->
-            tuple as ValueTupleNode
+        val domainElements = mapNode.get(0).elements.map { tuple ->
+            if (tuple !is ValueTupleNode) return abort("map-domain")
             when (tuple.get(0).size) {
                 1, 2 -> tuple.get(0).elements[0]
                 else -> abort("map-domain")
@@ -75,13 +78,14 @@ class MapDomainNode(@Eager @Child override var p0: TermNode) : TermNode(), MapDo
 
 class MapUniteNode(@Eager @Child override var p0: SequenceNode) : TermNode(), MapUniteInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val mapNode = get(0)
+        val maps = get(0)
+
         val resultMap = linkedMapOf<TermNode, TermNode>()
 
-        mapNode.elements.forEach { mapNode ->
-            mapNode as ValueMapNode
+        maps.elements.forEach { mapNode ->
+            if (mapNode !is ValueMapNode) return abort("map-override")
             mapNode.get(0).elements.forEach { tuple ->
-                tuple as ValueTupleNode
+                if (tuple !is ValueTupleNode) return abort("map-override")
                 val key = tuple.get(0).elements[0]
                 val value = when (tuple.get(0).size) {
                     1 -> SequenceNode()
@@ -114,10 +118,10 @@ class MapLookupNode(
         val mapNode = get(0)
         val keyNode = get(1)
 
-        if (mapNode !is ValueMapNode) return FailNode()
+        if (mapNode !is ValueMapNode) return abort("map-lookup")
 
-        for (tuple in mapNode.get(0).elements) {
-            tuple as ValueTupleNode
+        mapNode.get(0).elements.forEach { tuple ->
+            if (tuple !is ValueTupleNode) return abort("map-lookup")
             val tupleSeq = tuple.get(0)
 
             val key = when (tupleSeq.size) {
@@ -145,10 +149,10 @@ class MapElementsNode(
 
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val mapNode = get(0)
-        if (mapNode !is ValueMapNode) return FailNode()
+        if (mapNode !is ValueMapNode) return abort("map-elements")
 
         val tuples = mapNode.get(0).elements.map { tuple ->
-            tuple as ValueTupleNode
+            if (tuple !is ValueTupleNode) return abort("map-elements")
             val tupleSeq = tuple.get(0)
 
             when (tupleSeq.size) {
@@ -180,14 +184,14 @@ class MapDeleteNode(
         val mapNode = get(0)
         val setNode = get(1)
 
-        if (mapNode !is ValueMapNode || setNode !is ValueSetNode) return FailNode()
+        if (mapNode !is ValueMapNode || setNode !is ValueSetNode) return abort("map-delete")
 
         val keysToDelete = setNode.get(0).elements
 
         if (keysToDelete.isEmpty()) return mapNode
 
         val keptTuples = mapNode.get(0).elements.filter { tuple ->
-            tuple as ValueTupleNode
+            if (tuple !is ValueTupleNode) return abort("map-delete")
             val key = tuple.get(0).elements[0]
             key !in keysToDelete
         }.toTypedArray()

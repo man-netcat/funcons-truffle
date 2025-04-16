@@ -32,6 +32,14 @@ open class CharactersNode : GroundValuesNode(), CharactersInterface
 
 open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
 
+//Built-in Funcon
+//datatype-value(_:identifiers, _:values*) : datatype-values
+
+//class DatatypeValueNode(@Eager @Child override var p0: TermNode, @Eager @Child override var p1: SequenceNode) :
+//    DatatypeValuesNode(), DatatypeValueInterface {
+//    override val value: Any = "datatype-value(${p0.value},${p1.value})"
+//}
+
 fun TermNode.isInDatatypeValues(): Boolean = this is DatatypeValuesNode
 
 open class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
@@ -164,10 +172,6 @@ class ValueIdentifierTaggedNode(@Child var p0: TermNode, @Child var p1: TermNode
 
 fun TermNode.isInIdentifiers(): Boolean = this is StringNode || this is IdentifierTaggedNode
 
-//class ValueFunctionNode(@Child var p0: TermNode) : FunctionsNode(ValuesNode(), ValuesNode()) {
-//    override val value get() = "fun ${p0.value}"
-//}
-
 class IdentifiersNode() : DatatypeValuesNode(), IdentifiersInterface
 
 data class NaturalNumberNode(override val value: Int) : NaturalNumbersNode() {
@@ -291,3 +295,11 @@ class ValueObjectNode(
 class ValueReferenceNode(@Child var p0: TermNode) : ReferencesNode(ValuesNode()) {
     override val value get() = "reference(${p0.value})"
 }
+
+//class ValuePatternNode(@Child var p0: TermNode) : PatternsNode() {
+//    override val value get() = "pattern(${p0.value})"
+//}
+
+//class ValueFunctionNode(@Child var p0: TermNode) : FunctionsNode(ValuesNode(), ValuesNode()) {
+//    override val value get() = "function(${p0.value})"
+//}
