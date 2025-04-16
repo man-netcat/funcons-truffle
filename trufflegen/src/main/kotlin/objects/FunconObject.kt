@@ -205,22 +205,42 @@ class FunconObject(
                 }
 
                 is BooleanPremiseContext -> {
-                    val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
-                    val lhsVar = variables.getVar(rewriteLhs, "r")
-                    val lhsRewriteData = makeRewriteDataObject(lhs, lhsVar)
-                    rewriteData.add(lhsRewriteData)
+                    fun getBooleanNode(text: String): String = if (text == "true") "TrueNode" else "FalseNode"
 
-                    val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
-                    val rhsVar = variables.getVar(rewriteRhs, "r")
-                    val rhsRewriteData = makeRewriteDataObject(rhs, rhsVar)
-                    rewriteData.add(rhsRewriteData)
-
-                    val op = when (premise.op.text) {
-                        "==" -> "=="
-                        "=/=" -> "!="
-                        else -> throw DetailedException("Unexpected operator type: ${premise.op.text}")
+                    fun bindVariable(expr: ExprContext): String {
+                        val exprRewrite = rewrite(ruleDef, expr, rewriteData)
+                        val variable = variables.getVar(exprRewrite, "r")
+                        val rhsRewriteData = makeRewriteDataObject(expr, variable)
+                        rewriteData.add(rhsRewriteData)
+                        return variable
                     }
-                    val condition = "$lhsVar $op $rhsVar"
+
+                    val condition = if (lhs.text in listOf("true", "false")) {
+                        val rhsVar = bindVariable(rhs)
+                        val boolean = getBooleanNode(lhs.text)
+                        "$rhsVar is $boolean"
+                    } else if (rhs.text in listOf("true", "false")) {
+                        val lhsVar = bindVariable(lhs)
+                        val boolean = getBooleanNode(rhs.text)
+                        "$lhsVar is $boolean"
+                    } else if (lhs.text == "()") {
+                        val rhsVar = bindVariable(rhs)
+                        "$rhsVar.isEmpty()"
+                    } else if (rhs.text == "()") {
+                        val lhsVar = bindVariable(lhs)
+                        "$lhsVar.isEmpty()"
+                    } else {
+                        val lhsVar = bindVariable(lhs)
+                        val rhsVar = bindVariable(rhs)
+
+                        val op = when (premise.op.text) {
+                            "==" -> "=="
+                            "=/=" -> "!="
+                            else -> throw DetailedException("Unexpected operator type: ${premise.op.text}")
+                        }
+                        "$lhsVar $op $rhsVar"
+                    }
+
                     addCondition(condition, priority = 2)
                 }
 
