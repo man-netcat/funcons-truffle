@@ -178,12 +178,11 @@ abstract class TermNode : Node() {
     }
 
     override fun onReplace(newNode: Node?, reason: CharSequence?) {
+        newNode as TermNode
         if (DEBUG) {
             val reasonStr = if (!reason.isNullOrEmpty()) " with reason: $reason" else ""
-            if (newNode != null)
-                println("replacing: ${this::class.simpleName} for ${newNode::class.simpleName}$reasonStr")
-            else
-                println("newNode is null $reasonStr")
+            println("replacing: ${this::class.simpleName} for ${newNode::class.simpleName}$reasonStr")
+            println("new node: ${newNode.value}")
         }
     }
 

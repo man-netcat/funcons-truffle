@@ -192,7 +192,7 @@ class MapDeleteNode(
 
         val keptTuples = mapNode.get(0).elements.filter { tuple ->
             if (tuple !is ValueTupleNode) return abort("map-delete")
-            val key = tuple.get(0).elements[0]
+            val (key, _) = tuple.get(0).elements
             key !in keysToDelete
         }.toTypedArray()
 
