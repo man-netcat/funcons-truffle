@@ -36,6 +36,7 @@ abstract class TermNode : Node() {
             is TrueNode -> "true"
             is NullValueNode -> "null-value"
             is FailedNode -> "failed"
+            is StringNode -> p0.elements.joinToString { it.value.toString() }
             else -> this::class.simpleName!!
         }
 

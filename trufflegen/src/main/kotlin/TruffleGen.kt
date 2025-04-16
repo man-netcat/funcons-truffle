@@ -9,10 +9,10 @@ import main.objects.AlgebraicDatatypeObject
 import main.objects.EntityObject
 import main.objects.Object
 import main.objects.TypeObject
-import objects.DatatypeFunconObject
 import main.visitors.CBSDependencyVisitor
 import main.visitors.FCTDependencyVisitor
 import main.visitors.IndexVisitor
+import objects.DatatypeFunconObject
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import java.io.File
@@ -21,14 +21,16 @@ import java.nio.file.Path
 
 val globalObjects: MutableMap<String, Object> = mutableMapOf()
 val globalFiles: MutableMap<String, File> = mutableMapOf()
-val builtinOverride: MutableSet<String> = mutableSetOf(
+val builtinOverride: MutableSet<String> = (mutableSetOf(
     "left-to-right", "right-to-left",       // Ambiguous semantics
     "choice",                               // Utilises random
     "sequential",                           // Param after sequence
     "some-element", "stuck", "abstraction", // No rules, implement manually
     "read", "print",                        // Input/Output
-    "identifiers", "identifier-tagged"      // ???
-)
+    "hole",                                 // Read-only control entity
+) + mutableSetOf(
+    "atomic", "structural-assign", "structural-assigned", "match", "match-loosely", "identifiers" // Annoying ones
+)) as MutableSet<String>
 
 class TruffleGen(
     private val cbsDir: File,
@@ -183,31 +185,31 @@ class TruffleGen(
         stringBuilder.appendLine()
 
         stringBuilder.appendLine("val aliasMap: Map<String, String> = mapOf(")
-        globalObjects
-            .values.distinct()
-            .filter { obj -> obj in generatedDependencies && obj !is EntityObject }
-            .flatMap { obj ->
-                obj.aliases
-                    .asSequence()
-                    .filterNot { alias -> alias == obj.name }
-                    .map { alias -> "\"$alias\" to \"${obj.name}\"" }
-            }
+        val objectsToProcess = if (generatedDependencies.isNotEmpty()) {
+            globalObjects
+                .values.distinct()
+                .filter { obj -> obj in generatedDependencies && obj !is EntityObject }
+        } else globalObjects.values.toSet().filter { obj -> obj !is EntityObject }
+
+        objectsToProcess.flatMap { obj ->
+            obj.aliases
+                .asSequence()
+                .filterNot { alias -> alias == obj.name }
+                .map { alias -> "\"$alias\" to \"${obj.name}\"" }
+        }
             .joinToString(",\n    ", prefix = "    ", postfix = "\n)")
             .let(stringBuilder::append)
 
 
         stringBuilder.appendLine()
-        globalObjects
-            .values.distinct()
-            .filter { obj -> obj in generatedDependencies && obj !is EntityObject }
-            .flatMap { obj ->
-                obj.aliases
-                    .asSequence()
-                    .filterNot { alias -> alias == obj.name }
-                    .map { alias ->
-                        makeTypeAlias(toNodeName(alias), obj.nodeName)
-                    }
-            }
+        objectsToProcess.flatMap { obj ->
+            obj.aliases
+                .asSequence()
+                .filterNot { alias -> alias == obj.name }
+                .map { alias ->
+                    makeTypeAlias(toNodeName(alias), obj.nodeName)
+                }
+        }
             .joinToString("\n")
             .let(stringBuilder::appendLine)
 

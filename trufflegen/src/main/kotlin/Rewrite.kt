@@ -71,7 +71,11 @@ fun rewrite(definition: ParseTree, toRewrite: ParseTree, rewriteData: List<Rewri
 
             is VariableContext -> mapParamString(toRewrite.text)
             is NumberContext -> "IntegerNode(${toRewrite.text})"
-            is StringContext -> "StringNode(${toRewrite.text})"
+            is StringContext -> {
+                val charSequence = "toCharSequence(${toRewrite.text})"
+                "StringNode(${charSequence})"
+            }
+
             is TypeExpressionContext -> rewriteRecursive(toRewrite.value)
             is NestedExpressionContext -> rewriteRecursive(toRewrite.expr())
             is PairContext -> {

@@ -37,6 +37,5 @@ tasks.named<JavaExec>("run") {
     args = listOf(
         Vars.CBSFILEPATH,
         Vars.GENERATEDPATHSTR,
-        *Vars.configFiles
     )
 }

@@ -24,26 +24,14 @@ open class GroundValuesNode : ValueTypesNode(), GroundValuesInterface
 
 fun TermNode.isInGroundValues(): Boolean = this is GroundValuesNode
 
-open class IntegersNode : GroundValuesNode(), IntegersInterface
-
-fun TermNode.isInIntegers(): Boolean = this is IntegersNode
-
-open class CharactersNode : GroundValuesNode(), CharactersInterface
-
 open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
 
-//Built-in Funcon
-//datatype-value(_:identifiers, _:values*) : datatype-values
-
-//class DatatypeValueNode(@Eager @Child override var p0: TermNode, @Eager @Child override var p1: SequenceNode) :
-//    DatatypeValuesNode(), DatatypeValueInterface {
-//    override val value: Any = "datatype-value(${p0.value},${p1.value})"
-//}
+class DatatypeValueNode(@Eager @Child override var p0: TermNode, @Eager @Child override var p1: SequenceNode) :
+    DatatypeValuesNode(), DatatypeValueInterface {
+    override val value: Any = "datatype-value(${p0.value},${p1.value})"
+}
 
 fun TermNode.isInDatatypeValues(): Boolean = this is DatatypeValuesNode
-
-open class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
-//open class IntegersUpToNode(@Child override var p0: TermNode) : IntegersNode(), IntegersUpToInterface
 
 class ComputationTypesNode() : ValueTypesNode(), ComputationTypesInterface
 
@@ -116,45 +104,6 @@ class ChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNo
     }
 }
 
-class IntegerAddNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), IntegerAddInterface {
-    override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (p0.elements.any { !it.isInIntegers() }) return FailNode()
-        val sum = p0.elements.fold(0) { acc, node -> acc + (node.value as Int) }
-        return IntegerNode(sum)
-    }
-}
-
-class NaturalSuccessorNode(@Eager @Child override var p0: TermNode) : TermNode(), NaturalSuccessorInterface {
-    override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (!p0.isInIntegers()) return FailNode()
-
-        val successor = (p0.value as Int) + 1
-        return NaturalNumberNode(successor)
-    }
-}
-
-class NaturalPredecessorNode(@Eager @Child override var p0: TermNode) : TermNode(), NaturalPredecessorInterface {
-    override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (!p0.isInIntegers()) return FailNode()
-
-        return when (p0.value) {
-            0 -> SequenceNode()
-            else -> {
-                val predecessor = (p0.value as Int) - 1
-                return NaturalNumberNode(predecessor)
-            }
-        }
-    }
-}
-
-class ValueTupleNode(@Child var p0: SequenceNode = SequenceNode()) : TuplesNode() {
-    override val value get() = "tuple(${p0.value})"
-}
-
-class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode(ValuesNode()) {
-    override val value get() = "[${p0.value}]"
-}
-
 open class Identifiers : DatatypeValuesNode(), IdentifiersInterface
 
 open class IdentifierTaggedNode(
@@ -166,51 +115,9 @@ open class IdentifierTaggedNode(
     }
 }
 
-class ValueIdentifierTaggedNode(@Child var p0: TermNode, @Child var p1: TermNode) : Identifiers() {
-    override val value get() = "identifier-tagged(${p1.value},${p0.value})"
-}
-
 fun TermNode.isInIdentifiers(): Boolean = this is StringNode || this is IdentifierTaggedNode
 
 class IdentifiersNode() : DatatypeValuesNode(), IdentifiersInterface
-
-data class NaturalNumberNode(override val value: Int) : NaturalNumbersNode() {
-    override fun equals(other: Any?): Boolean = when (other) {
-        is NaturalNumberNode -> this.value == other.value
-        is IntegerNode -> this.value == other.value
-        else -> false
-    }
-
-    override fun hashCode(): Int = value.hashCode()
-}
-
-data class IntegerNode(override val value: Int) : IntegersNode() {
-    override fun equals(other: Any?): Boolean = when (other) {
-        is NaturalNumberNode -> this.value == other.value
-        is IntegerNode -> this.value == other.value
-        else -> false
-    }
-
-    override fun hashCode(): Int = value.hashCode()
-}
-
-data class CharacterNode(override val value: Char) : CharactersNode() {
-    override fun equals(other: Any?): Boolean = when (other) {
-        is CharacterNode -> this.value == other.value
-        else -> false
-    }
-
-    override fun hashCode(): Int = value.hashCode()
-}
-
-data class StringNode(override val value: String) : StringsNode() {
-    override fun equals(other: Any?): Boolean = when (other) {
-        is StringNode -> this.value == other.value
-        else -> false
-    }
-
-    override fun hashCode(): Int = value.hashCode()
-}
 
 class ReadNode : TermNode(), ReadInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
@@ -259,47 +166,24 @@ open class IntersectionTypeNode(@Children vararg var types: TermNode) : ValueTyp
 
 open class ComplementTypeNode(@Child var type: TermNode) : ValueTypesNode()
 
-class ValueReturnedNode(@Child var p0: TermNode) : ReturningNode() {
-    override val value get() = "returned(${p0.value})"
+class HoleNode() : TermNode(), HoleInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        val plugSignal = getEntity(frame, "plug-signal")
+        return when {
+            plugSignal.isNotEmpty() -> plugSignal
+            else -> FailNode()
+        }
+    }
 }
 
-class ValueThrownNode(@Child var p0: TermNode) : ThrowingNode() {
-    override val value get() = "thrown(${p0.value})"
+class MatchNode(override val p0: TermNode, override val p1: TermNode) : TermNode(), MatchInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        TODO("Not yet implemented")
+    }
 }
 
-class ValueVariableNode(@Child var p0: TermNode, @Child var p1: TermNode) : VariablesNode() {
-    override val value get() = "var(${p0.value}: ${p1.value})"
+class MatchLooselyNode(override val p0: TermNode, override val p1: TermNode) : TermNode(), MatchLooselyInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        TODO("Not yet implemented")
+    }
 }
-
-class ValueLinkNode(@Child var p0: TermNode) : LinksNode() {
-    override val value get() = "link(${p0.value})"
-}
-
-class ValueThunkNode(@Child var p0: TermNode) : ThunksNode(AbstractionsNode(ValuesNode())) {
-    override val value get() = "thunk(${p0.value})"
-}
-
-class ValueClassNode(@Child var p0: TermNode, @Child var p1: TermNode, @Child var p2: TermNode) : ClassesNode() {
-    override val value get() = "class(${p0.value},${p1.value},${p2.value})"
-}
-
-class ValueObjectNode(
-    @Child var p0: TermNode,
-    @Child var p1: TermNode,
-    @Child var p2: TermNode,
-    @Child var p3: TermNode,
-) : ObjectsNode() {
-    override val value get() = "object(${p0.value},${p1.value},${p2.value},${p3.value})"
-}
-
-class ValueReferenceNode(@Child var p0: TermNode) : ReferencesNode(ValuesNode()) {
-    override val value get() = "reference(${p0.value})"
-}
-
-//class ValuePatternNode(@Child var p0: TermNode) : PatternsNode() {
-//    override val value get() = "pattern(${p0.value})"
-//}
-
-//class ValueFunctionNode(@Child var p0: TermNode) : FunctionsNode(ValuesNode(), ValuesNode()) {
-//    override val value get() = "function(${p0.value})"
-//}

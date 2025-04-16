@@ -149,7 +149,7 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
 
             is StringContext -> {
                 val str = parseTree.STRING().text
-                FCTNodeFactory.createNode("string", listOf(str))
+                FCTNodeFactory.createNode("string", listOf(toCharSequence(str)))
             }
 
             is NumberContext -> {
