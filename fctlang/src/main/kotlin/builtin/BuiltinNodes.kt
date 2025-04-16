@@ -149,9 +149,18 @@ class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode(Va
 
 open class Identifiers : DatatypeValuesNode(), IdentifiersInterface
 
-class IdentifierTaggedNode(@Eager @Child override var p0: TermNode, @Eager @Child override var p1: TermNode) :
-    Identifiers(),
-    IdentifierTaggedInterface
+open class IdentifierTaggedNode(
+    @Eager @Child override var p0: TermNode,
+    @Eager @Child override var p1: TermNode,
+) : TermNode(), IdentifierTaggedInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        return ValueIdentifierTaggedNode(p0, p1)
+    }
+}
+
+class ValueIdentifierTaggedNode(@Child var p0: TermNode, @Child var p1: TermNode) : Identifiers() {
+    override val value get() = "identifier-tagged(${p1.value},${p0.value})"
+}
 
 fun TermNode.isInIdentifiers(): Boolean = this is StringNode || this is IdentifierTaggedNode
 

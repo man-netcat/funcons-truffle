@@ -453,10 +453,16 @@ fun getObject(definition: ParseTree): Object {
 }
 
 fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
-    val (obj, isComplement) = when (typeExpr) {
-        is ComplementExpressionContext -> getObject(typeExpr.expr()) to true
-        else -> getObject(typeExpr) to false
+    // TODO: Implement unions etc
+    val (expr, isComplement) = when (typeExpr) {
+        is ComplementExpressionContext -> {
+            typeExpr.expr() to true
+        }
+
+        else -> typeExpr to false
     }
+
+    val obj = getObject(expr)
 
     val complementStr = if (isComplement) "!" else ""
     return when {
