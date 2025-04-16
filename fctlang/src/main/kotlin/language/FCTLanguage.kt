@@ -97,21 +97,25 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
             is FunconExpressionContext -> {
                 val funconName = parseTree.name.text
 
-                val args = parseTree.args()
-                val children = when (args) {
-                    is SingleArgsContext -> {
-                        when (val arg = args.expr()) {
-                            is SequenceExpressionContext -> arg.sequenceExpr().expr()
-                                .map { expr -> buildTree(expr) }
+                if (funconName == "atom") {
+                    FCTNodeFactory.createNode(funconName, listOf(parseTree.args().text))
+                } else {
+                    val args = parseTree.args()
+                    val children = when (args) {
+                        is SingleArgsContext -> {
+                            when (val arg = args.expr()) {
+                                is SequenceExpressionContext -> arg.sequenceExpr().expr()
+                                    .map { expr -> buildTree(expr) }
 
-                            else -> listOf(buildTree(arg))
+                                else -> listOf(buildTree(arg))
+                            }
                         }
-                    }
 
-                    is NoArgsContext -> emptyList()
-                    else -> throw IllegalArgumentException("Unknown arg type: ${args::class.simpleName}, ${args.text}")
+                        is NoArgsContext -> emptyList()
+                        else -> throw IllegalArgumentException("Unknown arg type: ${args::class.simpleName}, ${args.text}")
+                    }
+                    FCTNodeFactory.createNode(funconName, children)
                 }
-                FCTNodeFactory.createNode(funconName, children)
             }
 
             is EmptySetContext -> {
