@@ -3,7 +3,8 @@ package builtin
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
 
-open class MapsNode(var tp0: TermNode, var tp1: TermNode) : GroundValuesNode(), MapsInterface
+open class MapsNode(@Eager @Child var tp0: TermNode, @Eager @Child var tp1: TermNode) : GroundValuesNode(),
+    MapsInterface
 
 fun TermNode.isInMaps(): Boolean = this is ValueMapNode
 

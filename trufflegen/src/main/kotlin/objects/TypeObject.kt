@@ -17,7 +17,31 @@ class TypeObject(
                 return if (definition is FunconExpressionContext) {
                     val defType = getObject(definition)
                     val args = extractArgs(definition)
-                    val valueArgStrs = args.map { arg -> rewrite(ctx, arg, isTypeParam = true) }
+                    fun rewriteArg(arg: ExprContext): String {
+                        return when (arg) {
+                            is NumberContext -> "IntegerNode(${arg.text})"
+                            is FunconExpressionContext -> {
+                                val args = extractArgs(arg)
+                                val argStr = args.joinToString { arg -> rewriteArg(arg) }
+                                val funcon = toNodeName(arg.name.text)
+                                "${funcon}($argStr)"
+                            }
+
+                            is SuffixExpressionContext -> rewriteArg(arg.operand)
+                            is VariableContext -> {
+                                if (params.any { param -> param.value == arg.text }) {
+                                    val tpIndex = params.indexOfFirst { param -> param.value == arg.text }
+                                    "${asVarName}Tp${tpIndex}"
+                                } else if (arg.text in metavariableMap.keys) {
+                                    rewrite(definition, metavariableMap[arg.text]!!)
+                                } else throw DetailedException("Unexpected arg with type ${arg::class.simpleName} ${arg.text}")
+                            }
+
+                            else -> throw DetailedException("Unexpected arg with type ${arg::class.simpleName} ${arg.text}")
+                        }
+                    }
+
+                    val valueArgStrs = args.map { arg -> rewriteArg(arg) }
                     makeFunCall(defType.nodeName, args = valueArgStrs)
                 } else throw DetailedException("Unexpected definition ${definition.text}")
             }

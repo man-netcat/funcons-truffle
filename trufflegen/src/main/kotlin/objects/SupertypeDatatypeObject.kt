@@ -10,5 +10,5 @@ class SupertypeDatatypeObject(
 ) : Object(ctx, metaVariables) {
     val definition: ExprContext = ctx.definition
     override val superClassStr: String
-        get() = rewrite(ctx, definition, isTypeParam = true)
+        get() = rewrite(ctx, definition)
 }

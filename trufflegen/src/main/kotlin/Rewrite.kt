@@ -11,11 +11,10 @@ fun rewrite(
     definition: ParseTree,
     toRewrite: ParseTree,
     rewriteData: List<RewriteData> = emptyList(),
-    isTypeParam: Boolean = false,
 ): String {
     fun rewriteRecursive(toRewrite: ParseTree): String {
         fun mapParamString(str: String): String {
-            val paramStrs = getParamStrs(definition, isTypeParam = isTypeParam)
+            val paramStrs = getParamStrs(definition)
             val exprMap = (paramStrs + rewriteData).associate { (arg, _, paramStr) -> Pair(arg?.text, paramStr) }
             return exprMap[str] ?: throw StringNotFoundException(str, exprMap.keys.toList())
         }
@@ -96,7 +95,7 @@ fun rewrite(
     return rewriteRecursive(toRewrite)
 }
 
-fun getParamStrs(definition: ParseTree, prefix: String = "", isTypeParam: Boolean = false): List<RewriteData> {
+fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> {
     fun makeParamStr(
         argIndex: Int, argsSize: Int, obj: Object, parentStr: String, argIsSequence: Boolean = false,
     ): String {
@@ -106,8 +105,7 @@ fun getParamStrs(definition: ParseTree, prefix: String = "", isTypeParam: Boolea
 
         // Utility function to build parameter string based on provided condition
         fun buildParamString(paramIndex: Int): String =
-            listOf(parentStr, if (isTypeParam) "tp${paramIndex}" else "get($paramIndex)").filterNot { it.isEmpty() }
-                .joinToString(".")
+            listOf(parentStr, "get($paramIndex)").filterNot { it.isEmpty() }.joinToString(".")
 
         return when {
             // Case when there is no sequence (obj.sequenceIndex == -1)
