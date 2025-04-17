@@ -158,8 +158,12 @@ class FunconObject(
                 is RewritePremiseContext -> {
                     val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
                     val rewriteRhs = variables.getVar(rewriteLhs, "r")
-                    val newRewriteData = makeRewriteDataObject(rhs, rewriteRhs)
-                    rewriteData.add(newRewriteData)
+                    val newRewriteData = if (rhs is FunconExpressionContext) {
+                        getParamStrs(rhs, rewriteRhs)
+                    } else {
+                        emptyList()
+                    } + makeRewriteDataObject(rhs, rewriteRhs)
+                    rewriteData.addAll(newRewriteData)
                 }
 
                 is TransitionPremiseWithMutableEntityContext,

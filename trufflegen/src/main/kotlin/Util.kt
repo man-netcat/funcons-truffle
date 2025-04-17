@@ -453,26 +453,40 @@ fun getObject(definition: ParseTree): Object {
 }
 
 fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
-    // TODO: Implement unions etc
-    val (expr, isComplement) = when (typeExpr) {
-        is ComplementExpressionContext -> {
-            typeExpr.expr() to true
-        }
-
+    val (coreExpr, isComplement) = when (typeExpr) {
+        is ComplementExpressionContext -> typeExpr.expr() to true
         else -> typeExpr to false
     }
 
-    val obj = getObject(expr)
-
     val complementStr = if (isComplement) "!" else ""
-    return when {
-        obj is AlgebraicDatatypeObject || obj is TypeObject
-            -> "${complementStr}$paramStr.isIn${obj.camelCaseName}()"
 
-        else -> {
-            val explicitValue = if (obj is DatatypeFunconObject && obj.params.isNotEmpty()) "Value" else ""
-            "$paramStr ${complementStr}is $explicitValue${obj.nodeName}"
-        }
+    fun makeObjCondition(obj: Object): String = when (obj) {
+        is AlgebraicDatatypeObject, is TypeObject ->
+            "$complementStr$paramStr.isIn${obj.camelCaseName}()"
+
+        is DatatypeFunconObject ->
+            if (obj.params.isNotEmpty()) "$paramStr ${complementStr}is Value${obj.nodeName}"
+            else "$paramStr ${complementStr}is ${obj.nodeName}"
+
+        else -> "$paramStr ${complementStr}is ${obj.nodeName}"
+    }
+
+    val expr = (coreExpr as? NestedExpressionContext)?.expr() ?: coreExpr
+
+    val operator = when (expr) {
+        is OrExpressionContext -> if (isComplement) " && " else " || "
+        is AndExpressionContext -> if (isComplement) " || " else " && "
+        else -> ""
+    }
+
+    return if (operator.isNotEmpty()) {
+        val conditions = extractAndOrExprs(expr)
+            .map { getObject(it) }
+            .map(::makeObjCondition)
+
+        "(" + conditions.joinToString(operator) + ")"
+    } else {
+        makeObjCondition(getObject(expr))
     }
 }
 

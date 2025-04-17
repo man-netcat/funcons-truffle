@@ -20,7 +20,7 @@ class UnicodeCharactersNode : CharactersNode(), UnicodeCharactersInterface
 
 class UnicodeCharacterNode(override val p0: TermNode) : TermNode(), UnicodeCharacterInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented: $name")
     }
 }
 

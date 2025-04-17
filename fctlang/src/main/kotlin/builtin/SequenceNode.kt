@@ -44,6 +44,10 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         return elements.random()
     }
 
+    fun shuffled(): List<TermNode> {
+        return elements.toList().shuffled()
+    }
+
     override fun reduceComputations(frame: VirtualFrame): TermNode? {
         val newElements = elements.toMutableList()
         var attemptedReduction = false

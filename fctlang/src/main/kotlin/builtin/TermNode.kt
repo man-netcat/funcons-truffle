@@ -24,7 +24,7 @@ abstract class TermNode : Node() {
     val memberProperties = this::class.memberProperties
     val members = this::class.members
 
-    private val params: List<TermNode> by lazy {
+    val params: List<TermNode> by lazy {
         primaryConstructor.parameters.mapNotNull { param ->
             memberProperties.first { it.name == param.name }.getter.call(this) as? TermNode
         }

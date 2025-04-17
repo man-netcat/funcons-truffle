@@ -23,3 +23,13 @@ application {
 tasks.named<JavaExec>("run") {
     args = listOf("../CBS-beta/Funcons-beta/Computations/Normal/Binding/tests/bound-directly.config")
 }
+
+tasks.register<Test>("runTests") {
+    useJUnitPlatform()
+    filter {
+        includeTestsMatching("interpreter.InterpreterFilesTest.testFiles")
+    }
+    testLogging {
+        events("passed", "skipped", "failed")
+    }
+}

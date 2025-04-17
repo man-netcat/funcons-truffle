@@ -104,6 +104,20 @@ class ChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNo
     }
 }
 
+class ElseChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), ElseChoiceInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        val shuffled = p0.shuffled()
+
+        return when (shuffled.size) {
+            0 -> FailNode()
+            1 -> shuffled[0]
+            else -> shuffled.drop(1).fold(shuffled[0]) { acc, term ->
+                ElseNode(term, SequenceNode(acc))
+            }
+        }
+    }
+}
+
 open class Identifiers : DatatypeValuesNode(), IdentifiersInterface
 
 open class IdentifierTaggedNode(
@@ -179,19 +193,19 @@ class HoleNode() : TermNode(), HoleInterface {
 
 class MatchNode(override val p0: TermNode, override val p1: TermNode) : TermNode(), MatchInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented: $name")
     }
 }
 
 class MatchLooselyNode(override val p0: TermNode, override val p1: TermNode) : TermNode(), MatchLooselyInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented: $name")
     }
 }
 
 class ToStringNode(override val p0: TermNode) : TermNode(), ToStringInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented: $name")
     }
 }
 
