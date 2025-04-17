@@ -130,7 +130,7 @@ class MapLookupNode(
                 else -> abort("map-lookup")
             }
 
-            if (key == keyNode) {
+            if (key.value == keyNode.value) {
                 val value = when (tupleSeq.size) {
                     1 -> SequenceNode()
                     2 -> tupleSeq.elements[1]

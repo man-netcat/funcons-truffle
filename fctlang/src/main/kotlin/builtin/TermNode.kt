@@ -209,7 +209,7 @@ abstract class TermNode : Node() {
             }
             term = term.reduce(frame)
             iterationCount++
-            if (iterationCount > 150) throw InfiniteLoopException()
+            if (iterationCount > 1000) throw InfiniteLoopException()
         }
         return term
     }

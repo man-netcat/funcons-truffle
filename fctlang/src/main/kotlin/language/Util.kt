@@ -4,7 +4,7 @@ import builtin.CharacterNode
 import builtin.SequenceNode
 
 object Util {
-//        const val DEBUG = true
+    //    const val DEBUG = true
     const val DEBUG = false
 }
 
