@@ -17,7 +17,7 @@ class TypeObject(
                 return if (definition is FunconExpressionContext) {
                     val defType = getObject(definition)
                     val args = extractArgs(definition)
-                    val valueArgStrs = args.map { arg -> rewrite(ctx, arg) }
+                    val valueArgStrs = args.map { arg -> rewrite(ctx, arg, isTypeParam = true) }
                     makeFunCall(defType.nodeName, args = valueArgStrs)
                 } else throw DetailedException("Unexpected definition ${definition.text}")
             }

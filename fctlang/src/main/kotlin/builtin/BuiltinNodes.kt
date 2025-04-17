@@ -115,7 +115,8 @@ open class IdentifierTaggedNode(
     }
 }
 
-fun TermNode.isInIdentifiers(): Boolean = this is StringNode || this is IdentifierTaggedNode
+fun TermNode.isInIdentifiers(): Boolean =
+    (this is ValueListNode && this.p0.elements.all { it is CharacterNode }) || this is IdentifierTaggedNode
 
 class IdentifiersNode() : DatatypeValuesNode(), IdentifiersInterface
 
@@ -186,4 +187,21 @@ class MatchLooselyNode(override val p0: TermNode, override val p1: TermNode) : T
     override fun reduceRules(frame: VirtualFrame): TermNode {
         TODO("Not yet implemented")
     }
+}
+
+class ToStringNode(override val p0: TermNode) : TermNode(), ToStringInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        TODO("Not yet implemented")
+    }
+}
+
+open class PointersNode(@Eager @Child var tp0: TermNode) : DatatypeValuesNode(), PointersInterface
+
+class PointerNullNode : PointersNode(ValuesNode()), PointerNullInterface
+
+fun TermNode.isInPointers(): Boolean {
+    return this::class in setOf(
+        PointerNullNode::class,
+        ReferenceNode::class
+    )
 }

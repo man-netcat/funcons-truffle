@@ -131,14 +131,12 @@ class IntegerIsGreaterOrEqualNode(@Eager @Child override var p0: TermNode, @Eage
 
 class NaturalSuccessorNode(@Eager @Child override var p0: TermNode) : TermNode(), NaturalSuccessorInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (!p0.isInIntegers()) return abort("natural-successor")
         return NaturalNumberNode((p0.value as Int) + 1)
     }
 }
 
 class NaturalPredecessorNode(@Eager @Child override var p0: TermNode) : TermNode(), NaturalPredecessorInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (!p0.isInIntegers()) return abort("natural-predecessor")
         val value = p0.value as Int
         return if (value == 0) SequenceNode() else NaturalNumberNode(value - 1)
     }

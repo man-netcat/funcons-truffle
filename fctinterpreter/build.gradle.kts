@@ -15,3 +15,11 @@ dependencies {
     implementation(Deps.truffleApi)
     testImplementation(kotlin("test"))
 }
+
+application {
+    mainClass.set("interpreter.FCTInterpreterKt")
+}
+
+tasks.named<JavaExec>("run") {
+    args = listOf("../CBS-beta/Funcons-beta/Computations/Normal/Binding/tests/bound-directly.config")
+}

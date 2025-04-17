@@ -7,7 +7,10 @@ data class ValueTupleNode(@Child var p0: SequenceNode = SequenceNode()) : Tuples
 }
 
 data class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode(ValuesNode()) {
-    override val value get() = "[${p0.value}]"
+    override val value
+        get() = if (p0.elements.all { it.isInCharacters() || it.isInIntegers() }) {
+            p0.elements.joinToString("") { it.value.toString() }
+        } else "[${p0.value}]"
 }
 
 data class ValueReturnedNode(@Child var p0: TermNode) : ReturningNode() {

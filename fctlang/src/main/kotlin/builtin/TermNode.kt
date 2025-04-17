@@ -30,14 +30,26 @@ abstract class TermNode : Node() {
         }
     }
 
+    val name: String
+        get() {
+            val nodeName = this::class.simpleName!!
+            val base = nodeName.substring(0, nodeName.length - "Node".length)
+
+            return base.mapIndexed { i, ch ->
+                if (ch.isUpperCase()) {
+                    val dash = if (i != 0) '-' else ""
+                    "$dash$ch"
+                } else ch
+            }.joinToString("")
+        }
+
     open val value: Any
         get() = when (this) {
             is FalseNode -> "false"
             is TrueNode -> "true"
             is NullValueNode -> "null-value"
             is FailedNode -> "failed"
-            is StringNode -> p0.elements.joinToString { it.value.toString() }
-            else -> this::class.simpleName!!
+            else -> name
         }
 
     private fun getLanguage(): FCTLanguage {
@@ -182,8 +194,7 @@ abstract class TermNode : Node() {
         newNode as TermNode
         if (DEBUG) {
             val reasonStr = if (!reason.isNullOrEmpty()) " with reason: $reason" else ""
-            println("replacing: ${this::class.simpleName} for ${newNode::class.simpleName}$reasonStr")
-            println("new node: ${newNode.value}")
+            println("replacing: ${this::class.simpleName} for ${newNode::class.simpleName} (${newNode.value})$reasonStr")
         }
     }
 
@@ -198,7 +209,7 @@ abstract class TermNode : Node() {
             }
             term = term.reduce(frame)
             iterationCount++
-            if (iterationCount > 1000) throw InfiniteLoopException()
+            if (iterationCount > 150) throw InfiniteLoopException()
         }
         return term
     }
