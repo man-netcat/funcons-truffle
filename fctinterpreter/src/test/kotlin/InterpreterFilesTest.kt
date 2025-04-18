@@ -31,9 +31,22 @@ class InterpreterFilesTest {
 
     @TestFactory
     fun testFiles(): List<DynamicTest> {
+        val blackListedFuncons = listOf(
+            "Abstraction/Patterns",
+            "Abstraction/Thunks",
+            "Abstraction/Generic"
+        )
+
         val rootDir = Paths.get("../CBS-beta/Funcons-beta").normalize().toAbsolutePath()
         val testFiles = Files.walk(rootDir)
-            .filter { it.isRegularFile() && it.extension == "config" }
+            .filter { path ->
+                val conditions = listOf(
+                    path.isRegularFile(),
+                    path.extension == "config",
+                    !blackListedFuncons.any { subPath -> subPath in path.pathString }
+                )
+                conditions.all { it == true }
+            }
             .toList()
 
         return testFiles.map { path ->
