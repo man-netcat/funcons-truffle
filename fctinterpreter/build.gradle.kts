@@ -21,7 +21,8 @@ application {
 }
 
 tasks.named<JavaExec>("run") {
-    args = listOf("../CBS-beta/Funcons-beta/Computations/Normal/Binding/tests/bound-directly.config")
+    args =
+        listOf("/home/rick/workspace/thesis/funcons-truffle/fctinterpreter/src/test/resources/CustomTests/sandbox.config")
 }
 
 tasks.register<Test>("runTests") {

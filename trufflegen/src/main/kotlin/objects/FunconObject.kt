@@ -415,6 +415,7 @@ class FunconObject(
             // Add the type checking conditions
             if (ruleDef is FunconExpressionContext) argsConditions(ruleDef)
 
+            // TODO: Maybe Deepcopy?
             rewriteStr = rewrite(ruleDef, toRewrite, rewriteData)
         }
     }
@@ -425,6 +426,7 @@ class FunconObject(
             val stringBuilder = StringBuilder()
 
             val returnStr = "return " + when {
+                // TODO: Maybe Deepcopy?
                 rewritesTo != null -> rewrite(ctx, rewritesTo)
                 rules.isNotEmpty() -> {
                     val ruleObjs = rules.map { rule ->

@@ -11,10 +11,11 @@ fun rewrite(
     definition: ParseTree,
     toRewrite: ParseTree,
     rewriteData: List<RewriteData> = emptyList(),
+    deepCopy: Boolean = false,
 ): String {
     fun rewriteRecursive(toRewrite: ParseTree): String {
         fun mapParamString(str: String): String {
-            val paramStrs = getParamStrs(definition)
+            val paramStrs = getParamStrs(definition, deepCopy = deepCopy)
             val exprMap = (paramStrs + rewriteData).associate { (arg, _, paramStr) -> Pair(arg?.text, paramStr) }
             return exprMap[str] ?: throw StringNotFoundException(str, exprMap.keys.toList())
         }
@@ -95,22 +96,53 @@ fun rewrite(
     return rewriteRecursive(toRewrite)
 }
 
-fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> {
+fun getParamStrs(
+    definition: ParseTree,
+    prefix: String = "",
+    deepCopy: Boolean = false,
+): List<RewriteData> {
     fun makeParamStr(
-        argIndex: Int, argsSize: Int, obj: Object, parentStr: String, argIsSequence: Boolean = false,
+        argIndex: Int,
+        argsSize: Int,
+        obj: Object,
+        parentStr: String,
+        argIsSequence: Boolean = false,
     ): String {
         // Calculate the number of arguments passed to the sequence
         val nSequenceArgs = argsSize - (obj.params.size - 1)
         if (obj.sequenceIndex >= 0) argsSize - (obj.sequenceIndex + nSequenceArgs) else 0
 
+        fun getSuffix(sequenceRelativeIndex: Int, nSequenceArgs: Int): String {
+            return if (argIsSequence && sequenceRelativeIndex == nSequenceArgs - 1) {
+                when (sequenceRelativeIndex) {
+                    0 -> ""
+                    1 -> ".tail"
+                    else -> ".sliceFrom($sequenceRelativeIndex)"
+                }
+            } else if (argIsSequence && sequenceRelativeIndex != nSequenceArgs - 1) {
+                ".init"
+            } else if (!argIsSequence && sequenceRelativeIndex != nSequenceArgs - 1) {
+                when (sequenceRelativeIndex) {
+                    0 -> ".head"
+                    1 -> ".second"
+                    2 -> ".third"
+                    3 -> ".fourth"
+                    else -> ".get($sequenceRelativeIndex)"
+                }
+            } else ".last"
+        }
+
         // Utility function to build parameter string based on provided condition
-        fun buildParamString(paramIndex: Int): String =
-            listOf(parentStr, "get($paramIndex)").filterNot { it.isEmpty() }.joinToString(".")
+        fun buildParamString(paramIndex: Int, computes: Boolean, suffix: String = ""): String {
+            val deepCopy = if (computes && deepCopy) ".deepCopy()" else ""
+            return listOf(parentStr, "get($paramIndex)").filterNot { it.isEmpty() }
+                .joinToString(".") + suffix + deepCopy
+        }
 
         return when {
             // Case when there is no sequence (obj.sequenceIndex == -1)
             obj.sequenceIndex == -1 || argIndex in 0 until obj.sequenceIndex -> {
-                buildParamString(argIndex)
+                buildParamString(argIndex, obj.params[argIndex].type.computes)
             }
 
             // Case for an actual sequence range
@@ -118,24 +150,8 @@ fun getParamStrs(definition: ParseTree, prefix: String = ""): List<RewriteData> 
                 val sequenceRelativeIndex = argIndex - obj.sequenceIndex
                 assert(sequenceRelativeIndex >= 0) { "Index out of bounds" }
 
-                val base = buildParamString(obj.sequenceIndex)
-                if (argIsSequence && sequenceRelativeIndex == nSequenceArgs - 1) {
-                    when (sequenceRelativeIndex) {
-                        0 -> base
-                        1 -> "$base.tail"
-                        else -> "$base.sliceFrom($sequenceRelativeIndex)"
-                    }
-                } else if (argIsSequence && sequenceRelativeIndex != nSequenceArgs - 1) {
-                    "$base.init"
-                } else if (!argIsSequence && sequenceRelativeIndex != nSequenceArgs - 1) {
-                    when (sequenceRelativeIndex) {
-                        0 -> "$base.head"
-                        1 -> "$base.second"
-                        2 -> "$base.third"
-                        3 -> "$base.fourth"
-                        else -> "$base.get($sequenceRelativeIndex)"
-                    }
-                } else "$base.last"
+                val suffix = getSuffix(sequenceRelativeIndex, nSequenceArgs)
+                buildParamString(obj.sequenceIndex, obj.sequenceParam!!.type.computes, suffix)
             }
 
             else -> throw IndexOutOfBoundsException("argIndex $argIndex out of bounds.")

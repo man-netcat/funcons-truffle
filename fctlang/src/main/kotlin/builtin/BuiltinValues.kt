@@ -8,7 +8,7 @@ data class ValueTupleNode(@Child var p0: SequenceNode = SequenceNode()) : Tuples
 
 data class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode(ValuesNode()) {
     override val value
-        get() = if (p0.elements.all { it.isInCharacters() || it.isInIntegers() }) {
+        get() = if (p0.elements.all { it.isInCharacters() }) {
             p0.elements.joinToString("") { it.value.toString() }
         } else "[${p0.value}]"
 }

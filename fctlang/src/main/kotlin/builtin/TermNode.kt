@@ -38,7 +38,7 @@ abstract class TermNode : Node() {
             return base.mapIndexed { i, ch ->
                 if (ch.isUpperCase()) {
                     val dash = if (i != 0) '-' else ""
-                    "$dash$ch"
+                    "$dash${ch.lowercaseChar()}"
                 } else ch
             }.joinToString("")
         }
@@ -77,7 +77,7 @@ abstract class TermNode : Node() {
     }
 
     fun putEntity(frame: VirtualFrame, key: String, value: TermNode) {
-        if (DEBUG) println("putting ${value::class.simpleName} in $key")
+        if (DEBUG) println("putting ${value::class.simpleName} (${value.value}) in $key")
         getLocalContext(frame)[key] = value
     }
 
@@ -96,6 +96,7 @@ abstract class TermNode : Node() {
     }
 
     internal open fun reduce(frame: VirtualFrame): TermNode {
+        if (DEBUG) println("reducing: ${this::class.simpleName} (${value})")
         reduceComputations(frame)?.let { new -> return replace(new) }
         reduceRules(frame).let { new -> return replace(new) }
     }
@@ -238,4 +239,6 @@ abstract class TermNode : Node() {
 
     open fun sliceUntil(endIndexOffset: Int, startIndexOffset: Int = 0): SequenceNode =
         abort("not a sequence: ${this::class.simpleName}")
+
+    override fun deepCopy(): TermNode = super.deepCopy() as TermNode
 }

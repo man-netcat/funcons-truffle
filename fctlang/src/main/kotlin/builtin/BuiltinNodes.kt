@@ -82,14 +82,14 @@ class SequentialNode(
     SequentialInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         return when {
-            p0.isReducible() -> {
-                val r = p0.reduce(frame) as SequenceNode
-                SequentialNode(r, p1)
+            get(0).head.isReducible() -> {
+                val s0 = get(0).head.reduce(frame)
+                SequentialNode(SequenceNode(s0, get(0).tail), get(1))
             }
 
             else -> when {
-                p0.size > 1 && p0.head is NullValueNode -> SequentialNode(p0.tail, p1)
-                else -> p1
+                get(0).size > 1 && get(0).head is NullValueNode -> SequentialNode(get(0).tail, get(1))
+                else -> get(1)
             }
         }
     }
@@ -130,7 +130,7 @@ open class IdentifierTaggedNode(
 }
 
 fun TermNode.isInIdentifiers(): Boolean =
-    (this is ValueListNode && this.p0.elements.all { it is CharacterNode }) || this is IdentifierTaggedNode
+    this is ValueListNode || this is Identifiers
 
 class IdentifiersNode() : DatatypeValuesNode(), IdentifiersInterface
 

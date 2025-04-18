@@ -57,8 +57,8 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
         val inputNodes = processInput(inputs)
 
         val frameDescriptorBuilder = FrameDescriptor.newBuilder()
-        // TODO: 100 slots is probably too many
-        frameDescriptorBuilder.addSlots(100, FrameSlotKind.Object)
+        // Add a frameslot for the entity map
+        frameDescriptorBuilder.addSlots(1, FrameSlotKind.Object)
         val frameDescriptor = frameDescriptorBuilder.build()
         val fctRootNode = FCTRootNode(this, frameDescriptor, rootNode, inputNodes)
         return fctRootNode.callTarget
