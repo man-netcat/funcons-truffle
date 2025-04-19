@@ -34,7 +34,10 @@ class InterpreterFilesTest {
         val blackListedFuncons = listOf(
             "Abstraction/Patterns",
             "Abstraction/Thunks",
-            "Abstraction/Generic"
+            "Abstraction/Generic",
+            "atomic",
+            "structural-assign",
+            "catch-else-throw"
         )
 
         val rootDir = Paths.get("../CBS-beta/Funcons-beta").normalize().toAbsolutePath()

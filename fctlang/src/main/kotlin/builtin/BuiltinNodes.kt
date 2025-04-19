@@ -82,15 +82,15 @@ class SequentialNode(
     SequentialInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         return when {
-            get(0).head.isReducible() -> {
+            get(0).isEmpty() -> get(1)
+            get(0).size >= 1 && get(0).head.isReducible() -> {
                 val s0 = get(0).head.reduce(frame)
                 SequentialNode(SequenceNode(s0, get(0).tail), get(1))
             }
 
-            else -> when {
-                get(0).size > 1 && get(0).head is NullValueNode -> SequentialNode(get(0).tail, get(1))
-                else -> get(1)
-            }
+            get(0).size >= 1 && get(0).head is NullValueNode -> SequentialNode(get(0).tail, get(1))
+
+            else -> abort("sequential")
         }
     }
 }
