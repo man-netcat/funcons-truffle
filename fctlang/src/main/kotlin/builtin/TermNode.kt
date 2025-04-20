@@ -44,13 +44,7 @@ abstract class TermNode : Node() {
         }
 
     open val value: Any
-        get() = when (this) {
-            is FalseNode -> "false"
-            is TrueNode -> "true"
-            is NullValueNode -> "null-value"
-            is FailedNode -> "failed"
-            else -> name
-        }
+        get() = name + if (params.isNotEmpty()) "(" + params.joinToString(",") { it.value.toString() } + ")" else ""
 
     private fun getLanguage(): FCTLanguage {
         return FCTLanguage.Companion.get(this)

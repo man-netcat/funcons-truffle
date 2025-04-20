@@ -83,12 +83,12 @@ class SequentialNode(
     override fun reduceRules(frame: VirtualFrame): TermNode {
         return when {
             get(0).isEmpty() -> get(1)
-            get(0).size >= 1 && get(0).head.isReducible() -> {
+            get(0).head.isReducible() -> {
                 val s0 = get(0).head.reduce(frame)
                 SequentialNode(SequenceNode(s0, get(0).tail), get(1))
             }
 
-            get(0).size >= 1 && get(0).head is NullValueNode -> SequentialNode(get(0).tail, get(1))
+            get(0).head is NullValueNode -> SequentialNode(get(0).tail, get(1))
 
             else -> abort("sequential")
         }
@@ -130,7 +130,7 @@ open class IdentifierTaggedNode(
 }
 
 fun TermNode.isInIdentifiers(): Boolean =
-    this is ValueListNode || this is Identifiers
+    this is ValueListNode && this.p0.elements.all { it.isInCharacters() } || this is Identifiers
 
 class IdentifiersNode() : DatatypeValuesNode(), IdentifiersInterface
 
@@ -168,9 +168,7 @@ data class AtomNode(override val value: String) : AtomsNode() {
 
 class InitialiseGeneratingNode(@Child override var p0: TermNode) : TermNode(), InitialiseGeneratingInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        putEntity(frame, "used-atom-set", ValueSetNode(SequenceNode(AtomNode("initatom"))))
-//        putEntity(frame, "used-atom-set", ValueSetNode(SequenceNode(AtomNode("a0"))))
-//        putEntity(frame, "used-atom-set", ValueSetNode(SequenceNode()))
+        putEntity(frame, "used-atom-set", ValueSetNode(SequenceNode()))
         return p0
     }
 }

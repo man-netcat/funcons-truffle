@@ -35,9 +35,11 @@ class InterpreterFilesTest {
             "Abstraction/Patterns",
             "Abstraction/Thunks",
             "Abstraction/Generic",
+            "Composite/Classes",
             "atomic",
             "structural-assign",
-            "catch-else-throw"
+            "catch-else-throw",
+            "handle-recursively"
         )
 
         val rootDir = Paths.get("../CBS-beta/Funcons-beta").normalize().toAbsolutePath()
@@ -48,7 +50,7 @@ class InterpreterFilesTest {
                     path.extension == "config",
                     !blackListedFuncons.any { subPath -> subPath in path.pathString }
                 )
-                conditions.all { it == true }
+                conditions.all { it }
             }
             .toList()
 
