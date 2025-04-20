@@ -2,11 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/antlr/funcons-truffle.antlr.main.iml" filepath="$PROJECT_DIR$/.idea/modules/antlr/funcons-truffle.antlr.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/fctruffle/funcons-truffle.fctruffle.main.iml" filepath="$PROJECT_DIR$/.idea/modules/fctruffle/funcons-truffle.fctruffle.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/funcons-truffle.main.iml" filepath="$PROJECT_DIR$/.idea/modules/funcons-truffle.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/funcons-truffle.test.iml" filepath="$PROJECT_DIR$/.idea/modules/funcons-truffle.test.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/trufflegen/funcons-truffle.trufflegen.main.iml" filepath="$PROJECT_DIR$/.idea/modules/trufflegen/funcons-truffle.trufflegen.main.iml" />
     </modules>
   </component>
 </project>
