@@ -133,10 +133,14 @@ abstract class TermNode : Node() {
             is IntegersNode -> this is NaturalNumberNode || this is IntegerNode
             is BooleansNode -> this is FalseNode || this is TrueNode
             is MapsNode -> this is ValueMapNode
-            is StringsNode -> this is StringNode
+            is StringsNode -> this is ValueListNode && this.p0.elements.all { it.isInCharacters() }
             is ListsNode -> this is ValueListNode
             is VectorsNode -> this is ValueVectorNode
             is AtomsNode -> this is AtomNode
+            is IdentifiersNode -> (this is ValueIdentifierTaggedNode && this.p0.isInIdentifiers()) || this.isInType(
+                StringsNode()
+            )
+
             else -> type::class.isInstance(this)
         }
     }

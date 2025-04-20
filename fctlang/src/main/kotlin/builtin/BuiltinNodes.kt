@@ -130,7 +130,7 @@ open class IdentifierTaggedNode(
 }
 
 fun TermNode.isInIdentifiers(): Boolean =
-    this is ValueListNode && this.p0.elements.all { it.isInCharacters() } || this is Identifiers
+    (this is ValueListNode && this.p0.elements.all { it.isInCharacters() }) || this is Identifiers
 
 class IdentifiersNode() : DatatypeValuesNode(), IdentifiersInterface
 
