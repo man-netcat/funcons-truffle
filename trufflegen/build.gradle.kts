@@ -37,5 +37,7 @@ tasks.named<JavaExec>("run") {
     args = listOf(
         Vars.CBSFILEPATH,
         Vars.GENERATEDPATHSTR,
+//        "--index",
+//        "../CBS-beta/Languages-beta/IMP/IMP-cbs/IMP/IMP-Funcons-Index/IMP-Funcons-Index.cbs"
     )
 }

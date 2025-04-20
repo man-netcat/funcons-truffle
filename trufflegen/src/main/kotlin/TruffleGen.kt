@@ -36,10 +36,12 @@ class TruffleGen(
     private val cbsDir: File,
     private val outputDir: File,
     private vararg val fctFiles: File,
+    private val indexFile: File?,
 ) {
-    private val files: MutableMap<String, CBSFile> = mutableMapOf()
+    private val cbsFiles: MutableMap<String, CBSFile> = mutableMapOf()
     private var cbsParseTrees = mutableMapOf<String, CBSParser.RootContext>()
     private val fctParseTrees = mutableMapOf<String, FCTParser.RootContext>()
+    private var indexParseTree: CBSParser.RootContext? = null
     private val generatedDependencies = mutableSetOf<Object>()
 
     fun process() {
@@ -80,6 +82,15 @@ class TruffleGen(
             val root = parser.root()
             fctParseTrees[file.name] = root
         }
+
+        indexFile?.let { file ->
+            val input = CharStreams.fromPath(file.toPath())
+            val lexer = CBSLexer(input)
+            val tokens = CommonTokenStream(lexer)
+            val parser = CBSParser(tokens)
+            val root = parser.root()
+            indexParseTree = root
+        }
     }
 
     private fun generateObjects() {
@@ -89,7 +100,7 @@ class TruffleGen(
             cbsFile.visit(root)
             val fileObjects = cbsFile.objects
             if (fileObjects.isNotEmpty()) {
-                files[name] = cbsFile
+                cbsFiles[name] = cbsFile
                 globalObjects.putAll(fileObjects)
             }
         }
@@ -109,13 +120,19 @@ class TruffleGen(
     }
 
     private fun generateDependencies() {
-        val usedFuncons = fctParseTrees.flatMap { (name, root) ->
-            val fctVisitor = FCTDependencyVisitor()
-            fctVisitor.visit(root)
-            fctVisitor.dependencies
-        }.distinct()
+        val usedFuncons = if (indexParseTree != null) {
+            val indexVisitor = IndexVisitor()
+            indexVisitor.visit(indexParseTree)
+            indexVisitor.names.distinct()
+        } else {
+            fctParseTrees.flatMap { (name, root) ->
+                val fctVisitor = FCTDependencyVisitor()
+                fctVisitor.visit(root)
+                fctVisitor.dependencies
+            }.distinct()
+        }
 
-        files.values.forEach { file ->
+        cbsFiles.values.forEach { file ->
             file.objects.values.distinct().forEach { obj ->
                 println("Generating object dependencies for object ${obj.name}...")
                 fun visitDependencies(obj: Object) {
@@ -167,7 +184,7 @@ class TruffleGen(
             Files.createDirectories(outputDirPath)
         }
 
-        files.forEach { (name, file) ->
+        cbsFiles.forEach { (name, file) ->
             println("Generating code for file $name...")
             val code = file.generateCode(generatedDependencies)
             if (code != null) {
@@ -220,13 +237,32 @@ class TruffleGen(
         @JvmStatic
         fun main(args: Array<String>) {
             if (args.size < 2) {
-                println("Usage: <program> <cbsDir> <outputDir> [included...]")
+                println("Usage: <program> <cbsDir> <outputDir> [--index <indexFile>] [included...]")
                 return
             }
 
             val cbsDir = File(args[0])
             val outputDir = File(args[1])
-            val fctFiles = args.drop(2).map { File(it) }.toTypedArray()
+            val fctFiles = mutableListOf<File>()
+            var indexFile: File? = null
+
+            var i = 2
+            while (i < args.size) {
+                when (args[i]) {
+                    "--index" -> {
+                        if (i + 1 < args.size) {
+                            indexFile = File(args[i + 1])
+                            i++
+                        } else {
+                            println("Error: --index option requires a file argument.")
+                            return
+                        }
+                    }
+
+                    else -> fctFiles.add(File(args[i]))
+                }
+                i++
+            }
 
             listOf(cbsDir, outputDir).map { file ->
                 if (!file.exists() || !file.isDirectory) {
@@ -242,7 +278,8 @@ class TruffleGen(
                 }
             }
 
-            val truffleGen = TruffleGen(cbsDir, outputDir, *fctFiles)
+            val truffleGen = TruffleGen(cbsDir, outputDir, *fctFiles.toTypedArray(), indexFile = indexFile)
+
             truffleGen.process()
         }
     }
