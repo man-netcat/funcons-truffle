@@ -57,7 +57,7 @@ abstract class TermNode : Node() {
             }
     }
 
-    internal fun printLocalContext(frame: VirtualFrame) {
+    internal fun printEntities(frame: VirtualFrame) {
         val context = getLocalContext(frame)
         if (context.isNotEmpty()) {
             val str = "{\n" + context.map { (name, entity) -> "    $name: ${entity?.value}" }
@@ -205,6 +205,7 @@ abstract class TermNode : Node() {
                 println("------------------")
                 println("Iteration $iterationCount: Current result is ${term::class.simpleName}")
                 term.printTree()
+                printEntities(frame)
             }
             term = term.reduce(frame)
             iterationCount++

@@ -38,6 +38,7 @@ tasks.named<JavaExec>("run") {
         Vars.CBSFILEPATH,
         Vars.GENERATEDPATHSTR,
 //        "--index",
-//        "../CBS-beta/Languages-beta/IMP/IMP-cbs/IMP/IMP-Funcons-Index/IMP-Funcons-Index.cbs"
+//        "../CBS-beta/Languages-beta/IMP/IMP-cbs/IMP/IMP-Funcons-Index/IMP-Funcons-Index.cbs",
+//        "../CBS-beta/Languages-beta/SL/SL-cbs/SL/SL-Funcons-Index/SL-Funcons-Index.cbs"
     )
 }

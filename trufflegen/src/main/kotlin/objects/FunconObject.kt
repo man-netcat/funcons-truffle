@@ -200,7 +200,7 @@ class FunconObject(
                             val labels = getControlEntityLabels(premise)
                             labels.forEach { (label, labelObj) ->
                                 processEntityCondition(label)
-                                var controlRead = makeVariable(labelObj.asVarName, labelObj.getStr())
+                                val controlRead = makeVariable(labelObj.asVarName, labelObj.getStr())
                                 controlReads.add(controlRead)
                             }
                         }
@@ -347,7 +347,11 @@ class FunconObject(
                     val labelRhs = conclusion.entityRhs
                     if (labelRhs.text != labelLhs.text) {
                         val labelRhsObj = labelToObject(labelRhs)
-                        mutableWrite = makeEntityAssignment(ruleDef, labelRhs, labelRhsObj)
+                        val entityRewrite = rewrite(ruleDef, labelRhs.value, rewriteData)
+                        val entityVariable = variables.getVar(entityRewrite, "r")
+                        val newNewRewriteData = makeRewriteDataObject(labelRhs.value, entityVariable)
+                        mutableWrite = labelRhsObj.putStr(entityVariable)
+                        rewriteData.add(newNewRewriteData)
                     }
                 }
             }

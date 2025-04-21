@@ -113,23 +113,25 @@ fun getParamStrs(
         if (obj.sequenceIndex >= 0) argsSize - (obj.sequenceIndex + nSequenceArgs) else 0
 
         fun getSuffix(sequenceRelativeIndex: Int, nSequenceArgs: Int): String {
-            return if (argIsSequence && sequenceRelativeIndex == nSequenceArgs - 1) {
-                when (sequenceRelativeIndex) {
-                    0 -> ""
-                    1 -> ".tail"
-                    else -> ".sliceFrom($sequenceRelativeIndex)"
-                }
-            } else if (argIsSequence && sequenceRelativeIndex != nSequenceArgs - 1) {
-                ".init"
-            } else if (!argIsSequence && sequenceRelativeIndex != nSequenceArgs - 1) {
-                when (sequenceRelativeIndex) {
-                    0 -> ".head"
-                    1 -> ".second"
-                    2 -> ".third"
-                    3 -> ".fourth"
-                    else -> ".get($sequenceRelativeIndex)"
-                }
-            } else ".last"
+            return if (argIsSequence) {
+                if (sequenceRelativeIndex == nSequenceArgs - 1) {
+                    when (sequenceRelativeIndex) {
+                        0 -> ""
+                        1 -> ".tail"
+                        else -> ".sliceFrom($sequenceRelativeIndex)"
+                    }
+                } else ".init"
+            } else {
+                if (sequenceRelativeIndex != nSequenceArgs - 1) {
+                    when (sequenceRelativeIndex) {
+                        0 -> ".head"
+                        1 -> ".second"
+                        2 -> ".third"
+                        3 -> ".fourth"
+                        else -> ".get($sequenceRelativeIndex)"
+                    }
+                } else ".last"
+            }
         }
 
         // Utility function to build parameter string based on provided condition
