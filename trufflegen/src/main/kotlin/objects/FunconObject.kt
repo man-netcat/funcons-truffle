@@ -59,7 +59,8 @@ class FunconObject(
     val variables = VariableGenerator()
 
     var contextualWrite = ""
-    var contextualRead = ""
+    var ctxConclusionRead = ""
+    var ctxConclusionWrite = ""
     var mutableWrite = ""
     var mutableRead = ""
     val controlReads = mutableSetOf<String>()
@@ -294,10 +295,9 @@ class FunconObject(
         ): String {
             val valueStr = if (label.value != null && label.value.text != "_?") {
                 val rewriteStr = rewrite(ruleDef, label.value, rewriteData)
-                val variable = variables.getVar(rewriteStr, "r")
-                val newRewriteData = makeRewriteDataObject(label.value, variable)
+                val newRewriteData = makeRewriteDataObject(label.value, rewriteStr)
                 rewriteData.add(newRewriteData)
-                variable
+                rewriteStr
             } else "SequenceNode()"
             return labelObj.putStr(valueStr)
         }
@@ -319,11 +319,10 @@ class FunconObject(
             when (conclusion) {
                 is TransitionPremiseWithContextualEntityContext -> {
                     val label = conclusion.context_
-                    if (label.value?.text != "_?") {
-                        val labelObj = labelToObject(label)
-                        processEntityCondition(label)
-                        contextualRead = makeVariable(labelObj.asVarName, labelObj.getStr())
-                    }
+                    val labelObj = labelToObject(label)
+                    processEntityCondition(label)
+                    ctxConclusionRead = makeVariable(labelObj.asVarName, labelObj.getStr())
+                    ctxConclusionWrite = labelObj.putStr(labelObj.asVarName)
                 }
 
                 is TransitionPremiseWithControlEntityContext -> {
@@ -438,7 +437,7 @@ class FunconObject(
                         throw DetailedException("rules for $name are not distinct.")
                     }
 
-                    if (contextualRead.isNotEmpty()) stringBuilder.appendLine(contextualRead)
+                    if (ctxConclusionRead.isNotEmpty()) stringBuilder.appendLine(ctxConclusionRead)
                     if (mutableRead.isNotEmpty()) stringBuilder.appendLine(mutableRead)
 
                     variables.variables.forEach { (rewrite, varName) ->
@@ -452,8 +451,6 @@ class FunconObject(
                         }
                     }
 
-                    if (contextualWrite.isNotEmpty()) stringBuilder.appendLine(contextualWrite)
-
                     val stepVariableSet =
                         variables.variables.entries.filter { it.value[0] == 's' }.map { it.toPair() }.toMutableSet()
                     val pairs = stepVariableSet.map { stepVar ->
@@ -463,17 +460,33 @@ class FunconObject(
                         val rulesForStepVar = ruleObjs
                             .sortedBy { rule -> rule.rulePriority }
                             .filter { rule -> rule.stepVariable == stepVar }
-                        val innerPairs = rulesForStepVar.map { rule ->
-                            val conditions = rule.getSortedConditions()
-                            if (conditions.isEmpty()) "true" to rule.bodyStr
-                            else conditions to rule.bodyStr
-                        }
-                        val ruleBody = makeWhenStatement(innerPairs, elseBranch = "abort(${strStr(name)})")
-                        val controlReadStr = if (controlReads.isEmpty()) "" else controlReads.joinToString("\n")
 
-                        val body = listOf(step, controlReadStr, ruleBody)
-                            .filter { it.isNotEmpty() }
-                            .joinToString("\n")
+                        val ruleBody = if (rulesForStepVar.size == 1 && rulesForStepVar[0].conditions.isEmpty()) {
+                            rulesForStepVar[0].bodyStr
+                        } else {
+                            val innerPairs = rulesForStepVar.map { rule ->
+                                val conditions = rule.getSortedConditions()
+                                val bodyStr = listOf(
+                                    ctxConclusionWrite,
+                                    rule.bodyStr
+                                ).filter { it.isNotEmpty() }
+                                    .joinToString("\n")
+                                if (conditions.isEmpty()) "true" to bodyStr
+                                else conditions to bodyStr
+                            }
+                            makeWhenStatement(innerPairs, elseBranch = "abort(${strStr(name)})")
+                        }
+
+
+                        val body =
+                            listOf(
+                                contextualWrite,
+                                step,
+                                controlReads.joinToString("\n"),
+                                ruleBody
+                            )
+                                .filter { it.isNotEmpty() }
+                                .joinToString("\n")
                         condition to body
                     }
 
@@ -485,9 +498,7 @@ class FunconObject(
                         if (conditions.isEmpty()) "true" to rule.bodyStr
                         else conditions to rule.bodyStr
                     }
-                    if (pairs.isEmpty()) makeWhenStatement(withoutPairs, elseBranch = "abort(${strStr(name)})")
-                    if (withoutPairs.isEmpty()) makeWhenStatement(pairs, elseBranch = "abort(${strStr(name)})")
-                    else makeWhenStatement(withoutPairs + pairs, elseBranch = "abort(${strStr(name)})")
+                    makeWhenStatement(withoutPairs + pairs, elseBranch = "abort(${strStr(name)})")
                 }
 
                 else -> throw DetailedException("Funcon $name does not have any associated rules.")
