@@ -156,7 +156,7 @@ class PrintNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : 
 
 open class AtomsNode : ValueTypesNode(), AtomsInterface
 
-fun TermNode.isInAtoms(): Boolean = this is AtomNode
+fun TermNode.isInAtoms(): Boolean = this is AtomsNode
 
 data class AtomNode(override val value: String) : AtomsNode() {
     override fun equals(other: Any?): Boolean = when (other) {

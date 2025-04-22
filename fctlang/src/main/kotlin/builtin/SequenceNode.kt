@@ -37,6 +37,8 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
     override val last: TermNode by lazy { get(elements.size - 1) }
     override val init: SequenceNode by lazy { sliceUntil(1) }
     override val tail: SequenceNode by lazy { sliceFrom(1) }
+    override fun isEmpty(): Boolean = elements.isEmpty()
+    override fun isNotEmpty(): Boolean = elements.isNotEmpty()
 
     fun random(): TermNode {
         require(elements.isNotEmpty())
@@ -49,12 +51,10 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
 
     override fun reduceComputations(frame: VirtualFrame): TermNode? {
         val newElements = elements.toMutableList()
-        var attemptedReduction = false
 
         for (index in elements.indices) {
             if (newElements[index].isReducible()) {
                 try {
-                    attemptedReduction = true
                     newElements[index] = newElements[index].reduce(frame)
                     return SequenceNode(*newElements.toTypedArray())
                 } catch (e: Exception) {
@@ -63,15 +63,13 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
             }
         }
         return null
-//        return if (!attemptedReduction) null
-//        else throw IllegalStateException("All reductions failed")
     }
 
     override fun reduceRules(frame: VirtualFrame): TermNode = abort("sequence")
 
-    override fun toString(): String {
-        return elements.joinToString("") { it.toString() }
-    }
+    override fun toString(): String = if (elements.isNotEmpty()) {
+        elements.joinToString(",") { it.toString() }
+    } else "()"
 
     fun append(other: SequenceNode): SequenceNode {
         val newElements = mutableListOf<TermNode>()

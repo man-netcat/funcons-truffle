@@ -3,6 +3,22 @@ package builtin
 import generated.*
 
 data class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : MapsNode(GroundValuesNode(), ValuesNode()) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ValueMapNode) return false
+
+        val thisTuples = get(0).elements.map { it as ValueTupleNode }.toSet()
+        val otherTuples = other.get(0).elements.map { it as ValueTupleNode }.toSet()
+        return thisTuples == otherTuples
+    }
+
+    override fun hashCode(): Int {
+        return get(0).elements
+            .map { it as ValueTupleNode }
+            .toSet()
+            .hashCode()
+    }
+
     override fun toString(): String {
         val str = get(0).elements.joinToString(",") { tuple ->
             tuple as ValueTupleNode
@@ -17,18 +33,26 @@ data class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : MapsNode
 }
 
 data class ValueSetNode(@Child var p0: SequenceNode = SequenceNode()) : SetsNode(ValuesNode()) {
-    override fun toString() = "{${p0}}"
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ValueSetNode) return false
+
+        return this.p0.elements.toSet() == other.p0.elements.toSet()
+    }
+
+    override fun hashCode(): Int = p0.elements.toSet().hashCode()
+    override fun toString(): String = if (p0.isNotEmpty()) "{${p0}}" else "set()"
 }
 
 data class ValueTupleNode(@Child var p0: SequenceNode = SequenceNode()) : TuplesNode() {
-    override fun toString() = "tuple(${p0})"
+    override fun toString() = if (p0.isNotEmpty()) "tuple(${p0})" else "tuple()"
 }
 
 data class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode(ValuesNode()) {
     override fun toString(): String {
-        return if (p0.elements.all { it.isInCharacters() }) {
+        return if (p0.elements.all { it is CharacterNode }) {
             p0.elements.joinToString("") { it.toString() }
-        } else "[${p0}]"
+        } else if (p0.isNotEmpty()) "[${p0}]" else "[]"
     }
 }
 
@@ -99,4 +123,12 @@ data class ValueRecordNode(@Child var p0: TermNode) : RecordsNode(ValuesNode()) 
 
 data class ValueDatatypeValueNode(@Child var p0: TermNode, @Child var p1: SequenceNode) : DatatypeValuesNode() {
     override fun toString() = "datatype-value(${p0},${p0})"
+}
+
+class ValueVectorNode(@Child var p0: SequenceNode = SequenceNode()) : VectorsNode(ValuesNode()) {
+    override fun toString() = if (p0.isNotEmpty()) "vector(${p0})" else "vector()"
+}
+
+class ValueTreeNode(@Child var p0: TermNode, @Child var p1: SequenceNode = SequenceNode()) : TreesNode(ValuesNode()) {
+    override fun toString() = "tree(${p0}" + if (p1.isNotEmpty()) ",${p1})" else ")"
 }

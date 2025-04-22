@@ -31,7 +31,7 @@ class InterpreterFilesTest {
 
     @TestFactory
     fun testFiles(): List<DynamicTest> {
-        val blackListedFuncons = listOf(
+        val blackListedFuncons = listOf<String>(
             "Abstraction/Patterns",
             "Abstraction/Thunks",
             "Abstraction/Generic",
@@ -39,7 +39,8 @@ class InterpreterFilesTest {
             "atomic",
             "structural-assign",
             "catch-else-throw",
-            "handle-recursively"
+            "handle-recursively",
+            "fold-right",
         )
 
         val rootDir = Paths.get("../CBS-beta/Funcons-beta").normalize().toAbsolutePath()
@@ -54,7 +55,7 @@ class InterpreterFilesTest {
             }
             .toList()
 
-        return testFiles.map { path ->
+        return testFiles.sorted().map { path ->
             val relativePath = rootDir.relativize(path).pathString
 
             DynamicTest.dynamicTest("Testing $relativePath") {

@@ -57,7 +57,7 @@ abstract class TermNode : Node() {
     internal fun printEntities(frame: VirtualFrame) {
         val context = getLocalContext(frame)
         if (context.isNotEmpty()) {
-            val str = "{\n" + context.map { (name, entity) -> "    $name: $entity" }
+            val str = "Entities: {\n" + context.map { (name, entity) -> "    $name: $entity" }
                 .joinToString("\n") + "\n}"
             println(str)
         } else println("{}")
@@ -70,6 +70,7 @@ abstract class TermNode : Node() {
     fun putEntity(frame: VirtualFrame, key: String, value: TermNode) {
         if (DEBUG) println("putting ${value::class.simpleName} ($value) in $key")
         getLocalContext(frame)[key] = value
+        if (DEBUG) printEntities(frame)
     }
 
     fun appendEntity(frame: VirtualFrame, key: String, entity: TermNode) {
@@ -113,7 +114,8 @@ abstract class TermNode : Node() {
             }
         }
 
-        return null
+        if (!attemptedReduction) return null
+        else abort("stuck!")
     }
 
     open fun isInType(type: TermNode): Boolean {
@@ -198,7 +200,6 @@ abstract class TermNode : Node() {
                 println("------------------")
                 println("Iteration $iterationCount: Current result is ${term::class.simpleName}")
                 term.printTree()
-                printEntities(frame)
             }
             term = term.reduce(frame)
             iterationCount++
@@ -224,15 +225,13 @@ abstract class TermNode : Node() {
     open val init: SequenceNode get() = abort("not a sequence: ${this::class.simpleName}")
     open val size: Int get() = abort("not a sequence: ${this::class.simpleName}")
     open val elements: Array<out TermNode> get() = abort("not a sequence: ${this::class.simpleName}")
-    fun isEmpty(): Boolean = this is SequenceNode && this.elements.isEmpty()
-    fun isNotEmpty(): Boolean = !this.isEmpty()
+    open fun isEmpty(): Boolean = false
+    open fun isNotEmpty(): Boolean = true
     open fun sliceFrom(startIndex: Int, endIndexOffset: Int = 0): SequenceNode =
         abort("not a sequence: ${this::class.simpleName}")
 
     open fun sliceUntil(endIndexOffset: Int, startIndexOffset: Int = 0): SequenceNode =
         abort("not a sequence: ${this::class.simpleName}")
-
-    override fun deepCopy(): TermNode = super.deepCopy() as TermNode
 
     open val value: Any? get() = null
 
