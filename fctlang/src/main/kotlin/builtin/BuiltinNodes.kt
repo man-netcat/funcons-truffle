@@ -26,9 +26,10 @@ fun TermNode.isInGroundValues(): Boolean = this is GroundValuesNode
 
 open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
 
-class DatatypeValueNode(@Eager @Child override var p0: TermNode, @Eager @Child override var p1: SequenceNode) :
-    DatatypeValuesNode(), DatatypeValueInterface {
-    override val value: Any = "datatype-value(${p0.value},${p1.value})"
+class DatatypeValueNode(@Eager @Child var p0: TermNode, @Eager @Child var p1: SequenceNode) : TermNode() {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        return ValueDatatypeValueNode(p0, p1)
+    }
 }
 
 fun TermNode.isInDatatypeValues(): Boolean = this is DatatypeValuesNode
@@ -37,7 +38,7 @@ class ComputationTypesNode() : ValueTypesNode(), ComputationTypesInterface
 
 class AbstractionNode(@Child override var p0: TermNode) : AbstractionsNode(ComputationTypesNode()),
     AbstractionInterface {
-    override val value: Any = "abstraction(${p0.value})"
+    override fun toString(): String = "abstraction(${p0})"
 }
 
 fun TermNode.isInAbstractions(): Boolean = this is AbstractionNode
@@ -163,6 +164,7 @@ data class AtomNode(override val value: String) : AtomsNode() {
         else -> false
     }
 
+    override fun toString(): String = "atom($value)"
     override fun hashCode(): Int = value.hashCode()
 }
 

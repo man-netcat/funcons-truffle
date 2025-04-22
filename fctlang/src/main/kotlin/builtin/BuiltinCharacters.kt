@@ -6,10 +6,11 @@ import generated.*
 open class CharactersNode : GroundValuesNode(), CharactersInterface
 
 data class CharacterNode(override val value: Char) : CharactersNode() {
-
-    override fun equals(other: Any?): Boolean = when (other) {
-        is CharacterNode -> this.value == other.value
-        else -> false
+    override fun equals(other: Any?): Boolean {
+        return when (other) {
+            is CharacterNode -> this.value == other.value
+            else -> false
+        }
     }
 
     override fun hashCode(): Int = value.hashCode()

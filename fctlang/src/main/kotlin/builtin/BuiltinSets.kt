@@ -9,10 +9,6 @@ fun TermNode.isInSets(): Boolean {
     return this::class in setOf(ValueSetNode::class)
 }
 
-class ValueSetNode(@Child var p0: SequenceNode = SequenceNode()) : SetsNode(ValuesNode()) {
-    override val value get() = "{${p0.value}}"
-}
-
 class SetNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), SetInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         return ValueSetNode(p0)
@@ -111,17 +107,17 @@ class ElementNotInNode(
             }
 
             is AtomsNode -> {
-                var i = 0
+                var i = 1
                 while (true) {
-                    val atomStr = "@$i"
-                    if (atomStr !in elementsInSet) return AtomNode(atomStr)
+                    val value = "\"@$i\""
+                    if (value !in elementsInSet) return AtomNode(value)
                     i++
                     if (i < 0) break
                 }
                 SequenceNode()
             }
 
-            else -> FailNode()
+            else -> abort("element-not-in")
         }
     }
 }

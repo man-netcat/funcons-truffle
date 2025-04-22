@@ -16,10 +16,10 @@ class FCTRootNode(
         val standardInNode = SequenceNode(*inputNodes)
         rootTerm.appendEntity(frame, "standard-in", standardInNode)
         val reduced = rootTerm.rewrite(frame)
-        val resultTerm = listOf(reduced.value.toString())
+        val resultTerm = listOf(reduced.toString())
         val standardOutNode = reduced.getEntity(frame, "standard-out")
         val elements = standardOutNode.elements
-        val standardOutValues = elements.map { it.value.toString() }
+        val standardOutValues = elements.map { it.toString() }
 
         val res = (resultTerm + standardOutValues).toTypedArray()
         return ResultArray(res)

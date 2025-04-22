@@ -30,7 +30,6 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         return slice(startIndex, adjustedEndIndex)
     }
 
-
     override val head: TermNode by lazy { get(0) }
     override val second: TermNode by lazy { get(1) }
     override val third: TermNode by lazy { get(2) }
@@ -71,7 +70,7 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
     override fun reduceRules(frame: VirtualFrame): TermNode = abort("sequence")
 
     override fun toString(): String {
-        return elements.joinToString("") { it.value.toString() }
+        return elements.joinToString("") { it.toString() }
     }
 
     fun append(other: SequenceNode): SequenceNode {
@@ -80,8 +79,6 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         newElements.addAll(other.elements)
         return SequenceNode(*newElements.toTypedArray())
     }
-
-    override val value: Any by lazy { elements.joinToString(",") { it.value.toString() } }
 
     fun popFirst(): TermNode {
         if (elements.isEmpty()) return NullValueNode()
@@ -96,5 +93,19 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         } catch (e: ArrayIndexOutOfBoundsException) {
             FailNode()
         }
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (other == null) return false
+        if (this === other) return true
+        if (other !is SequenceNode) return false
+        if (this::class != other::class) return false
+
+        val thisElements = this.elements
+        val otherElements = other.elements
+
+        if (thisElements.size != otherElements.size) return false
+
+        return thisElements.zip(otherElements).all { (a, b) -> a == b }
     }
 }

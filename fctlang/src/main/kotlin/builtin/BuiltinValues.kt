@@ -2,36 +2,58 @@ package builtin
 
 import generated.*
 
+data class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : MapsNode(GroundValuesNode(), ValuesNode()) {
+    override fun toString(): String {
+        val str = get(0).elements.joinToString(",") { tuple ->
+            tuple as ValueTupleNode
+            when (tuple.get(0).size) {
+                1 -> "${tuple.get(0).elements[0]}|->()"
+                2 -> "${tuple.get(0).elements[0]}|->${tuple.get(0).elements[1]}"
+                else -> abort("value-map")
+            }
+        }
+        return if (get(0).isNotEmpty()) "{${str}}" else "map()"
+    }
+}
+
+data class ValueSetNode(@Child var p0: SequenceNode = SequenceNode()) : SetsNode(ValuesNode()) {
+    override fun toString() = "{${p0}}"
+}
+
 data class ValueTupleNode(@Child var p0: SequenceNode = SequenceNode()) : TuplesNode() {
-    override val value get() = "tuple(${p0.value})"
+    override fun toString() = "tuple(${p0})"
 }
 
 data class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode(ValuesNode()) {
-    override val value get() = "[${p0.value}]"
+    override fun toString(): String {
+        return if (p0.elements.all { it.isInCharacters() }) {
+            p0.elements.joinToString("") { it.toString() }
+        } else "[${p0}]"
+    }
 }
 
 data class ValueReturnedNode(@Child var p0: TermNode) : ReturningNode() {
-    override val value get() = "returned(${p0.value})"
+    override fun toString() = "returned(${p0})"
 }
 
 data class ValueThrownNode(@Child var p0: TermNode) : ThrowingNode() {
-    override val value get() = "thrown(${p0.value})"
+    override fun toString() = "thrown(${p0})"
 }
 
 data class ValueVariableNode(@Child var p0: TermNode, @Child var p1: TermNode) : VariablesNode() {
-    override val value get() = "var(${p0.value}: ${p1.value})"
+    override fun toString() = "var(${p0}: ${p1})"
 }
 
 data class ValueLinkNode(@Child var p0: TermNode) : LinksNode() {
-    override val value get() = "link(${p0.value})"
+    override fun toString() = "link(${p0})"
 }
 
 data class ValueThunkNode(@Child var p0: TermNode) : ThunksNode(AbstractionsNode(ValuesNode())) {
-    override val value get() = "thunk(${p0.value})"
+    override fun toString() = "thunk(${p0})"
 }
 
 data class ValueClassNode(@Child var p0: TermNode, @Child var p1: TermNode, @Child var p2: TermNode) : ClassesNode() {
-    override val value get() = "class(${p0.value},${p1.value},${p2.value})"
+    override fun toString() = "class(${p0},${p1},${p2})"
 }
 
 data class ValueObjectNode(
@@ -40,37 +62,41 @@ data class ValueObjectNode(
     @Child var p2: TermNode,
     @Child var p3: TermNode,
 ) : ObjectsNode() {
-    override val value get() = "object(${p0.value},${p1.value},${p2.value},${p3.value})"
+    override fun toString() = "object(${p0},${p1},${p2},${p3})"
 }
 
 data class ValueReferenceNode(@Child var p0: TermNode) : ReferencesNode(ValuesNode()) {
-    override val value get() = "reference(${p0.value})"
+    override fun toString() = "reference(${p0})"
 }
 
 data class ValuePatternNode(@Child var p0: TermNode) : PatternsNode() {
-    override val value get() = "pattern(${p0.value})"
+    override fun toString() = "pattern(${p0})"
 }
 
 data class ValueFunctionNode(@Child var p0: TermNode) : FunctionsNode(ValuesNode(), ValuesNode()) {
-    override val value get() = "function(${p0.value})"
+    override fun toString() = "function(${p0})"
 }
 
 data class ValueBitVectorNode(@Child var p0: TermNode) : BitVectorsNode(NaturalNumbersNode()) {
-    override val value get() = "bit-vector(${p0.value})"
+    override fun toString() = "bit-vector(${p0})"
 }
 
 data class ValueIdentifierTaggedNode(@Child var p0: TermNode, @Child var p1: TermNode) : Identifiers() {
-    override val value get() = "identifier-tagged(${p1.value},${p0.value})"
+    override fun toString() = "identifier-tagged(${p1},${p0})"
 }
 
 data class ValueContinuationNode(@Child var p0: TermNode) : ContinuationsNode(ValuesNode(), ValuesNode()) {
-    override val value get() = "continuations(${p0.value})"
+    override fun toString() = "continuations(${p0})"
 }
 
 data class ValueVariantNode(@Child var p0: TermNode, @Child var p1: TermNode) : VariantsNode(ValuesNode()) {
-    override val value get() = "variants(${p0.value},${p1.value})"
+    override fun toString() = "variants(${p0},${p1})"
 }
 
 data class ValueRecordNode(@Child var p0: TermNode) : RecordsNode(ValuesNode()) {
-    override val value get() = "record(${p0.value})"
+    override fun toString() = "record(${p0})"
+}
+
+data class ValueDatatypeValueNode(@Child var p0: TermNode, @Child var p1: SequenceNode) : DatatypeValuesNode() {
+    override fun toString() = "datatype-value(${p0},${p0})"
 }

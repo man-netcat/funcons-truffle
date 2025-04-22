@@ -20,6 +20,7 @@ data class NaturalNumberNode(override val value: Int) : NaturalNumbersNode() {
     }
 
     override fun hashCode(): Int = value.hashCode()
+    override fun toString(): String = value.toString()
 }
 
 data class IntegerNode(override val value: Int) : IntegersNode() {
@@ -30,11 +31,12 @@ data class IntegerNode(override val value: Int) : IntegersNode() {
     }
 
     override fun hashCode(): Int = value.hashCode()
+    override fun toString(): String = value.toString()
 }
 
 class IntegerAddNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), IntegerAddInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (p0.elements.any { !it.isInIntegers() }) return abort("integer-add")
+        if (p0.elements.any { !it.isInIntegers() }) abort("integer-add")
         val sum = p0.elements.sumOf { it.value as Int }
         return IntegerNode(sum)
     }
@@ -44,7 +46,7 @@ class IntegerSubtractNode(@Eager @Child override var p0: TermNode, @Eager @Child
     TermNode(),
     IntegerSubtractInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (!p0.isInIntegers() || !p1.isInIntegers()) return abort("integer-subtract")
+        if (!p0.isInIntegers() || !p1.isInIntegers()) abort("integer-subtract")
         return IntegerNode((p0.value as Int) - (p1.value as Int))
     }
 }
@@ -52,7 +54,7 @@ class IntegerSubtractNode(@Eager @Child override var p0: TermNode, @Eager @Child
 class IntegerMultiplyNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(),
     IntegerMultiplyInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (p0.elements.any { !it.isInIntegers() }) return abort("integer-multiply")
+        if (p0.elements.any { !it.isInIntegers() }) abort("integer-multiply")
         val product = p0.elements.fold(1) { acc, node -> acc * (node.value as Int) }
         return IntegerNode(product)
     }
@@ -61,7 +63,7 @@ class IntegerMultiplyNode(@Eager @Child override var p0: SequenceNode = Sequence
 class IntegerDivideNode(@Eager @Child override var p0: TermNode, @Eager @Child override var p1: TermNode) : TermNode(),
     IntegerDivideInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (!p0.isInIntegers() || !p1.isInIntegers()) return abort("integer-divide")
+        if (!p0.isInIntegers() || !p1.isInIntegers()) abort("integer-divide")
         if ((p1.value as Int) == 0) return SequenceNode()
         return IntegerNode((p0.value as Int) / (p1.value as Int))
     }
@@ -70,7 +72,7 @@ class IntegerDivideNode(@Eager @Child override var p0: TermNode, @Eager @Child o
 class IntegerModuloNode(@Eager @Child override var p0: TermNode, @Eager @Child override var p1: TermNode) : TermNode(),
     IntegerModuloInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (!p0.isInIntegers() || !p1.isInIntegers()) return abort("integer-modulo")
+        if (!p0.isInIntegers() || !p1.isInIntegers()) abort("integer-modulo")
         if ((p1.value as Int) == 0) return SequenceNode()
         return IntegerNode((p0.value as Int) % (p1.value as Int))
     }
@@ -79,17 +81,17 @@ class IntegerModuloNode(@Eager @Child override var p0: TermNode, @Eager @Child o
 class IntegerPowerNode(@Eager @Child override var p0: TermNode, @Eager @Child override var p1: TermNode) : TermNode(),
     IntegerPowerInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (!p0.isInIntegers() || !p1.isInIntegers()) return abort("integer-power")
+        if (!p0.isInIntegers() || !p1.isInIntegers()) abort("integer-power")
         val base = p0.value as Int
         val exponent = p1.value as Int
-        if (exponent < 0) return abort("natural-power")
+        if (exponent < 0) abort("natural-power")
         return IntegerNode(base.toDouble().pow(exponent).toInt())
     }
 }
 
 class IntegerAbsoluteValueNode(@Eager @Child override var p0: TermNode) : TermNode(), IntegerAbsoluteValueInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (!p0.isInIntegers()) return abort("integer-abs")
+        if (!p0.isInIntegers()) abort("integer-abs")
         return IntegerNode(abs(p0.value as Int))
     }
 }
@@ -97,7 +99,7 @@ class IntegerAbsoluteValueNode(@Eager @Child override var p0: TermNode) : TermNo
 class IntegerIsLessNode(@Eager @Child override var p0: TermNode, @Eager @Child override var p1: TermNode) : TermNode(),
     IntegerIsLessInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (!p0.isInIntegers() || !p1.isInIntegers()) return abort("integer-is-less")
+        if (!p0.isInIntegers() || !p1.isInIntegers()) abort("integer-is-less")
         return if ((p0.value as Int) < (p1.value as Int)) TrueNode() else FalseNode()
     }
 }
@@ -106,7 +108,7 @@ class IntegerIsGreaterNode(@Eager @Child override var p0: TermNode, @Eager @Chil
     TermNode(),
     IntegerIsGreaterInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (!p0.isInIntegers() || !p1.isInIntegers()) return abort("integer-is-greater")
+        if (!p0.isInIntegers() || !p1.isInIntegers()) abort("integer-is-greater")
         return if ((p0.value as Int) > (p1.value as Int)) TrueNode() else FalseNode()
     }
 }
@@ -115,7 +117,7 @@ class IntegerIsLessOrEqualNode(@Eager @Child override var p0: TermNode, @Eager @
     TermNode(),
     IntegerIsLessOrEqualInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (!p0.isInIntegers() || !p1.isInIntegers()) return abort("integer-is-less-or-equal")
+        if (!p0.isInIntegers() || !p1.isInIntegers()) abort("integer-is-less-or-equal")
         return if ((p0.value as Int) <= (p1.value as Int)) TrueNode() else FalseNode()
     }
 }
@@ -124,7 +126,7 @@ class IntegerIsGreaterOrEqualNode(@Eager @Child override var p0: TermNode, @Eage
     TermNode(),
     IntegerIsGreaterOrEqualInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (!p0.isInIntegers() || !p1.isInIntegers()) return abort("integer-is-greater-or-equal")
+        if (!p0.isInIntegers() || !p1.isInIntegers()) abort("integer-is-greater-or-equal")
         return if ((p0.value as Int) >= (p1.value as Int)) TrueNode() else FalseNode()
     }
 }
@@ -147,7 +149,7 @@ abstract class BaseConversionNode(
     val base: Int,
 ) : TermNode() {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (!p0.isInIntegers()) return abort("base-conversion")
+        if (!p0.isInIntegers()) abort("base-conversion")
         val numberStr = (p0.value as Int).toString(base)
         val digits = numberStr.map { NaturalNumberNode(it.digitToInt()) }
         return SequenceNode(*digits.toTypedArray())

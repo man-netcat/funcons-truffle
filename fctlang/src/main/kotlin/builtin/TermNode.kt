@@ -43,9 +43,6 @@ abstract class TermNode : Node() {
             }.joinToString("")
         }
 
-    open val value: Any
-        get() = name + if (params.isNotEmpty()) "(" + params.joinToString(",") { it.value.toString() } + ")" else ""
-
     private fun getLanguage(): FCTLanguage {
         return FCTLanguage.Companion.get(this)
     }
@@ -60,7 +57,7 @@ abstract class TermNode : Node() {
     internal fun printEntities(frame: VirtualFrame) {
         val context = getLocalContext(frame)
         if (context.isNotEmpty()) {
-            val str = "{\n" + context.map { (name, entity) -> "    $name: ${entity?.value}" }
+            val str = "{\n" + context.map { (name, entity) -> "    $name: $entity" }
                 .joinToString("\n") + "\n}"
             println(str)
         } else println("{}")
@@ -71,7 +68,7 @@ abstract class TermNode : Node() {
     }
 
     fun putEntity(frame: VirtualFrame, key: String, value: TermNode) {
-        if (DEBUG) println("putting ${value::class.simpleName} (${value.value}) in $key")
+        if (DEBUG) println("putting ${value::class.simpleName} ($value) in $key")
         getLocalContext(frame)[key] = value
     }
 
@@ -90,7 +87,7 @@ abstract class TermNode : Node() {
     }
 
     internal open fun reduce(frame: VirtualFrame): TermNode {
-        if (DEBUG) println("reducing: ${this::class.simpleName} (${value})")
+        if (DEBUG) println("reducing: ${this::class.simpleName} ($this)")
         reduceComputations(frame)?.let { new -> return replace(new) }
         reduceRules(frame).let { new -> return replace(new) }
     }
@@ -150,7 +147,7 @@ abstract class TermNode : Node() {
     fun abort(reason: String = ""): Nothing = throw StuckException(reason)
 
     fun printTree(indent: String = "", prefix: String = "", hasMoreSiblings: Boolean = false) {
-        val value = if (this is ValuesNode) ": ${this.value}" else ""
+        val value = if (this is ValuesNode) ": $this" else ""
         println("$indent$prefix${this::class.simpleName}$value")
 
         val children = primaryConstructor.parameters.mapNotNull { param ->
@@ -185,15 +182,11 @@ abstract class TermNode : Node() {
         return thisParams.zip(otherParams).all { (a, b) -> a == b }
     }
 
-    override fun hashCode(): Int {
-        return this.value.hashCode()
-    }
-
     override fun onReplace(newNode: Node?, reason: CharSequence?) {
         newNode as TermNode
         if (DEBUG) {
             val reasonStr = if (!reason.isNullOrEmpty()) " with reason: $reason" else ""
-            println("replacing: ${this::class.simpleName} for ${newNode::class.simpleName} (${newNode.value})$reasonStr")
+            println("replacing: ${this::class.simpleName} for ${newNode::class.simpleName} ($newNode)$reasonStr")
         }
     }
 
@@ -240,4 +233,20 @@ abstract class TermNode : Node() {
         abort("not a sequence: ${this::class.simpleName}")
 
     override fun deepCopy(): TermNode = super.deepCopy() as TermNode
+
+    open val value: Any? get() = null
+
+    override fun toString(): String {
+        return name + if (params.isNotEmpty()) "(" + params.joinToString(",") { it.toString() } + ")" else ""
+    }
+
+    override fun hashCode(): Int {
+        var result = this::class.hashCode()
+        result = 31 * result + params.hashCode()
+        return result
+    }
+
+    fun printWithClassName() {
+        println("$this: ${this::class.simpleName}")
+    }
 }
