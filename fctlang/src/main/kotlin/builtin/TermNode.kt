@@ -250,9 +250,18 @@ abstract class TermNode : Node() {
         println("$this: ${this::class.simpleName}")
     }
 
-    open fun getCopy(index: Int): TermNode = get(index).deepCopy()
+    var copyCounter = 0
+    open fun getCopy(index: Int): TermNode {
+        return if (get(index).copyCounter == 0) {
+            get(index).copyCounter++
+            get(index)
+        } else {
+            get(index).deepCopy()
+        }
+    }
 
     override fun deepCopy(): TermNode {
+        if (DEBUG) println("deepcopying ${this::class.simpleName}")
         if (!isReducible()) return this
         val constructor = primaryConstructor
         val args = params.map { param ->
