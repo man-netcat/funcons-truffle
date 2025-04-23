@@ -106,4 +106,12 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
 
         return thisElements.zip(otherElements).all { (a, b) -> a == b }
     }
+
+    override fun deepCopy(): TermNode {
+        if (!isReducible()) return this
+        val args = elements.map { it ->
+            if (it.isReducible()) it.deepCopy() else it
+        }.toTypedArray()
+        return SequenceNode(*args)
+    }
 }

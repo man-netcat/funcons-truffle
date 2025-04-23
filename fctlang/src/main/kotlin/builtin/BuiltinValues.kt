@@ -50,7 +50,7 @@ data class ValueTupleNode(@Child var p0: SequenceNode = SequenceNode()) : Tuples
 
 data class ValueListNode(@Child var p0: SequenceNode = SequenceNode()) : ListsNode(ValuesNode()) {
     override fun toString(): String {
-        return if (p0.elements.all { it is CharacterNode }) {
+        return if (p0.isNotEmpty() && p0.elements.all { it is CharacterNode }) {
             p0.elements.joinToString("") { it.toString() }
         } else if (p0.isNotEmpty()) "[${p0}]" else "[]"
     }

@@ -36,6 +36,8 @@ fun TermNode.isInDatatypeValues(): Boolean = this is DatatypeValuesNode
 
 class ComputationTypesNode() : ValueTypesNode(), ComputationTypesInterface
 
+fun TermNode.isInComputationTypes(): Boolean = this !is ValueTypesNode && this !is ValuesNode
+
 class AbstractionNode(@Child override var p0: TermNode) : AbstractionsNode(ComputationTypesNode()),
     AbstractionInterface {
     override fun toString(): String = "abstraction(${p0})"

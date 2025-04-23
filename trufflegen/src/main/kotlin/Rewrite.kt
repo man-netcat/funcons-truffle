@@ -11,11 +11,11 @@ fun rewrite(
     definition: ParseTree,
     toRewrite: ParseTree,
     rewriteData: List<RewriteData> = emptyList(),
-    deepCopy: Boolean = false,
+    copy: Boolean = false,
 ): String {
     fun rewriteRecursive(toRewrite: ParseTree): String {
         fun mapParamString(str: String): String {
-            val paramStrs = getParamStrs(definition, deepCopy = deepCopy)
+            val paramStrs = getParamStrs(definition, copy = copy)
             val exprMap = (paramStrs + rewriteData).associate { (arg, _, paramStr) -> Pair(arg?.text, paramStr) }
             return exprMap[str] ?: throw StringNotFoundException(str, exprMap.keys.toList())
         }
@@ -99,7 +99,7 @@ fun rewrite(
 fun getParamStrs(
     definition: ParseTree,
     prefix: String = "",
-    deepCopy: Boolean = false,
+    copy: Boolean = false,
 ): List<RewriteData> {
     fun makeParamStr(
         argIndex: Int,
@@ -136,9 +136,10 @@ fun getParamStrs(
 
         // Utility function to build parameter string based on provided condition
         fun buildParamString(paramIndex: Int, computes: Boolean, suffix: String = ""): String {
-            val deepCopy = if (computes && deepCopy) ".deepCopy()" else ""
-            return listOf(parentStr, "get($paramIndex)").filterNot { it.isEmpty() }
-                .joinToString(".") + suffix + deepCopy
+            val deepCopy = computes && copy
+            val paramStr = if (deepCopy) "getCopy($paramIndex)" else "get($paramIndex)"
+            return listOf(parentStr, paramStr).filterNot { it.isEmpty() }
+                .joinToString(".") + suffix
         }
 
         return when {
@@ -184,7 +185,7 @@ fun getParamStrs(
                 }
 
                 is SuffixExpressionContext, is VariableContext, is NumberContext -> {
-                    val argIsSequence = (arg is SuffixExpressionContext && arg.op.text in listOf("+", "*"))
+                    val argIsSequence = arg is SuffixExpressionContext
                     val newStr =
                         makeParamStr(argIndex, args.size, obj, parentStr, argIsSequence = argIsSequence)
                     listOf(RewriteData(arg, type, newStr))

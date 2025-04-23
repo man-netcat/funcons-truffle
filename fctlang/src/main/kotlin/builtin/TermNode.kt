@@ -60,7 +60,7 @@ abstract class TermNode : Node() {
             val str = "Entities: {\n" + context.map { (name, entity) -> "    $name: $entity" }
                 .joinToString("\n") + "\n}"
             println(str)
-        } else println("{}")
+        } else println("Entities: {}")
     }
 
     fun getEntity(frame: VirtualFrame, key: String): TermNode {
@@ -149,8 +149,7 @@ abstract class TermNode : Node() {
     fun abort(reason: String = ""): Nothing = throw StuckException(reason)
 
     fun printTree(indent: String = "", prefix: String = "", hasMoreSiblings: Boolean = false) {
-        val value = if (this is ValuesNode) ": $this" else ""
-        println("$indent$prefix${this::class.simpleName}$value")
+        println("$indent$prefix${this::class.simpleName} ($this)")
 
         val children = primaryConstructor.parameters.mapNotNull { param ->
             members.firstOrNull { it.name == param.name }?.call(this)
@@ -203,6 +202,7 @@ abstract class TermNode : Node() {
             }
             term = term.reduce(frame)
             iterationCount++
+            // TODO: This shouldn't happen
             if (iterationCount > 1000) throw InfiniteLoopException()
         }
         return term
@@ -215,6 +215,7 @@ abstract class TermNode : Node() {
             FailNode()
         }
     }
+
 
     open val head: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
     open val second: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
@@ -247,5 +248,17 @@ abstract class TermNode : Node() {
 
     fun printWithClassName() {
         println("$this: ${this::class.simpleName}")
+    }
+
+    open fun getCopy(index: Int): TermNode = get(index).deepCopy()
+
+    override fun deepCopy(): TermNode {
+        if (!isReducible()) return this
+        val constructor = primaryConstructor
+        val args = params.map { param ->
+            if (param.isReducible()) param.deepCopy() else param
+        }.toTypedArray()
+
+        return constructor.call(*args)
     }
 }

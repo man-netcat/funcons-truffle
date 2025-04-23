@@ -66,8 +66,8 @@ class FunconObject(
     val controlReads = mutableSetOf<String>()
 
     inner class Rule(
-        premises: List<PremiseExprContext>,
-        conclusion: PremiseExprContext,
+        val premises: List<PremiseExprContext>,
+        val conclusion: PremiseExprContext,
         val metaVariableMap: Map<String, ExprContext>,
     ) {
         val controlWrites = mutableSetOf<String>()
@@ -170,7 +170,7 @@ class FunconObject(
                 is TransitionPremiseWithMutableEntityContext,
                     -> {
                     val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
-                    val rewriteRhs = variables.getVar(rewriteLhs, "r")
+                    val rewriteRhs = variables.getVar(rewriteLhs, "m")
                     val newRewriteData = makeRewriteDataObject(rhs, rewriteRhs)
                     rewriteData.add(newRewriteData)
 
@@ -348,10 +348,13 @@ class FunconObject(
                     if (labelRhs.text != labelLhs.text) {
                         val labelRhsObj = labelToObject(labelRhs)
                         val entityRewrite = rewrite(ruleDef, labelRhs.value, rewriteData)
-                        val entityVariable = variables.getVar(entityRewrite, "r")
-                        val newNewRewriteData = makeRewriteDataObject(labelRhs.value, entityVariable)
-                        mutableWrite = labelRhsObj.putStr(entityVariable)
-                        rewriteData.add(newNewRewriteData)
+                        val rewrite = if (labelRhs.value is FunconExpressionContext) {
+                            val entityVariable = variables.getVar(entityRewrite, "r")
+                            val newNewRewriteData = makeRewriteDataObject(labelRhs.value, entityVariable)
+                            rewriteData.add(newNewRewriteData)
+                            entityVariable
+                        } else entityRewrite
+                        mutableWrite = labelRhsObj.putStr(rewrite)
                     }
                 }
             }
@@ -418,8 +421,7 @@ class FunconObject(
             // Add the type checking conditions
             if (ruleDef is FunconExpressionContext) argsConditions(ruleDef)
 
-            // TODO: Maybe Deepcopy?
-            rewriteStr = rewrite(ruleDef, toRewrite, rewriteData)
+            rewriteStr = rewrite(ruleDef, toRewrite, rewriteData, copy = true)
         }
     }
 
@@ -429,8 +431,7 @@ class FunconObject(
             val stringBuilder = StringBuilder()
 
             val returnStr = "return " + when {
-                // TODO: Maybe Deepcopy?
-                rewritesTo != null -> rewrite(ctx, rewritesTo)
+                rewritesTo != null -> rewrite(ctx, rewritesTo, copy = true)
                 rules.isNotEmpty() -> {
                     val ruleObjs = rules.map { rule ->
                         val premises = rule.premises()?.premiseExpr()?.toList() ?: emptyList()
@@ -446,18 +447,16 @@ class FunconObject(
 
                     variables.variables.forEach { (rewrite, varName) ->
                         val prefix = varName[0]
-                        if (prefix == 'r') {
+                        if (prefix in listOf('r', 'm')) {
                             newChildren.add("@Child private lateinit var $varName: $TERMNODE")
                             val rewriteStr = makeVariable(varName, "insert($rewrite).rewrite(frame)", init = false)
                             stringBuilder.appendLine(rewriteStr)
-                        } else if (prefix == 'm') {
-                            stringBuilder.appendLine(makeVariable(varName, value = rewrite))
                         }
                     }
 
                     val stepVariableSet =
                         variables.variables.entries.filter { it.value[0] == 's' }.map { it.toPair() }.toMutableSet()
-                    val pairs = stepVariableSet.map { stepVar ->
+                    val stepPairs = stepVariableSet.map { stepVar ->
                         val (rewriteLhs, rewriteRhs) = stepVar
                         val condition = "$rewriteLhs.isReducible()"
                         val step = makeVariable(rewriteRhs, "$rewriteLhs.reduce(frame)")
@@ -502,7 +501,7 @@ class FunconObject(
                         if (conditions.isEmpty()) "true" to rule.bodyStr
                         else conditions to rule.bodyStr
                     }
-                    makeWhenStatement(withoutPairs + pairs, elseBranch = "abort(${strStr(name)})")
+                    makeWhenStatement(withoutPairs + stepPairs, elseBranch = "abort(${strStr(name)})")
                 }
 
                 else -> throw DetailedException("Funcon $name does not have any associated rules.")
