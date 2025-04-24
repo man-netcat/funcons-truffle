@@ -1,6 +1,5 @@
 @file:OptIn(ExperimentalPathApi::class)
 
-import dependencies.Vars
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.io.path.ExperimentalPathApi
@@ -29,14 +28,16 @@ application {
 }
 
 tasks.named<JavaExec>("run") {
-    val generated = Paths.get(Vars.GENERATEDPATHSTR)
+    val generated = Paths.get("fctlang/src/main/kotlin/generated")
 
     generated.deleteRecursively()
     Files.createDirectories(generated)
+    val generatedDir = file(rootDir.resolve("fctlang/src/main/kotlin/generated"))
+    val cbsDir = file(rootDir.resolve("CBS-beta/Funcons-beta/"))
 
     args = listOf(
-        Vars.CBSFILEPATH,
-        Vars.GENERATEDPATHSTR,
+        cbsDir.path,
+        generatedDir.path,
 //        "--index",
 //        "../CBS-beta/Languages-beta/IMP/IMP-cbs/IMP/IMP-Funcons-Index/IMP-Funcons-Index.cbs",
 //        "../CBS-beta/Languages-beta/SL/SL-cbs/SL/SL-Funcons-Index/SL-Funcons-Index.cbs"
