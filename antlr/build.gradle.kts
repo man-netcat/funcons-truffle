@@ -25,8 +25,8 @@ fun registerAntlrGrammarTask(name: String, grammarFileName: String, outputDirPat
         group = "antlr"
         description = "Generates ANTLR sources for $grammarFileName"
 
-        val grammarFile = file("src/main/antlr/$grammarFileName")
-        val outputDir = file("src/main/java/$outputDirPath")
+        val grammarFile = file("$rootDir/antlr/src/main/antlr/$grammarFileName")
+        val outputDir = file("$rootDir/antlr/src/main/java/$outputDirPath")
 
         inputs.file(grammarFile)
         outputs.dir(outputDir)

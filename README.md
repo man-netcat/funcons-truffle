@@ -4,14 +4,24 @@
 
 ### Setup
 
-First, clone this repository:
+Clone this repository:
 
-`git clone https://github.com/man-netcat/funcons-truffle.git`
+`git clone --recurse-submodules https://github.com/man-netcat/funcons-truffle.git`
 
-Next, in the same directory, clone CBS-Beta:
+### Running the code generator
 
-`git clone https://github.com/plancomps/CBS-beta.git`
-
-Finally, for the code generator, run the following:
+For the code generator, run the following:
 
 `./gradlew :trufflegen:run`
+
+### Test Cases
+
+For the test cases, you can run the following:
+
+`./gradlew :fctinterpreter:runTests`
+
+### Interpreting a config file
+
+Just pass a path to the interpreter like this
+
+`./gradlew :fctinterpreter:run --args path/to/file.config`

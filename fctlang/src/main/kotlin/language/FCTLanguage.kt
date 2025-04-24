@@ -46,7 +46,10 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
 
         println("expected:")
         println("result-term: ${tests.resultTerm()?.expr()?.text}")
-        println("standard-out: ${tests.standardOut()?.expr()?.text ?: "[]"}")
+        val store = tests.store()?.expr()?.text
+        if (store != null) println("store: $store")
+        val standardOut = tests.standardOut()?.expr()?.text
+        if (standardOut != null) println("standard-out: $standardOut")
         println()
 
         val rootNode = convertToFCTNode(mainContext)
