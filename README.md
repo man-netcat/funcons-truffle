@@ -12,16 +12,16 @@ Clone this repository:
 
 For the code generator, run the following:
 
-`./gradlew :trufflegen:run`
+`gradle :trufflegen:run`
 
 ### Test Cases
 
 For the test cases, you can run the following:
 
-`./gradlew :fctinterpreter:runTests`
+`gradle :fctinterpreter:runTests`
 
 ### Interpreting a config file
 
 Just pass a path to the interpreter like this
 
-`./gradlew :fctinterpreter:run --args path/to/file.config`
+`gradle :fctinterpreter:run --args path/to/file.config`
