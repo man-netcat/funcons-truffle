@@ -18,10 +18,12 @@ class FCTRootNode(
         val reduced = rootTerm.rewrite(frame)
         val resultTerm = listOf(reduced.toString())
         val standardOutNode = reduced.getEntity(frame, "standard-out")
+        val storeNode = reduced.getEntity(frame, "store")
+        val storeValue = listOf(storeNode.toString())
         val elements = standardOutNode.elements
         val standardOutValues = elements.map { it.toString() }
 
-        val res = (resultTerm + standardOutValues).toTypedArray()
+        val res = (resultTerm + storeValue + standardOutValues).toTypedArray()
         return ResultArray(res)
     }
 }
