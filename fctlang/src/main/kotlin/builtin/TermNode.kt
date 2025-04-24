@@ -187,7 +187,9 @@ abstract class TermNode : Node() {
         newNode as TermNode
         if (DEBUG) {
             val reasonStr = if (!reason.isNullOrEmpty()) " with reason: $reason" else ""
-            println("replacing: ${this::class.simpleName} for ${newNode::class.simpleName} ($newNode)$reasonStr")
+            println("replacing: ${this::class.simpleName} for ${newNode::class.simpleName}$reasonStr")
+            println("$this")
+            println("$newNode")
         }
     }
 

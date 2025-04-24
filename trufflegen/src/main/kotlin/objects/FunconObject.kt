@@ -61,7 +61,6 @@ class FunconObject(
     var contextualWrite = ""
     var ctxConclusionRead = ""
     var ctxConclusionWrite = ""
-    var mutableWrite = ""
     var mutableRead = ""
     val controlReads = mutableSetOf<String>()
 
@@ -70,6 +69,7 @@ class FunconObject(
         val conclusion: PremiseExprContext,
         val metaVariableMap: Map<String, ExprContext>,
     ) {
+        var mutableWrite = ""
         val controlWrites = mutableSetOf<String>()
         var stepVariable: Pair<String, String>? = null
 

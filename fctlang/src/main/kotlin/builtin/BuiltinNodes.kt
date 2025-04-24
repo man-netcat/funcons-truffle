@@ -211,6 +211,12 @@ class ToStringNode(override val p0: TermNode) : TermNode(), ToStringInterface {
     }
 }
 
+class AtomicNode(override val p0: TermNode) : TermNode(), AtomicInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        TODO("Not yet implemented: $name")
+    }
+}
+
 open class PointersNode(@Eager @Child var tp0: TermNode) : DatatypeValuesNode(), PointersInterface
 
 class PointerNullNode : PointersNode(ValuesNode()), PointerNullInterface

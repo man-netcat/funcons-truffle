@@ -32,15 +32,14 @@ class InterpreterFilesTest {
     @TestFactory
     fun testFiles(): List<DynamicTest> {
         val blackListedFuncons = listOf<String>(
-//            "Abstraction/Patterns",
-//            "Abstraction/Thunks",
-//            "Abstraction/Generic",
-//            "Composite/Classes",
-//            "atomic",
-//            "structural-assign",
-//            "catch-else-throw",
-//            "handle-recursively",
-//            "fold-right",
+            "Abstraction/Patterns",
+            "Abstraction/Thunks",
+            "Abstraction/Generic",
+            "Composite/Classes",
+            "atomic",
+            "structural-assign",
+            "catch-else-throw",
+            "handle-recursively",
         )
 
         val rootDir = Paths.get("../CBS-beta/Funcons-beta").normalize().toAbsolutePath()
