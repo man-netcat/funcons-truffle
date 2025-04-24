@@ -29,7 +29,8 @@ val builtinOverride: MutableSet<String> = mutableSetOf(
     "read", "print",                           // Input/Output
     "hole", "resume-continuation",             // Read-only control entity
     "identifiers", "pointers", "pointer-null", // Weird Set Syntax
-    "atomic", "structural-assign", "structural-assigned", "match", "match-loosely",
+    "atomic",                                  // Atomic
+    "structural-assign", "structural-assigned", "match", "match-loosely", // Depends on tuple unpacking
 )
 
 class TruffleGen(

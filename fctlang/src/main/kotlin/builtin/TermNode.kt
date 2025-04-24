@@ -230,6 +230,7 @@ abstract class TermNode : Node() {
     open val elements: Array<out TermNode> get() = abort("not a sequence: ${this::class.simpleName}")
     open fun isEmpty(): Boolean = false
     open fun isNotEmpty(): Boolean = true
+    open fun unpack(): Array<out TermNode> = abort("not a sequence: ${this::class.simpleName}")
     open fun sliceFrom(startIndex: Int, endIndexOffset: Int = 0): SequenceNode =
         abort("not a sequence: ${this::class.simpleName}")
 

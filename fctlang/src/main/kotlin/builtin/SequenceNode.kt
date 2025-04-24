@@ -114,4 +114,8 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         }.toTypedArray()
         return SequenceNode(*args)
     }
+
+    override fun unpack(): Array<out TermNode> {
+        return elements
+    }
 }
