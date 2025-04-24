@@ -1,6 +1,7 @@
 ### Requirements
 
-- Java 11
+- Java 21.0.6
+- Gradle 8.7
 
 ### Setup
 
