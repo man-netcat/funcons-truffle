@@ -11,7 +11,8 @@ fun TermNode.isInSets(): Boolean {
 
 class SetNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), SetInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        return ValueSetNode(p0)
+        val valueSet = p0.elements.toSet()
+        return ValueSetNode(SequenceNode(*valueSet.toTypedArray()))
     }
 }
 
@@ -27,11 +28,11 @@ class SetDifferenceNode(
         if (!set1.isInSets() || !set2.isInSets()) return FailNode()
 
         val elements1 = set1.get(0).elements
-        val elements2 = set2.get(0).elements
+        val elements2 = set2.get(0).elements.toSet()
 
-        val difference = elements1.filterNot { it in elements2 }.toTypedArray()
+        val difference = elements1.filterNot { it in elements2 }.toSet()
 
-        return ValueSetNode(SequenceNode(*difference))
+        return ValueSetNode(SequenceNode(*difference.toTypedArray()))
     }
 }
 
@@ -47,7 +48,7 @@ class SetElementsNode(@Eager @Child override var p0: TermNode) : TermNode(), Set
 
 class SetUniteNode(@Eager @Child override var p0: SequenceNode) : TermNode(), SetUniteInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val resultSet = mutableSetOf<TermNode>()
+        val resultSet = LinkedHashSet<TermNode>()
 
         for (set in get(0).elements) {
             if (set !is ValueSetNode) return FailNode()
@@ -127,9 +128,9 @@ class SetInsertNode(
     override val p1: TermNode,
 ) : TermNode(), SetInsertInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val elements = get(1).get(0).elements.toMutableList()
+        val elements = get(1).get(0).elements.toMutableSet()
 
-        if (elements.none { element -> element == p0 }) elements.add(p0)
+        elements.add(p0)
 
         return ValueSetNode(SequenceNode(*elements.toTypedArray()))
     }

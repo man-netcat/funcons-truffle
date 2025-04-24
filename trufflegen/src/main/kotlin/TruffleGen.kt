@@ -23,11 +23,11 @@ val globalObjects: MutableMap<String, Object> = mutableMapOf()
 val globalFiles: MutableMap<String, File> = mutableMapOf()
 val builtinOverride: MutableSet<String> = mutableSetOf(
     "left-to-right", "right-to-left",          // Ambiguous semantics
-    "choice", "else-choice",                   // Utilises random
+    "some-element", "choice", "else-choice",   // Utilises random
     "sequential",                              // Param after sequence
-    "some-element", "stuck", "abstraction",    // No rules, implement manually
+    "stuck", "abstraction",                    // No rules, implement manually
     "read", "print",                           // Input/Output
-    "hole",                                    // Read-only control entity
+    "hole", "resume-continuation",             // Read-only control entity
     "identifiers", "pointers", "pointer-null", // Weird Set Syntax
     "atomic", "structural-assign", "structural-assigned", "match", "match-loosely",
 )
