@@ -2,6 +2,7 @@ package main.dataclasses
 
 import cbs.CBSParser.*
 
+// TODO: This class is messy, grammar can use some tweaking
 class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
     var computes = false
     var isComplement = false
@@ -23,6 +24,14 @@ class Type(private val expr: ExprContext?, val isParam: Boolean = false) {
     init {
         if (expr != null) {
             when (expr) {
+                is FunconExpressionContext -> {
+                    // TODO: This is broken because of left-recursive rules, blame single-arg funcon calls
+                    val args = expr.args()
+                    if (args is SingleArgsContext && args.expr() is UnaryComputesExpressionContext) {
+                        computes = true
+                    }
+                }
+
                 is SuffixExpressionContext -> {
                     val op = expr.op.text
                     if (isParam) isSequence = true else isVararg = true

@@ -10,6 +10,13 @@ dependencies {
     antlr(Deps.antlrRuntime)
     antlr(Deps.antlrTool)
     implementation(Deps.kotlinStdLib)
+    testImplementation(kotlin("test-junit5"))
+
+    testImplementation(Deps.junitJupiter)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 // Common function for ANTLR source generation
