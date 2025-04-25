@@ -14,6 +14,7 @@ dependencies {
     implementation(Deps.graalSdk)
     implementation(Deps.truffleApi)
     testImplementation(kotlin("test"))
+    testImplementation(Deps.junitJupiter)
 }
 
 application {
@@ -21,8 +22,7 @@ application {
 }
 
 tasks.named<JavaExec>("run") {
-    args =
-        listOf("/home/rick/workspace/thesis/funcons-truffle/fctinterpreter/src/test/resources/CustomTests/sandbox.config")
+    args = project.findProperty("args")?.toString()?.split(" ") ?: emptyList()
 }
 
 tasks.register<Test>("runTests") {
