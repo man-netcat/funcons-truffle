@@ -125,10 +125,10 @@ data class ValueDatatypeValueNode(@Child var p0: TermNode, @Child var p1: Sequen
     override fun toString() = "datatype-value(${p0},${p0})"
 }
 
-class ValueVectorNode(@Child var p0: SequenceNode = SequenceNode()) : VectorsNode(ValuesNode()) {
+data class ValueVectorNode(@Child var p0: SequenceNode = SequenceNode()) : VectorsNode(ValuesNode()) {
     override fun toString() = if (p0.isNotEmpty()) "vector(${p0})" else "vector()"
 }
 
-class ValueTreeNode(@Child var p0: TermNode, @Child var p1: SequenceNode = SequenceNode()) : TreesNode(ValuesNode()) {
+data class ValueTreeNode(@Child var p0: TermNode, @Child var p1: SequenceNode = SequenceNode()) : TreesNode(ValuesNode()) {
     override fun toString() = "tree(${p0}" + if (p1.isNotEmpty()) ",${p1})" else ")"
 }
