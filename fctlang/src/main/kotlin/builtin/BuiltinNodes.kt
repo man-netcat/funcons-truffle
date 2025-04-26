@@ -4,14 +4,14 @@ import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
 
 open class ValueTypesNode : ValuesNode(), ValueTypesInterface {
-    override fun reduceRules(frame: VirtualFrame): TermNode = this
+    override fun reduceRules(frame: VirtualFrame): TermNode = abort("value-types")
 }
 
 fun TermNode.isInValueTypes(): Boolean =
-    this::class in setOf(ValueTypesNode::class, ValuesNode::class) || this is ValueTypesNode
+    this is ValueTypesNode || this::class == ValuesNode::class
 
 open class ValuesNode : TermNode(), ValuesInterface {
-    override fun reduceRules(frame: VirtualFrame): TermNode = this
+    override fun reduceRules(frame: VirtualFrame): TermNode = abort("values")
 }
 
 fun TermNode.isInValues(): Boolean = this is ValuesNode

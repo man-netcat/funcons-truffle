@@ -14,7 +14,7 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
 
     override val size: Int by lazy { elements.size }
 
-    private fun slice(startIndex: Int, endIndex: Int): SequenceNode {
+    override fun slice(startIndex: Int, endIndex: Int): SequenceNode {
         val sliced = elements.sliceArray(startIndex until endIndex)
         return SequenceNode(*sliced)
     }
@@ -40,12 +40,12 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
     override fun isEmpty(): Boolean = elements.isEmpty()
     override fun isNotEmpty(): Boolean = elements.isNotEmpty()
 
-    fun random(): TermNode {
+    override fun random(): TermNode {
         require(elements.isNotEmpty())
         return elements.random()
     }
 
-    fun shuffled(): List<TermNode> {
+    override fun shuffled(): List<TermNode> {
         return elements.toList().shuffled()
     }
 
@@ -71,14 +71,14 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         elements.joinToString(",") { it.toString() }
     } else "()"
 
-    fun append(other: SequenceNode): SequenceNode {
+    override fun append(other: SequenceNode): SequenceNode {
         val newElements = mutableListOf<TermNode>()
         newElements.addAll(elements)
         newElements.addAll(other.elements)
         return SequenceNode(*newElements.toTypedArray())
     }
 
-    fun popFirst(): TermNode {
+    override fun popFirst(): TermNode {
         if (elements.isEmpty()) return NullValueNode()
         val firstElement = elements[0]
         elements = elements.sliceArray(1 until elements.size)
@@ -118,4 +118,13 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
     override fun unpack(): Array<out TermNode> {
         return elements
     }
+
+    override fun getEntity(frame: VirtualFrame, key: String): TermNode =
+        abort("Invalid invocation on a sequence: getEntity")
+
+    override fun putEntity(frame: VirtualFrame, key: String, value: TermNode) =
+        abort("Invalid invocation on a sequence: putEntity")
+
+    override fun appendEntity(frame: VirtualFrame, key: String, entity: TermNode) =
+        abort("Invalid invocation on a sequence: appendEntity")
 }

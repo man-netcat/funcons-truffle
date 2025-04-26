@@ -63,17 +63,17 @@ abstract class TermNode : Node() {
         } else println("Entities: {}")
     }
 
-    fun getEntity(frame: VirtualFrame, key: String): TermNode {
+    open fun getEntity(frame: VirtualFrame, key: String): TermNode {
         return getLocalContext(frame)[key] ?: SequenceNode()
     }
 
-    fun putEntity(frame: VirtualFrame, key: String, value: TermNode) {
+    open fun putEntity(frame: VirtualFrame, key: String, value: TermNode) {
         if (DEBUG) println("putting ${value::class.simpleName} ($value) in $key")
         getLocalContext(frame)[key] = value
         if (DEBUG) printEntities(frame)
     }
 
-    fun appendEntity(frame: VirtualFrame, key: String, entity: TermNode) {
+    open fun appendEntity(frame: VirtualFrame, key: String, entity: TermNode) {
         val existing = getEntity(frame, key) as? SequenceNode ?: SequenceNode()
         val newSequence = existing.append(entity.toSequence())
         putEntity(frame, key, newSequence)
@@ -87,7 +87,7 @@ abstract class TermNode : Node() {
         else -> this !is ValuesNode
     }
 
-    internal open fun reduce(frame: VirtualFrame): TermNode {
+    internal fun reduce(frame: VirtualFrame): TermNode {
         if (DEBUG) println("reducing: ${this::class.simpleName} ($this)")
         reduceComputations(frame)?.let { new -> return replace(new) }
         reduceRules(frame).let { new -> return replace(new) }
@@ -218,25 +218,6 @@ abstract class TermNode : Node() {
         }
     }
 
-
-    open val head: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
-    open val second: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
-    open val third: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
-    open val fourth: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
-    open val last: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
-    open val tail: SequenceNode get() = abort("not a sequence: ${this::class.simpleName}")
-    open val init: SequenceNode get() = abort("not a sequence: ${this::class.simpleName}")
-    open val size: Int get() = abort("not a sequence: ${this::class.simpleName}")
-    open val elements: Array<out TermNode> get() = abort("not a sequence: ${this::class.simpleName}")
-    open fun isEmpty(): Boolean = false
-    open fun isNotEmpty(): Boolean = true
-    open fun unpack(): Array<out TermNode> = abort("not a sequence: ${this::class.simpleName}")
-    open fun sliceFrom(startIndex: Int, endIndexOffset: Int = 0): SequenceNode =
-        abort("not a sequence: ${this::class.simpleName}")
-
-    open fun sliceUntil(endIndexOffset: Int, startIndexOffset: Int = 0): SequenceNode =
-        abort("not a sequence: ${this::class.simpleName}")
-
     open val value: Any? get() = null
 
     override fun toString(): String {
@@ -273,4 +254,28 @@ abstract class TermNode : Node() {
 
         return constructor.call(*args)
     }
+
+    open val head: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
+    open val second: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
+    open val third: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
+    open val fourth: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
+    open val last: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
+    open val tail: SequenceNode get() = abort("not a sequence: ${this::class.simpleName}")
+    open val init: SequenceNode get() = abort("not a sequence: ${this::class.simpleName}")
+    open val size: Int get() = abort("not a sequence: ${this::class.simpleName}")
+    open val elements: Array<out TermNode> get() = abort("not a sequence: ${this::class.simpleName}")
+    open fun isEmpty(): Boolean = false
+    open fun isNotEmpty(): Boolean = true
+    open fun unpack(): Array<out TermNode> = abort("not a sequence: ${this::class.simpleName}")
+    open fun slice(startIndex: Int, endIndex: Int): SequenceNode = abort("not a sequence: ${this::class.simpleName}")
+    open fun sliceFrom(startIndex: Int, endIndexOffset: Int = 0): SequenceNode =
+        abort("not a sequence: ${this::class.simpleName}")
+
+    open fun sliceUntil(endIndexOffset: Int, startIndexOffset: Int = 0): SequenceNode =
+        abort("not a sequence: ${this::class.simpleName}")
+
+    open fun random(): TermNode = abort("not a sequence: ${this::class.simpleName}")
+    open fun shuffled(): List<TermNode> = abort("not a sequence: ${this::class.simpleName}")
+    open fun append(other: SequenceNode): SequenceNode = abort("not a sequence: ${this::class.simpleName}")
+    open fun popFirst(): TermNode = abort("not a sequence: ${this::class.simpleName}")
 }
