@@ -1,23 +1,21 @@
-import dependencies.Deps
-
 plugins {
     kotlin("jvm") version "2.1.0"
     kotlin("kapt")
     java
 }
 
-dependencies {
-    implementation(project(":antlr"))
-    implementation(Deps.graalSdk)
-    implementation(Deps.truffleApi)
-    kapt(Deps.truffleDslProcessor)
-    implementation(Deps.antlrRuntime)
-    implementation(Deps.kotlinReflect)
-    testImplementation(Deps.junitJupiter)
+repositories {
+    mavenCentral()
 }
 
-sourceSets.main {
-    java.srcDirs("build/generated/source/kapt/main")
+dependencies {
+    implementation(project(":antlr"))
+    implementation(libs.graal.sdk)
+    implementation(libs.truffle.api)
+    kapt(libs.truffle.dsl.processor)
+    implementation(libs.antlr.runtime)
+    implementation(libs.kotlin.reflect)
+    testImplementation(libs.junit.jupiter)
 }
 
 tasks.test {

@@ -1,5 +1,3 @@
-import dependencies.Deps
-
 plugins {
     kotlin("jvm") version "2.1.0"
     java
@@ -13,8 +11,8 @@ repositories {
 }
 
 dependencies {
-    implementation(Deps.kotlinStdLib)
-    testImplementation(Deps.junitJupiter)
+    implementation(libs.kotlin.stdlib)
+    testImplementation(libs.junit.jupiter)
     implementation(kotlin("stdlib-jdk8"))
 }
 
@@ -38,11 +36,6 @@ subprojects {
 
     repositories {
         mavenCentral()
-    }
-
-    dependencies {
-        implementation(Deps.kotlinStdLib)
-        testImplementation(Deps.junitJupiter)
     }
 
     tasks.test {

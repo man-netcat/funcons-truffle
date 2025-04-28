@@ -1,18 +1,19 @@
-import dependencies.Deps
-
 plugins {
     kotlin("jvm") version "2.1.0"
     java
     antlr
 }
 
-dependencies {
-    antlr(Deps.antlrRuntime)
-    antlr(Deps.antlrTool)
-    implementation(Deps.kotlinStdLib)
-    testImplementation(kotlin("test-junit5"))
+repositories {
+    mavenCentral()
+}
 
-    testImplementation(Deps.junitJupiter)
+dependencies {
+    antlr(libs.antlr.runtime)
+    antlr(libs.antlr.tool)
+    implementation(libs.kotlin.stdlib)
+    testImplementation(kotlin("test-junit5"))
+    testImplementation(libs.junit.jupiter)
 }
 
 tasks.test {

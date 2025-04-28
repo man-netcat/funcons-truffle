@@ -1,6 +1,7 @@
 # General Gradle files
 .gradle/
 gradle*
+!gradle/libs.versions.toml
 build
 
 # Kotlin-related

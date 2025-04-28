@@ -214,6 +214,7 @@ class FunconObject(
 
                     fun bindVariable(expr: ExprContext): String {
                         val exprRewrite = rewrite(ruleDef, expr, rewriteData)
+                        if (expr.text in params.filter { !it.type.computes }.map { it.value }) return exprRewrite
                         val variable = variables.getVar(exprRewrite, "r")
                         val rhsRewriteData = makeRewriteDataObject(expr, variable)
                         rewriteData.add(rhsRewriteData)
