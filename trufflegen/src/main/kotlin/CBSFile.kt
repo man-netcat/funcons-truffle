@@ -30,7 +30,7 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
         val dataContainer = FunconObject(
             ctx,
             rules = ctx.ruleDefinition(),
-            rewritesTo = ctx.rewritesTo,
+            term = ctx.rewritesTo,
             fileMetavariables
         )
 

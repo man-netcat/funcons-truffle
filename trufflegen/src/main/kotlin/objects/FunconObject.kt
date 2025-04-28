@@ -27,7 +27,7 @@ data class Condition(val expr: String, val priority: Int = 1)
 class FunconObject(
     ctx: FunconDefinitionContext,
     val rules: List<RuleDefinitionContext> = emptyList(),
-    val rewritesTo: ExprContext? = null,
+    val term: ExprContext? = null,
     metaVariables: Set<Pair<ExprContext, ExprContext>>,
 ) : AbstractFunconObject(ctx, metaVariables) {
 
@@ -152,12 +152,12 @@ class FunconObject(
             }
         }
 
-        private fun processPremises(ruleDef: ExprContext, premise: PremiseExprContext) {
+        private fun processPremises(pattern: ExprContext, premise: PremiseExprContext) {
             val (lhs, rhs) = extractLhsRhs(premise)
 
             when (premise) {
                 is RewritePremiseContext -> {
-                    val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
+                    val rewriteLhs = rewrite(pattern, lhs, rewriteData)
                     val rewriteRhs = variables.getVar(rewriteLhs, "r")
                     val newRewriteData = if (rhs is FunconExpressionContext) {
                         getParamStrs(rhs, rewriteRhs)
@@ -169,7 +169,7 @@ class FunconObject(
 
                 is TransitionPremiseWithMutableEntityContext,
                     -> {
-                    val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
+                    val rewriteLhs = rewrite(pattern, lhs, rewriteData)
                     val rewriteRhs = variables.getVar(rewriteLhs, "m")
                     val newRewriteData = makeRewriteDataObject(rhs, rewriteRhs)
                     rewriteData.add(newRewriteData)
@@ -184,7 +184,7 @@ class FunconObject(
                 is TransitionPremiseWithContextualEntityContext,
                 is TransitionPremiseWithControlEntityContext,
                     -> {
-                    val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
+                    val rewriteLhs = rewrite(pattern, lhs, rewriteData)
                     val rewriteRhs = variables.getVar(rewriteLhs, "s")
                     val newRewriteData = makeRewriteDataObject(rhs, rewriteRhs)
                     rewriteData.add(newRewriteData)
@@ -193,7 +193,7 @@ class FunconObject(
                         is TransitionPremiseWithContextualEntityContext -> {
                             val label = premise.context_
                             val labelObj = labelToObject(label)
-                            contextualWrite = makeEntityAssignment(ruleDef, label, labelObj)
+                            contextualWrite = makeEntityAssignment(pattern, label, labelObj)
                         }
 
                         is TransitionPremiseWithControlEntityContext -> {
@@ -213,7 +213,7 @@ class FunconObject(
                     fun getBooleanNode(text: String): String = if (text == "true") "TrueNode" else "FalseNode"
 
                     fun bindVariable(expr: ExprContext): String {
-                        val exprRewrite = rewrite(ruleDef, expr, rewriteData)
+                        val exprRewrite = rewrite(pattern, expr, rewriteData)
                         if (expr.text in params.filter { !it.type.computes }.map { it.value }) return exprRewrite
                         val variable = variables.getVar(exprRewrite, "r")
                         val rhsRewriteData = makeRewriteDataObject(expr, variable)
@@ -251,13 +251,13 @@ class FunconObject(
                 }
 
                 is TypePremiseContext -> {
-                    val rewriteLhs = rewrite(ruleDef, lhs, rewriteData)
+                    val rewriteLhs = rewrite(pattern, lhs, rewriteData)
                     val condition =
                         if (rhs is VariableContext) {
-                            val rewriteRhs = rewrite(ruleDef, rhs, rewriteData)
+                            val rewriteRhs = rewrite(pattern, rhs, rewriteData)
                             "${rewriteLhs}.isInType($rewriteRhs)"
                         } else if (rhs is ComplementExpressionContext && rhs.operand is VariableContext) {
-                            val rewriteRhs = rewrite(ruleDef, rhs.operand, rewriteData)
+                            val rewriteRhs = rewrite(pattern, rhs.operand, rewriteData)
                             "!${rewriteLhs}.isInType($rewriteRhs)"
                         } else {
                             makeTypeCondition(rewriteLhs, premise.type)
@@ -290,12 +290,12 @@ class FunconObject(
         }
 
         private fun makeEntityAssignment(
-            ruleDef: ExprContext,
+            pattern: ExprContext,
             label: LabelContext,
             labelObj: EntityObject,
         ): String {
             val valueStr = if (label.value != null && label.value.text != "_?") {
-                val rewriteStr = rewrite(ruleDef, label.value, rewriteData)
+                val rewriteStr = rewrite(pattern, label.value, rewriteData)
                 val newRewriteData = makeRewriteDataObject(label.value, rewriteStr)
                 rewriteData.add(newRewriteData)
                 rewriteStr
@@ -316,7 +316,7 @@ class FunconObject(
             }
         }
 
-        private fun processConclusion(ruleDef: ExprContext, conclusion: PremiseExprContext) {
+        private fun processConclusion(pattern: ExprContext, conclusion: PremiseExprContext) {
             when (conclusion) {
                 is TransitionPremiseWithContextualEntityContext -> {
                     val label = conclusion.context_
@@ -332,7 +332,7 @@ class FunconObject(
                         step.labels().label().forEach { label ->
                             val labelObj = labelToObject(label)
                             val valueStr = if (label.value != null && label.value.text != "_?") {
-                                rewrite(ruleDef, label.value, rewriteData)
+                                rewrite(pattern, label.value, rewriteData)
                             } else "SequenceNode()"
                             val controlWrite = labelObj.putStr(valueStr)
                             controlWrites.add(controlWrite)
@@ -348,7 +348,7 @@ class FunconObject(
                     val labelRhs = conclusion.entityRhs
                     if (labelRhs.text != labelLhs.text) {
                         val labelRhsObj = labelToObject(labelRhs)
-                        val entityRewrite = rewrite(ruleDef, labelRhs.value, rewriteData)
+                        val entityRewrite = rewrite(pattern, labelRhs.value, rewriteData)
                         val rewrite = if (labelRhs.value is FunconExpressionContext) {
                             val entityVariable = variables.getVar(entityRewrite, "r")
                             val newNewRewriteData = makeRewriteDataObject(labelRhs.value, entityVariable)
@@ -398,7 +398,7 @@ class FunconObject(
         }
 
         init {
-            val (ruleDef, toRewrite) = extractLhsRhs(conclusion)
+            val (pattern, term) = extractLhsRhs(conclusion)
 
             // Add values for entities
             premises.forEach { premise -> processEntities(premise) }
@@ -414,15 +414,15 @@ class FunconObject(
             processEntities(conclusion, false, !premises.any(::isTransitionPremise))
 
             // Add data for premises and build conclusions
-            premises.forEach { premise -> processPremises(ruleDef, premise) }
+            premises.forEach { premise -> processPremises(pattern, premise) }
 
             // build rewrites from conclusions
-            processConclusion(ruleDef, conclusion)
+            processConclusion(pattern, conclusion)
 
             // Add the type checking conditions
-            if (ruleDef is FunconExpressionContext) argsConditions(ruleDef)
+            if (pattern is FunconExpressionContext) argsConditions(pattern)
 
-            rewriteStr = rewrite(ruleDef, toRewrite, rewriteData, copy = true)
+            rewriteStr = rewrite(pattern, term, rewriteData, copy = true)
         }
     }
 
@@ -432,7 +432,7 @@ class FunconObject(
             val stringBuilder = StringBuilder()
 
             val returnStr = "return " + when {
-                rewritesTo != null -> rewrite(ctx, rewritesTo, copy = true)
+                term != null -> rewrite(ctx, term, copy = true)
                 rules.isNotEmpty() -> {
                     val ruleObjs = rules.map { rule ->
                         val premises = rule.premises()?.premiseExpr()?.toList() ?: emptyList()

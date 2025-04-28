@@ -8,14 +8,14 @@ import main.objects.Object
 import org.antlr.v4.runtime.tree.ParseTree
 
 fun rewrite(
-    definition: ParseTree,
-    toRewrite: ParseTree,
+    pattern: ParseTree,
+    term: ParseTree,
     rewriteData: List<RewriteData> = emptyList(),
     copy: Boolean = false,
 ): String {
-    fun rewriteRecursive(toRewrite: ParseTree): String {
+    fun rewriteRecursive(term: ParseTree): String {
         fun mapParamString(str: String): String {
-            val paramStrs = getParamStrs(definition, copy = copy)
+            val paramStrs = getParamStrs(pattern, copy = copy)
             val exprMap = (paramStrs + rewriteData).associate { (arg, _, paramStr) -> Pair(arg?.text, paramStr) }
             return exprMap[str] ?: throw StringNotFoundException(str, exprMap.keys.toList())
         }
@@ -50,54 +50,54 @@ fun rewrite(
             return "${obj.nodeName}($argStr)"
         }
 
-        return when (toRewrite) {
+        return when (term) {
             is FunconExpressionContext,
             is ListExpressionContext,
             is SetExpressionContext,
             is LabelContext,
-                -> rewriteFunconExpr(toRewrite)
+                -> rewriteFunconExpr(term)
 
             is MapExpressionContext -> {
-                val pairStr = toRewrite.pairs().pair().joinToString { pair -> rewriteRecursive(pair) }
+                val pairStr = term.pairs().pair().joinToString { pair -> rewriteRecursive(pair) }
                 "MapNode(SequenceNode($pairStr))"
             }
 
             is SequenceExpressionContext -> {
-                val pairStr = toRewrite.exprs()?.expr()?.joinToString { expr ->
+                val pairStr = term.exprs()?.expr()?.joinToString { expr ->
                     rewriteRecursive(expr)
                 }
                 if (pairStr != null) "SequenceNode(${pairStr})" else "SequenceNode()"
             }
 
             is SuffixExpressionContext -> {
-                if (toRewrite.expr() is FunconExpressionContext) rewriteFunconExpr(toRewrite.expr())
-                else mapParamString(toRewrite.text)
+                if (term.expr() is FunconExpressionContext) rewriteFunconExpr(term.expr())
+                else mapParamString(term.text)
             }
 
-            is VariableContext -> mapParamString(toRewrite.text)
-            is NumberContext -> "IntegerNode(${toRewrite.text})"
+            is VariableContext -> mapParamString(term.text)
+            is NumberContext -> "IntegerNode(${term.text})"
             is StringContext -> {
-                val charSequence = "toCharSequence(${toRewrite.text})"
+                val charSequence = "toCharSequence(${term.text})"
                 "StringNode(${charSequence})"
             }
 
-            is TypeExpressionContext -> rewriteRecursive(toRewrite.value)
-            is NestedExpressionContext -> rewriteRecursive(toRewrite.expr())
+            is TypeExpressionContext -> rewriteRecursive(term.value)
+            is NestedExpressionContext -> rewriteRecursive(term.expr())
             is PairContext -> {
-                val key = rewriteRecursive(toRewrite.key)
-                val value = rewriteRecursive(toRewrite.value)
+                val key = rewriteRecursive(term.key)
+                val value = rewriteRecursive(term.value)
                 "TupleNode(SequenceNode($key, $value))"
             }
 
-            else -> throw IllegalArgumentException("Unsupported context type: ${toRewrite::class.simpleName}, ${toRewrite.text}")
+            else -> throw IllegalArgumentException("Unsupported context type: ${term::class.simpleName}, ${term.text}")
         }
     }
 
-    return rewriteRecursive(toRewrite)
+    return rewriteRecursive(term)
 }
 
 fun getParamStrs(
-    definition: ParseTree,
+    pattern: ParseTree,
     prefix: String = "",
     copy: Boolean = false,
 ): List<RewriteData> {
@@ -162,11 +162,11 @@ fun getParamStrs(
     }
 
     fun extractArgsRecursive(
-        definition: ParseTree,
+        pattern: ParseTree,
         parentStr: String = prefix,
     ): List<RewriteData> {
-        val obj = getObject(definition)
-        val args = getParams(definition)
+        val obj = getObject(pattern)
+        val args = getParams(pattern)
 
         return args.flatMapIndexed { argIndex, (arg, type) ->
             when (arg) {
@@ -201,5 +201,5 @@ fun getParamStrs(
             }
         }
     }
-    return extractArgsRecursive(definition)
+    return extractArgsRecursive(pattern)
 }
