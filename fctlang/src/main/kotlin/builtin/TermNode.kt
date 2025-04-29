@@ -88,7 +88,7 @@ abstract class TermNode : Node() {
     }
 
     internal fun reduce(frame: VirtualFrame): TermNode {
-        if (DEBUG) println("reducing: ${this::class.simpleName} ($this)")
+        if (DEBUG) println("reducing: ${this::class.simpleName}")
         reduceComputations(frame)?.let { new -> return replace(new) }
         reduceRules(frame).let { new -> return replace(new) }
     }
@@ -174,6 +174,9 @@ abstract class TermNode : Node() {
         if (this === other) return true
         if (other !is TermNode) return false
         if (this::class != other::class) return false
+        if (this is SequenceNode && other is SequenceNode) {
+            return this.elements.zip(other.elements).all { (a, b) -> a == b }
+        }
 
         val thisParams = this.params
         val otherParams = other.params

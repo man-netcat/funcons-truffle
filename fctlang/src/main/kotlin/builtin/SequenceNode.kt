@@ -93,20 +93,6 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         }
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (other == null) return false
-        if (this === other) return true
-        if (other !is SequenceNode) return false
-        if (this::class != other::class) return false
-
-        val thisElements = this.elements
-        val otherElements = other.elements
-
-        if (thisElements.size != otherElements.size) return false
-
-        return thisElements.zip(otherElements).all { (a, b) -> a == b }
-    }
-
     override fun deepCopy(): TermNode {
         if (!isReducible()) return this
         val args = elements.map { it ->
