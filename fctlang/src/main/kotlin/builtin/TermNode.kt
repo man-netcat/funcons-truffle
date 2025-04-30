@@ -158,7 +158,7 @@ abstract class TermNode : Node() {
                 is Array<*> -> it.toList()
                 is SequenceNode -> it.children
                 is TermNode -> listOf(it)
-                else -> emptyList()
+                else -> abort("Invalid parameter type")
             }
         }
 

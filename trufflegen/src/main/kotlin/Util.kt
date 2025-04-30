@@ -490,7 +490,7 @@ fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
     }
 }
 
-fun makeSizeCondition(arg: ParseTree, paramStr: String): Pair<String, Int>? {
+fun makeSizeCondition(pattern: ParseTree, paramStr: String): Pair<String, Int>? {
     fun getSizeCondition(
         sequenceArgs: List<ExprContext>,
         paramStr: String,
@@ -539,8 +539,8 @@ fun makeSizeCondition(arg: ParseTree, paramStr: String): Pair<String, Int>? {
         }
     }
 
-    val argObj = getObject(arg)
-    val argArgs = extractArgs(arg)
+    val argObj = getObject(pattern)
+    val argArgs = extractArgs(pattern)
 
     return if (argObj.hasSequence) {
         val (sequenceArgs, nonSequenceArgs) = partitionArgs(argArgs)

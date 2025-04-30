@@ -85,7 +85,7 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
     }
 
     private fun processEntityDefinition(ctx: ParserRuleContext, entityType: EntityType) {
-        val dataContainer = EntityObject(ctx, entityType, fileMetavariables)
+        val dataContainer = EntityObject(ctx, fileMetavariables)
         addObjectReference(dataContainer)
     }
 

@@ -32,27 +32,17 @@ class FunconObject(
 ) : AbstractFunconObject(ctx, metaVariables) {
 
     inner class VariableGenerator() {
-        val prefixMap = mutableMapOf<String, Int>()
+        val prefixIndices = mutableMapOf<String, Int>()
         val variables = mutableMapOf<String, String>()
 
         private fun newVar(prefix: String): String {
-            return if (prefix in prefixMap.keys) {
-                val newVar = "$prefix${prefixMap[prefix]}"
-                prefixMap[prefix] = prefixMap[prefix]!! + 1
-                return newVar
-            } else {
-                val newVar = "${prefix}0"
-                prefixMap[prefix] = 1
-                newVar
-            }
+            val index = prefixIndices.getOrDefault(prefix, 0)
+            prefixIndices[prefix] = index + 1
+            return "$prefix$index"
         }
 
         fun getVar(rewrite: String, prefix: String): String {
-            return if (rewrite !in variables.keys) {
-                val newVar = newVar(prefix)
-                variables.put(rewrite, newVar)
-                newVar
-            } else variables[rewrite]!!
+            return variables.getOrPut(rewrite) { newVar(prefix) }
         }
     }
 
@@ -87,8 +77,8 @@ class FunconObject(
         internal fun getSortedConditions(): String =
             conditions.sortedBy { it.priority }.joinToString(" && ") { it.expr }
 
-        private fun argsConditions(funconExpr: FunconExpressionContext) {
-            val paramStrs = getParamStrs(funconExpr)
+        private fun patternConditions(pattern: FunconExpressionContext) {
+            val paramStrs = getParamStrs(pattern)
             (paramStrs + rewriteData).forEach { data ->
                 val (argValue, argType, paramStr) = data
 
@@ -124,7 +114,7 @@ class FunconObject(
                 }
             }
 
-            val sizeCondition = makeSizeCondition(funconExpr, "")
+            val sizeCondition = makeSizeCondition(pattern, "")
             if (sizeCondition != null) {
                 val (condition, priority) = sizeCondition
                 addCondition(condition)
@@ -152,117 +142,119 @@ class FunconObject(
             }
         }
 
-        private fun processPremises(pattern: ExprContext, premise: PremiseExprContext) {
-            val (lhs, rhs) = extractLhsRhs(premise)
+        private fun processPremises(pattern: ExprContext) {
+            premises.forEach { premise ->
+                val (lhs, rhs) = extractLhsRhs(premise)
 
-            when (premise) {
-                is RewritePremiseContext -> {
-                    val rewriteLhs = rewrite(pattern, lhs, rewriteData)
-                    val rewriteRhs = variables.getVar(rewriteLhs, "r")
-                    val newRewriteData = if (rhs is FunconExpressionContext) {
-                        getParamStrs(rhs, rewriteRhs)
-                    } else {
-                        emptyList()
-                    } + makeRewriteDataObject(rhs, rewriteRhs)
-                    rewriteData.addAll(newRewriteData)
-                }
+                when (premise) {
+                    is RewritePremiseContext -> {
+                        val rewriteLhs = rewrite(pattern, lhs, rewriteData)
+                        val rewriteRhs = variables.getVar(rewriteLhs, "r")
+                        val newRewriteData = if (rhs is FunconExpressionContext) {
+                            getParamStrs(rhs, rewriteRhs)
+                        } else {
+                            emptyList()
+                        } + makeRewriteDataObject(rhs, rewriteRhs)
+                        rewriteData.addAll(newRewriteData)
+                    }
 
-                is TransitionPremiseWithMutableEntityContext,
-                    -> {
-                    val rewriteLhs = rewrite(pattern, lhs, rewriteData)
-                    val rewriteRhs = variables.getVar(rewriteLhs, "m")
-                    val newRewriteData = makeRewriteDataObject(rhs, rewriteRhs)
-                    rewriteData.add(newRewriteData)
+                    is TransitionPremiseWithMutableEntityContext,
+                        -> {
+                        val rewriteLhs = rewrite(pattern, lhs, rewriteData)
+                        val rewriteRhs = variables.getVar(rewriteLhs, "m")
+                        val newRewriteData = makeRewriteDataObject(rhs, rewriteRhs)
+                        rewriteData.add(newRewriteData)
 
-                    val label = premise.entityRhs
-                    val labelObj = labelToObject(label)
-                    val newNewRewriteData = makeRewriteDataObject(label.value, labelObj.asVarName)
-                    rewriteData.add(newNewRewriteData)
-                }
+                        val label = premise.entityRhs
+                        val labelObj = labelToObject(label)
+                        val newNewRewriteData = makeRewriteDataObject(label.value, labelObj.asVarName)
+                        rewriteData.add(newNewRewriteData)
+                    }
 
-                is TransitionPremiseContext,
-                is TransitionPremiseWithContextualEntityContext,
-                is TransitionPremiseWithControlEntityContext,
-                    -> {
-                    val rewriteLhs = rewrite(pattern, lhs, rewriteData)
-                    val rewriteRhs = variables.getVar(rewriteLhs, "s")
-                    val newRewriteData = makeRewriteDataObject(rhs, rewriteRhs)
-                    rewriteData.add(newRewriteData)
+                    is TransitionPremiseContext,
+                    is TransitionPremiseWithContextualEntityContext,
+                    is TransitionPremiseWithControlEntityContext,
+                        -> {
+                        val rewriteLhs = rewrite(pattern, lhs, rewriteData)
+                        val rewriteRhs = variables.getVar(rewriteLhs, "s")
+                        val newRewriteData = makeRewriteDataObject(rhs, rewriteRhs)
+                        rewriteData.add(newRewriteData)
 
-                    when (premise) {
-                        is TransitionPremiseWithContextualEntityContext -> {
-                            val label = premise.context_
-                            val labelObj = labelToObject(label)
-                            contextualWrite = makeEntityAssignment(pattern, label, labelObj)
-                        }
+                        when (premise) {
+                            is TransitionPremiseWithContextualEntityContext -> {
+                                val label = premise.context_
+                                val labelObj = labelToObject(label)
+                                contextualWrite = makeEntityAssignment(pattern, label, labelObj)
+                            }
 
-                        is TransitionPremiseWithControlEntityContext -> {
-                            val labels = getControlEntityLabels(premise)
-                            labels.forEach { (label, labelObj) ->
-                                processEntityCondition(label)
-                                val controlRead = makeVariable(labelObj.asVarName, labelObj.getStr())
-                                controlReads.add(controlRead)
+                            is TransitionPremiseWithControlEntityContext -> {
+                                val labels = getControlEntityLabels(premise)
+                                labels.forEach { (label, labelObj) ->
+                                    processEntityCondition(label)
+                                    val controlRead = makeVariable(labelObj.asVarName, labelObj.getStr())
+                                    controlReads.add(controlRead)
+                                }
                             }
                         }
+
+                        stepVariable = rewriteLhs to rewriteRhs
                     }
 
-                    stepVariable = rewriteLhs to rewriteRhs
-                }
+                    is BooleanPremiseContext -> {
+                        fun getBooleanNode(text: String): String = if (text == "true") "TrueNode" else "FalseNode"
 
-                is BooleanPremiseContext -> {
-                    fun getBooleanNode(text: String): String = if (text == "true") "TrueNode" else "FalseNode"
-
-                    fun bindVariable(expr: ExprContext): String {
-                        val exprRewrite = rewrite(pattern, expr, rewriteData)
-                        if (expr.text in params.filter { !it.type.computes }.map { it.value }) return exprRewrite
-                        val variable = variables.getVar(exprRewrite, "r")
-                        val rhsRewriteData = makeRewriteDataObject(expr, variable)
-                        rewriteData.add(rhsRewriteData)
-                        return variable
-                    }
-
-                    val condition = if (lhs.text in listOf("true", "false")) {
-                        val rhsVar = bindVariable(rhs)
-                        val boolean = getBooleanNode(lhs.text)
-                        "$rhsVar is $boolean"
-                    } else if (rhs.text in listOf("true", "false")) {
-                        val lhsVar = bindVariable(lhs)
-                        val boolean = getBooleanNode(rhs.text)
-                        "$lhsVar is $boolean"
-                    } else if (lhs.text == "()") {
-                        val rhsVar = bindVariable(rhs)
-                        "$rhsVar.isEmpty()"
-                    } else if (rhs.text == "()") {
-                        val lhsVar = bindVariable(lhs)
-                        "$lhsVar.isEmpty()"
-                    } else {
-                        val lhsVar = bindVariable(lhs)
-                        val rhsVar = bindVariable(rhs)
-
-                        val op = when (premise.op.text) {
-                            "==" -> "=="
-                            "=/=" -> "!="
-                            else -> throw DetailedException("Unexpected operator type: ${premise.op.text}")
+                        fun bindVariable(expr: ExprContext): String {
+                            val exprRewrite = rewrite(pattern, expr, rewriteData)
+                            if (expr.text in params.filter { !it.type.computes }.map { it.value }) return exprRewrite
+                            val variable = variables.getVar(exprRewrite, "r")
+                            val rhsRewriteData = makeRewriteDataObject(expr, variable)
+                            rewriteData.add(rhsRewriteData)
+                            return variable
                         }
-                        "$lhsVar $op $rhsVar"
-                    }
 
-                    addCondition(condition, priority = 2)
-                }
-
-                is TypePremiseContext -> {
-                    val rewriteLhs = rewrite(pattern, lhs, rewriteData)
-                    val condition =
-                        if (rhs is VariableContext) {
-                            val rewriteRhs = rewrite(pattern, rhs, rewriteData)
-                            "${rewriteLhs}.isInType($rewriteRhs)"
-                        } else if (rhs is ComplementExpressionContext && rhs.operand is VariableContext) {
-                            val rewriteRhs = rewrite(pattern, rhs.operand, rewriteData)
-                            "!${rewriteLhs}.isInType($rewriteRhs)"
+                        val condition = if (lhs.text in listOf("true", "false")) {
+                            val rhsVar = bindVariable(rhs)
+                            val boolean = getBooleanNode(lhs.text)
+                            "$rhsVar is $boolean"
+                        } else if (rhs.text in listOf("true", "false")) {
+                            val lhsVar = bindVariable(lhs)
+                            val boolean = getBooleanNode(rhs.text)
+                            "$lhsVar is $boolean"
+                        } else if (lhs.text == "()") {
+                            val rhsVar = bindVariable(rhs)
+                            "$rhsVar.isEmpty()"
+                        } else if (rhs.text == "()") {
+                            val lhsVar = bindVariable(lhs)
+                            "$lhsVar.isEmpty()"
                         } else {
-                            makeTypeCondition(rewriteLhs, premise.type)
+                            val lhsVar = bindVariable(lhs)
+                            val rhsVar = bindVariable(rhs)
+
+                            val op = when (premise.op.text) {
+                                "==" -> "=="
+                                "=/=" -> "!="
+                                else -> throw DetailedException("Unexpected operator type: ${premise.op.text}")
+                            }
+                            "$lhsVar $op $rhsVar"
                         }
-                    addCondition(condition, priority = 2)
+
+                        addCondition(condition, priority = 2)
+                    }
+
+                    is TypePremiseContext -> {
+                        val rewriteLhs = rewrite(pattern, lhs, rewriteData)
+                        val condition =
+                            if (rhs is VariableContext) {
+                                val rewriteRhs = rewrite(pattern, rhs, rewriteData)
+                                "${rewriteLhs}.isInType($rewriteRhs)"
+                            } else if (rhs is ComplementExpressionContext && rhs.operand is VariableContext) {
+                                val rewriteRhs = rewrite(pattern, rhs.operand, rewriteData)
+                                "!${rewriteLhs}.isInType($rewriteRhs)"
+                            } else {
+                                makeTypeCondition(rewriteLhs, premise.type)
+                            }
+                        addCondition(condition, priority = 2)
+                    }
                 }
             }
         }
@@ -276,7 +268,7 @@ class FunconObject(
             } as EntityObject
         }
 
-        fun makeLabelRewrite(label: LabelContext, labelObj: EntityObject): List<RewriteData> {
+        fun rewriteEntity(label: LabelContext, labelObj: EntityObject): List<RewriteData> {
             return if (label.value is FunconExpressionContext) {
                 getParamStrs(label.value, prefix = labelObj.asVarName) + RewriteData(
                     null,
@@ -316,7 +308,7 @@ class FunconObject(
             }
         }
 
-        private fun processConclusion(pattern: ExprContext, conclusion: PremiseExprContext) {
+        private fun processConclusion(pattern: ExprContext) {
             when (conclusion) {
                 is TransitionPremiseWithContextualEntityContext -> {
                     val label = conclusion.context_
@@ -375,33 +367,24 @@ class FunconObject(
             }
         }
 
-        private fun processEntities(
-            premiseExpr: PremiseExprContext,
-            isPremise: Boolean = true,
-            emptyPremises: Boolean = false,
-        ) {
-            val labels = when {
-                premiseExpr is TransitionPremiseWithContextualEntityContext && !isPremise ->
-                    listOf(premiseExpr.context_ to labelToObject(premiseExpr.context_))
+        private fun processEntities() {
+            fun makeEntityData(premiseExpr: PremiseExprContext, isPremise: Boolean, emptyPremises: Boolean) {
+                val labels = when {
+                    premiseExpr is TransitionPremiseWithContextualEntityContext && !isPremise ->
+                        listOf(premiseExpr.context_ to labelToObject(premiseExpr.context_))
 
-                premiseExpr is TransitionPremiseWithControlEntityContext && isPremise && !emptyPremises ->
-                    getControlEntityLabels(premiseExpr)
+                    premiseExpr is TransitionPremiseWithControlEntityContext && isPremise && !emptyPremises ->
+                        getControlEntityLabels(premiseExpr)
 
-                premiseExpr is TransitionPremiseWithMutableEntityContext ->
-                    listOf(premiseExpr.entityLhs to labelToObject(premiseExpr.entityLhs))
+                    premiseExpr is TransitionPremiseWithMutableEntityContext ->
+                        listOf(premiseExpr.entityLhs to labelToObject(premiseExpr.entityLhs))
 
-                else -> emptyList()
+                    else -> emptyList()
+                }
+                val newRewriteData = labels.flatMap { (label, labelObj) -> rewriteEntity(label, labelObj) }
+                rewriteData.addAll(newRewriteData)
             }
 
-            val newRewriteData = labels.flatMap { (label, labelObj) -> makeLabelRewrite(label, labelObj) }
-            rewriteData.addAll(newRewriteData)
-        }
-
-        init {
-            val (pattern, term) = extractLhsRhs(conclusion)
-
-            // Add values for entities
-            premises.forEach { premise -> processEntities(premise) }
             fun isTransitionPremise(premiseExpr: PremiseExprContext): Boolean = when (premiseExpr) {
                 is TransitionPremiseContext,
                 is TransitionPremiseWithMutableEntityContext,
@@ -411,16 +394,25 @@ class FunconObject(
 
                 else -> false
             }
-            processEntities(conclusion, false, !premises.any(::isTransitionPremise))
+            premises.forEach { premise -> makeEntityData(premise, isPremise = true, emptyPremises = false) }
+            makeEntityData(conclusion, isPremise = false, emptyPremises = !premises.any(::isTransitionPremise))
+        }
 
-            // Add data for premises and build conclusions
-            premises.forEach { premise -> processPremises(pattern, premise) }
+        init {
+            val (pattern, term) = extractLhsRhs(conclusion)
+            pattern as FunconExpressionContext // We assume a pattern is always a funcon expression
 
-            // build rewrites from conclusions
-            processConclusion(pattern, conclusion)
+            // Add values for entities
+            processEntities()
 
-            // Add the type checking conditions
-            if (pattern is FunconExpressionContext) argsConditions(pattern)
+            // Add rewrite data for premises
+            processPremises(pattern)
+
+            // Build rewrites from conclusions
+            processConclusion(pattern)
+
+            // Add pattern matching conditions
+            patternConditions(pattern)
 
             rewriteStr = rewrite(pattern, term, rewriteData, copy = true)
         }
