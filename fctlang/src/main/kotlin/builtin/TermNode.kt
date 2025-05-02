@@ -4,7 +4,6 @@ import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
 import generated.*
 import language.FCTLanguage
-import language.InfiniteLoopException
 import language.StuckException
 import language.Util.DEBUG
 import kotlin.reflect.full.findAnnotation
@@ -17,7 +16,7 @@ abstract class TermNode : Node() {
     annotation class Eager
 
     enum class FrameSlots {
-        LOCAL_CONTEXT
+        ENTITIES,
     }
 
     val primaryConstructor = this::class.primaryConstructor!!
@@ -47,29 +46,29 @@ abstract class TermNode : Node() {
         return FCTLanguage.Companion.get(this)
     }
 
-    private fun getLocalContext(frame: VirtualFrame): MutableMap<String, TermNode?> {
-        return frame.getObject(FrameSlots.LOCAL_CONTEXT.ordinal) as? MutableMap<String, TermNode?>
+    private fun getEntities(frame: VirtualFrame): MutableMap<String, TermNode?> {
+        return frame.getObject(FrameSlots.ENTITIES.ordinal) as? MutableMap<String, TermNode?>
             ?: mutableMapOf<String, TermNode?>().also {
-                frame.setObject(FrameSlots.LOCAL_CONTEXT.ordinal, it)
+                frame.setObject(FrameSlots.ENTITIES.ordinal, it)
             }
     }
 
     internal fun printEntities(frame: VirtualFrame) {
-        val context = getLocalContext(frame)
-        if (context.isNotEmpty()) {
-            val str = "Entities: {\n" + context.map { (name, entity) -> "    $name: $entity" }
+        val entities = getEntities(frame)
+        if (entities.isNotEmpty()) {
+            val str = "Entities: {\n" + entities.map { (name, entity) -> "    $name: $entity" }
                 .joinToString("\n") + "\n}"
             println(str)
         } else println("Entities: {}")
     }
 
     open fun getEntity(frame: VirtualFrame, key: String): TermNode {
-        return getLocalContext(frame)[key] ?: SequenceNode()
+        return getEntities(frame)[key] ?: SequenceNode()
     }
 
     open fun putEntity(frame: VirtualFrame, key: String, value: TermNode) {
         if (DEBUG) println("putting ${value::class.simpleName} ($value) in $key")
-        getLocalContext(frame)[key] = value
+        getEntities(frame)[key] = value
         if (DEBUG) printEntities(frame)
     }
 
@@ -85,6 +84,21 @@ abstract class TermNode : Node() {
         } else false
 
         else -> this !is ValuesNode
+    }
+
+    fun rewrite(frame: VirtualFrame): TermNode {
+        var term = this
+        var iterationCount = 0
+        while (term.isReducible()) {
+            if (DEBUG) {
+                println("------------------")
+                println("Iteration $iterationCount: Current result is ${term::class.simpleName}")
+                term.printTree()
+            }
+            term = term.reduce(frame)
+            iterationCount++
+        }
+        return term
     }
 
     internal fun reduce(frame: VirtualFrame): TermNode {
@@ -194,23 +208,6 @@ abstract class TermNode : Node() {
             println("$this")
             println("$newNode")
         }
-    }
-
-    fun rewrite(frame: VirtualFrame): TermNode {
-        var term = this
-        var iterationCount = 0
-        while (term.isReducible()) {
-            if (DEBUG) {
-                println("------------------")
-                println("Iteration $iterationCount: Current result is ${term::class.simpleName}")
-                term.printTree()
-            }
-            term = term.reduce(frame)
-            iterationCount++
-            // TODO: This shouldn't happen
-            if (iterationCount > 1000) throw InfiniteLoopException()
-        }
-        return term
     }
 
     open operator fun get(index: Int): TermNode {

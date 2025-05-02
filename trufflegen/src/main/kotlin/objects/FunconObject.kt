@@ -261,7 +261,7 @@ class FunconObject(
 
         fun labelToObject(label: LabelContext): EntityObject {
             return if (label.name.text == "abrupt") {
-                // TODO: Edge case due to bug in CBS code for yield-on-value. Remove when fixed.
+                // TODO: Edge case due to bug in CBS code for yield-on-abrupt. Remove when fixed.
                 globalObjects["abrupted"]
             } else {
                 getObject(label)
