@@ -16,34 +16,40 @@ fun main(args: Array<String>) {
 
     val filePath = Paths.get(args[0])
     val standardInArgs = args.drop(1).toTypedArray()
-    val result = try {
-        evalFile(filePath, standardInArgs)
+
+    try {
+        Interpreter.createContext(standardInArgs).use { context ->
+            val result = Interpreter.evalFile(context, filePath)
+            Interpreter.processResult(result)
+        }
     } catch (e: Exception) {
         println("Error: ${e.message}")
-        return
     }
-
-    processResult(result)
 }
 
-fun evalFile(filePath: Path, args: Array<String> = emptyArray()): Value {
-    val code = Files.readString(filePath)
-    val context = Context.newBuilder("fctlang")
-        .arguments("fctlang", args)
-        .allowAllAccess(true)
-        .build()
-    val source = Source.newBuilder("fctlang", code, filePath.pathString).build()
-    return context.use { it.eval(source) }
-}
-
-fun processResult(result: Value) {
-    val resultTerm = result.getArrayElement(0)
-    val store = result.getArrayElement(1)
-    val standardOut = (2 until result.arraySize).joinToString(",") { i ->
-        result.getArrayElement(i).toString()
+object Interpreter {
+    fun createContext(args: Array<String> = emptyArray()): Context {
+        return Context.newBuilder("fctlang")
+            .allowAllAccess(true)
+            .arguments("fctlang", args)
+            .build()
     }
-    println("results:")
-    println("result-term: $resultTerm")
-    println("store: $store")
-    println("standard-out: [$standardOut]")
+
+    fun evalFile(context: Context, filePath: Path): Value {
+        val code = Files.readString(filePath)
+        val source = Source.newBuilder("fctlang", code, filePath.pathString).build()
+        return context.eval(source)
+    }
+
+    fun processResult(result: Value) {
+        val resultTerm = result.getArrayElement(0)
+        val store = result.getArrayElement(1)
+        val standardOut = (2 until result.arraySize).joinToString(",") { i ->
+            result.getArrayElement(i).toString()
+        }
+        println("results:")
+        println("result-term: $resultTerm")
+        println("store: $store")
+        println("standard-out: [$standardOut]")
+    }
 }

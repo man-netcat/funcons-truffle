@@ -1,7 +1,6 @@
 package interpreter
 
 import org.graalvm.polyglot.Context
-import org.graalvm.polyglot.Source
 import org.junit.jupiter.api.*
 import java.nio.file.Files
 import java.nio.file.Path
@@ -18,9 +17,7 @@ class InterpreterFilesTest {
 
     @BeforeAll
     fun setup() {
-        context = Context.newBuilder("fctlang")
-            .allowAllAccess(true)
-            .build()
+        context = Interpreter.createContext()
     }
 
     @AfterAll
@@ -36,7 +33,7 @@ class InterpreterFilesTest {
         return testFiles.sorted().map { path ->
             val relativePath = rootDir.relativize(path).pathString
             DynamicTest.dynamicTest("Testing $relativePath") {
-                runTestFile(context, path, relativePath)
+                runTestFile(path, relativePath)
             }
         }
     }
@@ -56,13 +53,11 @@ class InterpreterFilesTest {
             .toList()
     }
 
-    private fun runTestFile(context: Context, path: Path, displayName: String) {
+    private fun runTestFile(path: Path, displayName: String) {
         try {
             println(displayName)
-            val code = Files.readString(path)
-            val source = Source.newBuilder("fctlang", code, displayName).build()
-            val result = context.eval(source)
-            processResult(result)
+            val result = Interpreter.evalFile(context, path)
+            Interpreter.processResult(result)
         } catch (e: Exception) {
             val root = e.cause ?: e
             val messageLine = "Error in $displayName: ${root::class.qualifiedName}: ${root.message}"

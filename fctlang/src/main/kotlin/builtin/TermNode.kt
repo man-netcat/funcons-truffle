@@ -103,7 +103,9 @@ abstract class TermNode : Node() {
 
     internal fun reduce(frame: VirtualFrame): TermNode {
         if (DEBUG) println("reducing: ${this::class.simpleName}")
+        // Reduce the parameters of a funcon first where possible
         reduceComputations(frame)?.let { new -> return replace(new) }
+        // Reduce according to CBS semantic rules
         reduceRules(frame).let { new -> return replace(new) }
     }
 
@@ -122,7 +124,9 @@ abstract class TermNode : Node() {
             try {
                 attemptedReduction = true
                 newParams[i] = currentParam.reduce(frame)
-                return primaryConstructor.call(*newParams.toTypedArray())
+                val reconstructed = primaryConstructor.call(*newParams.toTypedArray())
+
+                return reconstructed
             } catch (e: Exception) {
                 if (DEBUG) println("Stuck with exception $e")
             }
