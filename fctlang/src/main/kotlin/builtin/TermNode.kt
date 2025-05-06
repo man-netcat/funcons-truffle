@@ -87,6 +87,7 @@ abstract class TermNode : Node() {
     }
 
     fun rewrite(frame: VirtualFrame): TermNode {
+        if (DEBUG) println("rewriting: $this")
         var term = this
         var iterationCount = 0
         while (term.isReducible()) {
@@ -102,7 +103,9 @@ abstract class TermNode : Node() {
     }
 
     internal fun reduce(frame: VirtualFrame): TermNode {
-        if (DEBUG) println("reducing: ${this::class.simpleName}")
+        if (DEBUG) {
+            println("reducing: ${this::class.simpleName}")
+        }
         // Reduce the parameters of a funcon first where possible
         reduceComputations(frame)?.let { new -> return replace(new) }
         // Reduce according to CBS semantic rules
@@ -112,28 +115,57 @@ abstract class TermNode : Node() {
     abstract fun reduceRules(frame: VirtualFrame): TermNode
 
     open fun reduceComputations(frame: VirtualFrame): TermNode? {
-        val newParams = params.toMutableList()
+        var newParams = params.toMutableList()
         var attemptedReduction = false
 
+        fun unpackTupleElements(i: Int, currentParam: TupleElementsNode): List<TermNode> {
+            val tupleElements = (currentParam.p0 as ValueTupleNode).get(0).elements.toList()
+
+            // Replace the tuple-elements node for its contents in-place in the parameter list
+            newParams.removeAt(i)
+            newParams.addAll(i, tupleElements)
+
+            val sequenceIndex = primaryConstructor.parameters.indexOfFirst {
+                it.type.classifier == SequenceNode::class
+            }
+
+            // If the original node expects a sequence, rebuild the parameter sequence to accomodate for this
+            if (sequenceIndex != -1) {
+                val beforeSequence = newParams.take(sequenceIndex)
+                val afterSequence = newParams.drop(sequenceIndex).toTypedArray()
+                newParams = (beforeSequence + SequenceNode(*afterSequence)) as MutableList<TermNode>
+            }
+
+            return newParams
+        }
+
         for ((i, param) in primaryConstructor.parameters.withIndex()) {
-            if (param.findAnnotation<Eager>() == null) continue
-
-            val currentParam = newParams[i]
-            if (!currentParam.isReducible()) continue
-
             try {
-                attemptedReduction = true
-                newParams[i] = currentParam.reduce(frame)
-                val reconstructed = primaryConstructor.call(*newParams.toTypedArray())
+                val currentParam = newParams[i]
 
+                // We assume tuple-eleemnts is always reducible.
+                if (
+                    currentParam !is TupleElementsNode &&
+                    (param.findAnnotation<Eager>() == null || !currentParam.isReducible())
+                ) continue
+
+                if (currentParam is TupleElementsNode && currentParam.p0 is ValueTupleNode) {
+                    // In the case this is a fully reduced tuple-elements node, we must unpack it
+                    unpackTupleElements(i, currentParam)
+                } else {
+                    attemptedReduction = true
+                    newParams[i] = currentParam.reduce(frame)
+                }
+
+                val reconstructed = primaryConstructor.call(*newParams.toTypedArray())
                 return reconstructed
+
             } catch (e: Exception) {
                 if (DEBUG) println("Stuck with exception $e")
             }
         }
 
-        if (!attemptedReduction) return null
-        else abort("stuck!")
+        return if (!attemptedReduction) null else abort("stuck!")
     }
 
     open fun isInType(type: TermNode): Boolean {
@@ -176,7 +208,7 @@ abstract class TermNode : Node() {
                 is Array<*> -> it.toList()
                 is SequenceNode -> it.children
                 is TermNode -> listOf(it)
-                else -> abort("Invalid parameter type")
+                else -> listOf()
             }
         }
 

@@ -175,6 +175,7 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
                 when (parseTree.binOp().text) {
                     "|" -> UnionTypeNode(lhs, rhs)
                     "&" -> IntersectionTypeNode(lhs, rhs)
+                    "=>" -> rhs
                     else -> throw IllegalArgumentException("Unsupported operation: ${parseTree.binOp().text}")
                 }
             }
@@ -183,6 +184,7 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
                 val operand = buildTree(parseTree.operand)
                 when (parseTree.unOp().text) {
                     "~" -> ComplementTypeNode(operand)
+                    "=>" -> operand
                     else -> throw IllegalArgumentException("Unsupported operation: ${parseTree.unOp().text}")
                 }
             }

@@ -193,18 +193,6 @@ class HoleNode() : TermNode(), HoleInterface {
     }
 }
 
-class MatchNode(override val p0: TermNode, override val p1: TermNode) : TermNode(), MatchInterface {
-    override fun reduceRules(frame: VirtualFrame): TermNode {
-        TODO("Not yet implemented: $name")
-    }
-}
-
-class MatchLooselyNode(override val p0: TermNode, override val p1: TermNode) : TermNode(), MatchLooselyInterface {
-    override fun reduceRules(frame: VirtualFrame): TermNode {
-        TODO("Not yet implemented: $name")
-    }
-}
-
 class ToStringNode(override val p0: TermNode) : TermNode(), ToStringInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         TODO("Not yet implemented: $name")

@@ -69,10 +69,7 @@ fun rewrite(
                 if (pairStr != null) "SequenceNode(${pairStr})" else "SequenceNode()"
             }
 
-            is SuffixExpressionContext -> {
-                if (term.expr() is FunconExpressionContext) rewriteFunconExpr(term.expr())
-                else mapParamString(term.text)
-            }
+            is SuffixExpressionContext -> mapParamString(term.text)
 
             is VariableContext -> mapParamString(term.text)
             is NumberContext -> "IntegerNode(${term.text})"

@@ -46,7 +46,7 @@ abstract class Object(val ctx: ParseTree, metaVariables: Set<Pair<ExprContext, E
                     isEager = !param.type.computes
                 )
                 val paramTypeStr = if (param.type.isSequence) SEQUENCE else TERMNODE
-                val default = if (param.type.isOptional || param.type.isSequence) "SequenceNode()" else ""
+                val default = "SequenceNode()"
                 val paramName =
                     if (this is TypeObject || this is AlgebraicDatatypeObject) "${asVarName}Tp${param.index}" else "p${param.index}"
                 makeParam(paramTypeStr, paramName, annotation, default)

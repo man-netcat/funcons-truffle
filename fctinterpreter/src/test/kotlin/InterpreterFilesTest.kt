@@ -8,7 +8,6 @@ import java.nio.file.Paths
 import kotlin.io.path.extension
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.pathString
-import kotlin.test.fail
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class InterpreterFilesTest {
@@ -39,11 +38,9 @@ class InterpreterFilesTest {
     }
 
     private fun collectTestFiles(rootDir: Path): List<Path> {
-        val blacklist = listOf(
-            "Abstraction/Patterns",
-            "Abstraction/Thunks",
-            "Abstraction/Generic",
+        val blacklist = listOf<String>(
             "atomic",
+            "Abstraction/Patterns",
             "structural-assign",
             "catch-else-throw",
         )
@@ -54,17 +51,9 @@ class InterpreterFilesTest {
     }
 
     private fun runTestFile(path: Path, displayName: String) {
-        try {
-            println(displayName)
-            val result = Interpreter.evalFile(context, path)
-            Interpreter.processResult(result)
-        } catch (e: Exception) {
-            val root = e.cause ?: e
-            val messageLine = "Error in $displayName: ${root::class.qualifiedName}: ${root.message}"
-            println(messageLine)
-            fail("Exception occurred while testing $displayName")
-        } finally {
-            println("----------------------------------------")
-        }
+        println(displayName)
+        val result = Interpreter.evalFile(context, path)
+        Interpreter.processResult(result)
+        println("----------------------------------------")
     }
 }

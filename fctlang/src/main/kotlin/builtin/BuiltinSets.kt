@@ -59,11 +59,19 @@ class SetUniteNode(@Eager @Child override var p0: SequenceNode) : TermNode(), Se
     }
 }
 
-class SomeElementNode(@Eager @Child override var p0: TermNode) : TermNode(), SomeElementInterface {
+class SetSizeNode(
+    @Eager @Child override var p0: TermNode
+) : TermNode(), SetSizeInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (get(0).get(0).elements.isEmpty()) return SequenceNode()
+        return LengthNode(SequenceNode(SetElementsNode(p0)))
+    }
+}
 
-        return get(0).get(0).elements.random()
+class SomeElementNode(
+    @Eager @Child override var p0: TermNode
+) : TermNode(), SomeElementInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        return IndexNode(IntegerNode(1), SequenceNode(SetElementsNode(get(0))))
     }
 }
 
