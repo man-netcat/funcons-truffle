@@ -490,7 +490,7 @@ fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
     }
 }
 
-fun makeSizeCondition(pattern: ParseTree, paramStr: String): Pair<String, Int>? {
+fun makeSizeCondition(pattern: ParseTree, paramStr: String = ""): Pair<String, Int>? {
     fun getSizeCondition(
         sequenceArgs: List<ExprContext>,
         paramStr: String,
@@ -549,4 +549,12 @@ fun makeSizeCondition(pattern: ParseTree, paramStr: String): Pair<String, Int>? 
         val fullParamStr = (if (paramStr.isNotEmpty()) "$paramStr." else "") + "get(${argObj.sequenceIndex})"
         getSizeCondition(sequenceArgs, fullParamStr, offsetValue)
     } else null
+}
+
+fun makeGetter(varName: String): String {
+    return "get" + varName.replaceFirstChar { it.uppercaseChar() }
+}
+
+fun makeGetterWithFrame(varName: String): String {
+    return makeGetter(varName) + "(frame)"
 }

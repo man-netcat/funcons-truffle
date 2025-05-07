@@ -103,9 +103,7 @@ abstract class TermNode : Node() {
     }
 
     internal fun reduce(frame: VirtualFrame): TermNode {
-        if (DEBUG) {
-            println("reducing: ${this::class.simpleName}")
-        }
+        if (DEBUG) println("reducing: ${this::class.simpleName}")
         // Reduce the parameters of a funcon first where possible
         reduceComputations(frame)?.let { new -> return replace(new) }
         // Reduce according to CBS semantic rules
@@ -199,7 +197,7 @@ abstract class TermNode : Node() {
     fun abort(reason: String = ""): Nothing = throw StuckException(reason)
 
     fun printTree(indent: String = "", prefix: String = "", hasMoreSiblings: Boolean = false) {
-        println("$indent$prefix${this::class.simpleName} ($this)")
+        println("$indent$prefix${this::class.simpleName}" + if (value == null) "" else " ($this)")
 
         val children = primaryConstructor.parameters.mapNotNull { param ->
             members.firstOrNull { it.name == param.name }?.call(this)
@@ -241,8 +239,6 @@ abstract class TermNode : Node() {
         if (DEBUG) {
             val reasonStr = if (!reason.isNullOrEmpty()) " with reason: $reason" else ""
             println("replacing: ${this::class.simpleName} for ${newNode::class.simpleName}$reasonStr")
-            println("$this")
-            println("$newNode")
         }
     }
 

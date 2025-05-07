@@ -114,7 +114,7 @@ class FunconObject(
                 }
             }
 
-            val sizeCondition = makeSizeCondition(pattern, "")
+            val sizeCondition = makeSizeCondition(pattern)
             if (sizeCondition != null) {
                 val (condition, priority) = sizeCondition
                 addCondition(condition)
@@ -149,7 +149,7 @@ class FunconObject(
                 when (premise) {
                     is RewritePremiseContext -> {
                         val rewriteLhs = rewrite(pattern, lhs, rewriteData)
-                        val rewriteRhs = variables.getVar(rewriteLhs, "r")
+                        val rewriteRhs = makeGetterWithFrame(variables.getVar(rewriteLhs, "r"))
                         val newRewriteData = if (rhs is FunconExpressionContext) {
                             getParamStrs(rhs, rewriteRhs)
                         } else {
@@ -161,7 +161,7 @@ class FunconObject(
                     is TransitionPremiseWithMutableEntityContext,
                         -> {
                         val rewriteLhs = rewrite(pattern, lhs, rewriteData)
-                        val rewriteRhs = variables.getVar(rewriteLhs, "m")
+                        val rewriteRhs = makeGetterWithFrame(variables.getVar(rewriteLhs, "m"))
                         val newRewriteData = makeRewriteDataObject(rhs, rewriteRhs)
                         rewriteData.add(newRewriteData)
 
@@ -206,7 +206,7 @@ class FunconObject(
                         fun bindVariable(expr: ExprContext): String {
                             val exprRewrite = rewrite(pattern, expr, rewriteData)
                             if (expr.text in params.filter { !it.type.computes }.map { it.value }) return exprRewrite
-                            val variable = variables.getVar(exprRewrite, "r")
+                            val variable = makeGetterWithFrame(variables.getVar(exprRewrite, "r"))
                             val rhsRewriteData = makeRewriteDataObject(expr, variable)
                             rewriteData.add(rhsRewriteData)
                             return variable
@@ -342,7 +342,7 @@ class FunconObject(
                         val labelRhsObj = labelToObject(labelRhs)
                         val entityRewrite = rewrite(pattern, labelRhs.value, rewriteData)
                         val rewrite = if (labelRhs.value is FunconExpressionContext) {
-                            val entityVariable = variables.getVar(entityRewrite, "r")
+                            val entityVariable = makeGetterWithFrame(variables.getVar(entityRewrite, "r"))
                             val newNewRewriteData = makeRewriteDataObject(labelRhs.value, entityVariable)
                             rewriteData.add(newNewRewriteData)
                             entityVariable
@@ -418,6 +418,23 @@ class FunconObject(
         }
     }
 
+    fun makeRewriteGetter(varName: String, rewrite: String): String {
+        val ifStmt = makeIfStatement(
+            listOf(
+                Pair(
+                    "$varName == null",
+                    "$varName = insert($rewrite).rewrite(frame)"
+                )
+            )
+        )
+        return makeFunction(
+            makeGetter(varName),
+            TERMNODE,
+            parameters = listOf("frame: VirtualFrame"),
+            body = "$ifStmt\nreturn $varName!!"
+        )
+    }
+
     override val contentStr: String
         get() {
             val newChildren = mutableListOf<String>()
@@ -441,9 +458,8 @@ class FunconObject(
                     variables.variables.forEach { (rewrite, varName) ->
                         val prefix = varName[0]
                         if (prefix in listOf('r', 'm')) {
-                            newChildren.add("@Child private lateinit var $varName: $TERMNODE")
-                            val rewriteStr = makeVariable(varName, "insert($rewrite).rewrite(frame)", init = false)
-                            stringBuilder.appendLine(rewriteStr)
+                            newChildren.add("@Child private var $varName: $TERMNODE? = null")
+                            stringBuilder.appendLine(makeRewriteGetter(varName, rewrite))
                         }
                     }
 
