@@ -71,6 +71,17 @@ fun makeFunction(
     return result.toString()
 }
 
+fun makeFunctionOneliner(
+    name: String,
+    returnType: String,
+    parameters: List<String> = emptyList(),
+    body: String,
+    modifiers: List<String> = emptyList()
+): String {
+    val modifierPart = if (modifiers.isNotEmpty()) modifiers.joinToString(" ") + " " else ""
+    return modifierPart + "fun $name(${parameters.joinToString()}): $returnType = ${body.trim()}"
+}
+
 fun makeIsInTypeFunction(nodeName: String, body: String): String {
     return makeFunction(
         name = "TermNode.isIn${nodeName}",

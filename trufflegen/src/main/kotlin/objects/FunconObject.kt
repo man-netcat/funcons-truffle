@@ -419,19 +419,12 @@ class FunconObject(
     }
 
     fun makeRewriteGetter(varName: String, rewrite: String): String {
-        val ifStmt = makeIfStatement(
-            listOf(
-                Pair(
-                    "$varName == null",
-                    "$varName = insert($rewrite).rewrite(frame)"
-                )
-            )
-        )
-        return makeFunction(
+        val body = "$varName ?: insert($rewrite).rewrite(frame).also { $varName = it }"
+        return makeFunctionOneliner(
             makeGetter(varName),
             TERMNODE,
             parameters = listOf("frame: VirtualFrame"),
-            body = "$ifStmt\nreturn $varName!!"
+            body = body
         )
     }
 
