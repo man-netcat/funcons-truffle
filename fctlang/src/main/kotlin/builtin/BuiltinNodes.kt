@@ -24,16 +24,6 @@ open class GroundValuesNode : ValueTypesNode(), GroundValuesInterface
 
 fun TermNode.isInGroundValues(): Boolean = this is GroundValuesNode
 
-open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
-
-class DatatypeValueNode(@Eager @Child var p0: TermNode, @Eager @Child var p1: SequenceNode) : TermNode() {
-    override fun reduceRules(frame: VirtualFrame): TermNode {
-        return ValueDatatypeValueNode(p0, p1)
-    }
-}
-
-fun TermNode.isInDatatypeValues(): Boolean = this is DatatypeValuesNode
-
 class ComputationTypesNode() : ValueTypesNode(), ComputationTypesInterface
 
 fun TermNode.isInComputationTypes(): Boolean = this !is ValueTypesNode && this !is ValuesNode
@@ -133,7 +123,7 @@ open class IdentifierTaggedNode(
 }
 
 fun TermNode.isInIdentifiers(): Boolean =
-    (this is ValueListNode && this.p0.elements.all { it.isInCharacters() }) || this is Identifiers
+    (this is ValueListNode && this.p0.elements.all { it.isInCharacters() }) || this is Identifiers || this is StringLiteralNode
 
 class IdentifiersNode() : DatatypeValuesNode(), IdentifiersInterface
 

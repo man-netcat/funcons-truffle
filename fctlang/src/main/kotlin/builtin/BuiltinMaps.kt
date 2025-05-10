@@ -3,6 +3,35 @@ package builtin
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
 
+data class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : MapsNode(GroundValuesNode(), ValuesNode()) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ValueMapNode) return false
+
+        val thisTuples = get(0).elements.toSet()
+        val otherTuples = other.get(0).elements.toSet()
+        return thisTuples == otherTuples
+    }
+
+    override fun hashCode(): Int {
+        return get(0).elements
+            .toSet()
+            .hashCode()
+    }
+
+    override fun toString(): String {
+        val str = get(0).elements.joinToString(",") { tuple ->
+            tuple as ValueTupleNode
+            when (tuple.get(0).size) {
+                1 -> "${tuple.get(0).elements[0]}|->()"
+                2 -> "${tuple.get(0).elements[0]}|->${tuple.get(0).elements[1]}"
+                else -> abort("value-map")
+            }
+        }
+        return if (get(0).isNotEmpty()) "{${str}}" else "map()"
+    }
+}
+
 open class MapsNode(@Eager @Child var tp0: TermNode, @Eager @Child var tp1: TermNode) : GroundValuesNode(),
     MapsInterface
 

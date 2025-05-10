@@ -103,7 +103,7 @@ abstract class TermNode : Node() {
     }
 
     internal fun reduce(frame: VirtualFrame): TermNode {
-        if (DEBUG) println("reducing: ${this::class.simpleName}")
+        if (DEBUG) println("reducing: ${this::class.simpleName} with params ${params.map { it::class.simpleName }}")
         // Reduce the parameters of a funcon first where possible
         reduceComputations(frame)?.let { new -> return replace(new) }
         // Reduce according to CBS semantic rules
@@ -134,6 +134,9 @@ abstract class TermNode : Node() {
                 newParams = (beforeSequence + SequenceNode(*afterSequence)) as MutableList<TermNode>
             }
 
+            // Truncate newParams
+            newParams = newParams.take(params.size).toMutableList()
+
             return newParams
         }
 
@@ -159,7 +162,7 @@ abstract class TermNode : Node() {
                 return reconstructed
 
             } catch (e: Exception) {
-                if (DEBUG) println("Stuck with exception $e")
+                if (DEBUG) println("Stuck with exception $e in class ${this::class.simpleName}")
             }
         }
 
@@ -183,6 +186,7 @@ abstract class TermNode : Node() {
             is StringsNode -> this is ValueListNode && this.p0.elements.all { it.isInCharacters() }
             is ListsNode -> this is ValueListNode
             is VectorsNode -> this is ValueVectorNode
+            is AbstractionsNode -> this is AbstractionNode
             is AtomsNode -> this is AtomNode
             is IdentifiersNode -> (this is ValueIdentifierTaggedNode && this.p0.isInIdentifiers()) || this.isInType(
                 StringsNode()
@@ -242,13 +246,7 @@ abstract class TermNode : Node() {
         }
     }
 
-    open operator fun get(index: Int): TermNode {
-        return try {
-            params[index]
-        } catch (e: IndexOutOfBoundsException) {
-            FailNode()
-        }
-    }
+    open operator fun get(index: Int): TermNode = params.getOrNull(index) ?: FailNode()
 
     open val value: Any? get() = null
 

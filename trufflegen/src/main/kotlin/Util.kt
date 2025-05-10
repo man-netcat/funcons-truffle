@@ -471,15 +471,17 @@ fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
 
     val complementStr = if (isComplement) "!" else ""
 
-    fun makeObjCondition(obj: Object): String = when (obj) {
-        is AlgebraicDatatypeObject, is TypeObject ->
-            "$complementStr$paramStr.isIn${obj.camelCaseName}()"
+    fun makeObjCondition(obj: Object): String {
+        return when {
+            obj is AlgebraicDatatypeObject || obj is TypeObject ->
+                "$complementStr$paramStr.isIn${obj.camelCaseName}()"
 
-        is DatatypeFunconObject ->
-            if (obj.params.isNotEmpty()) "$paramStr ${complementStr}is Value${obj.nodeName}"
-            else "$paramStr ${complementStr}is ${obj.nodeName}"
+            obj is DatatypeFunconObject || obj.name == "datatype-value" ->
+                if (obj.params.isNotEmpty()) "$paramStr ${complementStr}is Value${obj.nodeName}"
+                else "$paramStr ${complementStr}is ${obj.nodeName}"
 
-        else -> "$paramStr ${complementStr}is ${obj.nodeName}"
+            else -> "$paramStr ${complementStr}is ${obj.nodeName}"
+        }
     }
 
     val expr = (coreExpr as? NestedExpressionContext)?.expr() ?: coreExpr
@@ -495,7 +497,7 @@ fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
             .map { getObject(it) }
             .map(::makeObjCondition)
 
-        "(" + conditions.joinToString(operator) + ")"
+        conditions.joinToString(prefix = "(", postfix = ")", separator = operator)
     } else {
         makeObjCondition(getObject(expr))
     }
@@ -562,10 +564,28 @@ fun makeSizeCondition(pattern: ParseTree, paramStr: String = ""): Pair<String, I
     } else null
 }
 
-fun makeGetter(varName: String): String {
-    return "get" + varName.replaceFirstChar { it.uppercaseChar() }
+fun makeRewriteGetter(varName: String, rewrite: String): String {
+    val body = "$varName ?: insert($rewrite).rewrite(frame).also { $varName = it }"
+    return makeFunctionOneliner(
+        getterName(varName),
+        TERMNODE,
+        parameters = listOf("frame: VirtualFrame"),
+        body = body
+    )
 }
 
-fun makeGetterWithFrame(varName: String): String {
-    return makeGetter(varName) + "(frame)"
+fun makeRegularGetter(varName: String, rewrite: String): String {
+    val body = "$varName ?: $rewrite.also { $varName = it }"
+    return makeFunctionOneliner(
+        getterName(varName),
+        TERMNODE,
+        parameters = listOf(),
+        body = body
+    )
+}
+
+fun getterName(varName: String): String = "get" + varName.replaceFirstChar { it.uppercaseChar() }
+
+fun makeGetter(varName: String, frame: Boolean = false): String {
+    return getterName(varName) + "(" + (if (frame) "frame" else "") + ")"
 }

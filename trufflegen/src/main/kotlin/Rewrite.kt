@@ -72,11 +72,8 @@ fun rewrite(
             is SuffixExpressionContext -> mapParamString(term.text)
 
             is VariableContext -> mapParamString(term.text)
-            is NumberContext -> "IntegerNode(${term.text})"
-            is StringContext -> {
-                val charSequence = "toCharSequence(${term.text})"
-                "StringNode(${charSequence})"
-            }
+            is NumberContext -> "ValueNodeFactory.intNode(${term.text})"
+            is StringContext -> "ValueNodeFactory.strLiteralNode(${term.text})"
 
             is TypeExpressionContext -> rewriteRecursive(term.value)
             is NestedExpressionContext -> rewriteRecursive(term.expr())

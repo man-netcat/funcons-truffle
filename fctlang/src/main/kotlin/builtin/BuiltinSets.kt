@@ -3,6 +3,18 @@ package builtin
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
 
+data class ValueSetNode(@Child var p0: SequenceNode = SequenceNode()) : SetsNode(ValuesNode()) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ValueSetNode) return false
+
+        return this.p0.elements.toSet() == other.p0.elements.toSet()
+    }
+
+    override fun hashCode(): Int = p0.elements.toSet().hashCode()
+    override fun toString(): String = if (p0.isNotEmpty()) "{${p0}}" else "set()"
+}
+
 open class SetsNode(@Child var tp0: TermNode) : DatatypeValuesNode(), SetsInterface
 
 fun TermNode.isInSets(): Boolean {

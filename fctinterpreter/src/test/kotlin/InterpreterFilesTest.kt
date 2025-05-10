@@ -39,10 +39,10 @@ class InterpreterFilesTest {
 
     private fun collectTestFiles(rootDir: Path): List<Path> {
         val blacklist = listOf<String>(
-            "atomic",
-            "Abstraction/Patterns",
-            "structural-assign",
-            "catch-else-throw",
+//            "atomic",
+//            "Abstraction/Patterns",
+//            "structural-assign",
+//            "catch-else-throw",
         )
 
         return Files.walk(rootDir)

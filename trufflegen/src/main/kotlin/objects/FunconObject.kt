@@ -149,7 +149,7 @@ class FunconObject(
                 when (premise) {
                     is RewritePremiseContext -> {
                         val rewriteLhs = rewrite(pattern, lhs, rewriteData)
-                        val rewriteRhs = makeGetterWithFrame(variables.getVar(rewriteLhs, "r"))
+                        val rewriteRhs = makeGetter(variables.getVar(rewriteLhs, "r"), frame = true)
                         val newRewriteData = if (rhs is FunconExpressionContext) {
                             getParamStrs(rhs, rewriteRhs)
                         } else {
@@ -161,7 +161,7 @@ class FunconObject(
                     is TransitionPremiseWithMutableEntityContext,
                         -> {
                         val rewriteLhs = rewrite(pattern, lhs, rewriteData)
-                        val rewriteRhs = makeGetterWithFrame(variables.getVar(rewriteLhs, "m"))
+                        val rewriteRhs = makeGetter(variables.getVar(rewriteLhs, "m"), frame = true)
                         val newRewriteData = makeRewriteDataObject(rhs, rewriteRhs)
                         rewriteData.add(newRewriteData)
 
@@ -206,7 +206,7 @@ class FunconObject(
                         fun bindVariable(expr: ExprContext): String {
                             val exprRewrite = rewrite(pattern, expr, rewriteData)
                             if (expr.text in params.filter { !it.type.computes }.map { it.value }) return exprRewrite
-                            val variable = makeGetterWithFrame(variables.getVar(exprRewrite, "r"))
+                            val variable = makeGetter(variables.getVar(exprRewrite, "r"), frame = true)
                             val rhsRewriteData = makeRewriteDataObject(expr, variable)
                             rewriteData.add(rhsRewriteData)
                             return variable
@@ -342,7 +342,7 @@ class FunconObject(
                         val labelRhsObj = labelToObject(labelRhs)
                         val entityRewrite = rewrite(pattern, labelRhs.value, rewriteData)
                         val rewrite = if (labelRhs.value is FunconExpressionContext) {
-                            val entityVariable = makeGetterWithFrame(variables.getVar(entityRewrite, "r"))
+                            val entityVariable = makeGetter(variables.getVar(entityRewrite, "r"), frame = true)
                             val newNewRewriteData = makeRewriteDataObject(labelRhs.value, entityVariable)
                             rewriteData.add(newNewRewriteData)
                             entityVariable
@@ -416,16 +416,6 @@ class FunconObject(
 
             rewriteStr = rewrite(pattern, term, rewriteData, copy = true)
         }
-    }
-
-    fun makeRewriteGetter(varName: String, rewrite: String): String {
-        val body = "$varName ?: insert($rewrite).rewrite(frame).also { $varName = it }"
-        return makeFunctionOneliner(
-            makeGetter(varName),
-            TERMNODE,
-            parameters = listOf("frame: VirtualFrame"),
-            body = body
-        )
     }
 
     override val contentStr: String

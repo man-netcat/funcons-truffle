@@ -86,11 +86,7 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
     }
 
     override operator fun get(index: Int): TermNode {
-        return try {
-            elements[index]
-        } catch (e: ArrayIndexOutOfBoundsException) {
-            FailNode()
-        }
+        return elements.getOrNull(index) ?: FailNode()
     }
 
     override fun deepCopy(): TermNode {
