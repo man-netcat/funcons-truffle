@@ -2,7 +2,7 @@ package language
 
 import builtin.*
 import builtin.ValueNodeFactory.intNode
-import builtin.ValueNodeFactory.strLiteralNode
+import builtin.ValueNodeFactory.strNode
 import com.oracle.truffle.api.CallTarget
 import com.oracle.truffle.api.TruffleLanguage
 import com.oracle.truffle.api.frame.FrameDescriptor
@@ -154,7 +154,7 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
 
             is StringContext -> {
                 val str = parseTree.STRING().text
-                strLiteralNode(str)
+                strNode(str)
             }
 
             is NumberContext -> {

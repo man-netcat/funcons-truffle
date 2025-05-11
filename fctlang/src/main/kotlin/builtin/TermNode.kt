@@ -181,16 +181,14 @@ abstract class TermNode : Node() {
             is NullTypeNode -> false
             is NaturalNumbersNode -> this is NaturalNumberNode || (this is IntegerNode && value >= 0)
             is IntegersNode -> this is NaturalNumberNode || this is IntegerNode
-            is BooleansNode -> this is FalseNode || this is TrueNode
-            is MapsNode -> this is ValueMapNode
-            is StringsNode -> this is ValueListNode && this.p0.elements.all { it.isInCharacters() }
-            is ListsNode -> this is ValueListNode
-            is VectorsNode -> this is ValueVectorNode
-            is AbstractionsNode -> this is AbstractionNode
-            is AtomsNode -> this is AtomNode
-            is IdentifiersNode -> (this is ValueIdentifierTaggedNode && this.p0.isInIdentifiers()) || this.isInType(
-                StringsNode()
-            )
+            is BooleansNode -> this.isInBooleans()
+            is MapsNode -> this.isInMaps()
+            is StringsNode -> this.isInStrings()
+            is ListsNode -> this.isInLists()
+            is VectorsNode -> this.isInVectors()
+            is AbstractionsNode -> this.isInAbstractions()
+            is AtomsNode -> this.isInAtoms()
+            is IdentifiersNode -> this.isInIdentifiers()
 
             else -> type::class.isInstance(this)
         }

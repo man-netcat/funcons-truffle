@@ -81,7 +81,7 @@ class SequentialNode(
                 SequentialNode(SequenceNode(s0, get(0).tail), get(1))
             }
 
-            get(0).head is NullValueNode -> SequentialNode(get(0).tail, get(1))
+            get(0).head is ValueNullValueNode -> SequentialNode(get(0).tail, get(1))
 
             else -> abort("sequential")
         }
@@ -110,22 +110,6 @@ class ElseChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : Te
         }
     }
 }
-
-open class Identifiers : DatatypeValuesNode(), IdentifiersInterface
-
-open class IdentifierTaggedNode(
-    @Eager @Child override var p0: TermNode,
-    @Eager @Child override var p1: TermNode,
-) : TermNode(), IdentifierTaggedInterface {
-    override fun reduceRules(frame: VirtualFrame): TermNode {
-        return ValueIdentifierTaggedNode(p0, p1)
-    }
-}
-
-fun TermNode.isInIdentifiers(): Boolean =
-    (this is ValueListNode && this.p0.elements.all { it.isInCharacters() }) || this is Identifiers || this is StringLiteralNode
-
-class IdentifiersNode() : DatatypeValuesNode(), IdentifiersInterface
 
 class ReadNode : TermNode(), ReadInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
@@ -193,15 +177,4 @@ class AtomicNode(override val p0: TermNode) : TermNode(), AtomicInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         TODO("Not yet implemented: $name")
     }
-}
-
-open class PointersNode(@Eager @Child var tp0: TermNode) : DatatypeValuesNode(), PointersInterface
-
-class PointerNullNode : PointersNode(ValuesNode()), PointerNullInterface
-
-fun TermNode.isInPointers(): Boolean {
-    return this::class in setOf(
-        PointerNullNode::class,
-        ReferenceNode::class
-    )
 }

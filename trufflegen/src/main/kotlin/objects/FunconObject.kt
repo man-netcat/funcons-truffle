@@ -201,7 +201,8 @@ class FunconObject(
                     }
 
                     is BooleanPremiseContext -> {
-                        fun getBooleanNode(text: String): String = if (text == "true") "TrueNode" else "FalseNode"
+                        fun getBooleanNode(text: String): String =
+                            if (text == "true") "ValueTrueNode" else "ValueFalseNode"
 
                         fun bindVariable(expr: ExprContext): String {
                             val exprRewrite = rewrite(pattern, expr, rewriteData)
@@ -521,16 +522,21 @@ class DatatypeFunconObject(
     internal val superclass: AlgebraicDatatypeObject,
     metaVariables: Set<Pair<ExprContext, ExprContext>>,
 ) : AbstractFunconObject(ctx, metaVariables) {
-    override val superClassStr: String get() = makeFunCall(if (reducibleIndices.isEmpty()) superclass.nodeName else TERMNODE)
+    override val superClassStr: String get() = makeFunCall(TERMNODE)
     override val keyWords: List<String> = emptyList()
 
     override val contentStr: String
         get() {
-            return if (reducibleIndices.isNotEmpty()) {
-                val reduceBuilder = StringBuilder()
-                val returnStr = "return Value$nodeName(${params.joinToString { param -> "p${param.index}" }})"
-                reduceBuilder.appendLine(returnStr)
-                makeReduceFunction(reduceBuilder.toString(), TERMNODE)
-            } else ""
+            val reduceBuilder = StringBuilder()
+            val paramStr = params.map { param -> "p${param.index}" }
+            val cache = makeFunCall(
+                "ValueNodeFactory.datatypeValueNode",
+                listOf(strStr(name), "SequenceNode(${paramStr.joinToString()})")
+            )
+            val ctor = makeFunCall("Value$nodeName", paramStr)
+            val returnStr = "return $cache { $ctor }"
+
+            reduceBuilder.appendLine(returnStr)
+            return makeReduceFunction(reduceBuilder.toString(), TERMNODE)
         }
 }

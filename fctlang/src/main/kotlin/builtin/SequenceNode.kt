@@ -101,6 +101,20 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         return elements
     }
 
+    override fun hashCode(): Int {
+        return elements.contentHashCode()
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+        if (!super.equals(other)) return false
+
+        other as SequenceNode
+
+        return elements.contentEquals(other.elements)
+    }
+
     override fun getEntity(frame: VirtualFrame, key: String): TermNode =
         abort("Invalid invocation on a sequence: getEntity")
 

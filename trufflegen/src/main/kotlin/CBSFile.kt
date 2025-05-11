@@ -48,33 +48,33 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
             }
 
             "::=" -> {
-                val datatypeDataContainer = AlgebraicDatatypeObject(ctx, fileMetavariables)
-                addObjectReference(datatypeDataContainer)
-
                 val definitions = extractAndOrExprs(ctx.definition)
 
-                definitions.forEach { funcon ->
-                    when (funcon) {
-                        is FunconExpressionContext -> {
-                            val dataContainer =
-                                DatatypeFunconObject(
-                                    funcon,
-                                    datatypeDataContainer,
-                                    fileMetavariables
-                                )
-                            addObjectReference(dataContainer)
-                            datatypeDataContainer.definitions.add(dataContainer)
+                val elementFuncons = definitions.filter { def -> def is SetExpressionContext }
+                    .flatMap { set ->
+                        set as SetExpressionContext
+                        set.elements.expr().map { setElement ->
+                            setElement as TypeExpressionContext
+                            setElement.type as FunconExpressionContext
                         }
-
-                        is SetExpressionContext -> {
-                            // TODO: In the case one of the definitions is a set expression, make it the supertype of the parent
-                        }
-
-                        else -> throw DetailedException(
-                            "Unexpected expression type encountered: ${funcon::class.simpleName}, with text: '${funcon.text}'"
-                        )
                     }
-                }
+
+                val datatypeDataContainer = AlgebraicDatatypeObject(ctx, fileMetavariables, elementFuncons)
+                addObjectReference(datatypeDataContainer)
+
+
+                definitions.filter { def -> def is FunconExpressionContext }
+                    .map { funcon ->
+                        funcon as FunconExpressionContext
+                        val dataContainer =
+                            DatatypeFunconObject(
+                                funcon,
+                                datatypeDataContainer,
+                                fileMetavariables
+                            )
+                        addObjectReference(dataContainer)
+                        datatypeDataContainer.definitions.add(dataContainer)
+                    }
             }
         }
     }

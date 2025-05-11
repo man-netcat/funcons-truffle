@@ -1,7 +1,9 @@
 package main.objects
 
+import cbs.CBSParser
 import cbs.CBSParser.DatatypeDefinitionContext
 import cbs.CBSParser.ExprContext
+import main.getObject
 import main.makeFunCall
 import main.makeIsInTypeFunction
 import main.toNodeName
@@ -10,6 +12,7 @@ import objects.DatatypeFunconObject
 class AlgebraicDatatypeObject(
     ctx: DatatypeDefinitionContext,
     metaVariables: Set<Pair<ExprContext, ExprContext>>,
+    val elementFuncons: List<CBSParser.FunconExpressionContext>,
 ) : Object(ctx, metaVariables) {
     val definitions = mutableListOf<DatatypeFunconObject>()
     override val keyWords: List<String>
@@ -17,12 +20,20 @@ class AlgebraicDatatypeObject(
     override val superClassStr: String
         get() = makeFunCall(toNodeName("datatype-values"))
     val elementInBody: String
-        get() = if (!builtin) {
+        get() {
             val classList = definitions.joinToString(",\n") { def ->
-                val explicitValue = if (def.params.isNotEmpty()) "Value" else ""
-                "    $explicitValue${def.nodeName}::class"
+                "    Value${def.nodeName}::class"
             }
-            makeIsInTypeFunction(camelCaseName, "return this::class in setOf(\n$classList\n)")
-        } else ""
+            val isInList = elementFuncons.joinToString(" || ") { funcon ->
+                val obj = getObject(funcon)
+                "this.isIn${obj.camelCaseName}()"
+            }
+            return makeIsInTypeFunction(
+                camelCaseName, listOf(
+                    "return this::class in setOf(\n$classList\n)",
+                    isInList
+                ).filter { it.isNotEmpty() }.joinToString(" || ")
+            )
+        }
 }
 

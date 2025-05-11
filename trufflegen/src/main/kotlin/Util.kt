@@ -476,9 +476,9 @@ fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
             obj is AlgebraicDatatypeObject || obj is TypeObject ->
                 "$complementStr$paramStr.isIn${obj.camelCaseName}()"
 
-            obj is DatatypeFunconObject || obj.name == "datatype-value" ->
-                if (obj.params.isNotEmpty()) "$paramStr ${complementStr}is Value${obj.nodeName}"
-                else "$paramStr ${complementStr}is ${obj.nodeName}"
+            obj is DatatypeFunconObject -> "$paramStr ${complementStr}is Value${obj.nodeName}"
+
+            obj.name == "datatype-value" -> "$paramStr ${complementStr}is AbstractDatatypeValueNode"
 
             else -> "$paramStr ${complementStr}is ${obj.nodeName}"
         }

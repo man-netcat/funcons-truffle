@@ -28,7 +28,6 @@ val builtinOverride: MutableSet<String> = mutableSetOf(
     "stuck", "abstraction",                    // No rules, implement manually
     "read", "print",                           // Input/Output
     "hole", "resume-continuation",             // Read-only control entity
-    "identifiers", "pointers", "pointer-null", // Weird Set Syntax
     "atomic",                                  // Atomic
 //    "structural-assign", "structural-assigned", "match", "match-loosely", // Depends on tuple unpacking
 )
