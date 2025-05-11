@@ -29,7 +29,7 @@ val builtinOverride: MutableSet<String> = mutableSetOf(
     "read", "print",                           // Input/Output
     "hole", "resume-continuation",             // Read-only control entity
     "atomic",                                  // Atomic
-//    "structural-assign", "structural-assigned", "match", "match-loosely", // Depends on tuple unpacking
+    "strings",                                 // Also using literal strings for datatype ids
 )
 
 class TruffleGen(

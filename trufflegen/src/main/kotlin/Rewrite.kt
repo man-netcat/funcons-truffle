@@ -171,11 +171,19 @@ fun getParamStrs(
 
                 is FunconExpressionContext, is ListExpressionContext, is SetExpressionContext -> {
                     val newStr = makeParamStr(argIndex, args.size, obj, parentStr)
-
-                    val sizeCondition = makeSizeCondition(arg, newStr)
-
-                    val funconArgs = extractArgsRecursive(arg, newStr)
-                    listOf(RewriteData(null, arg, newStr, sizeCondition = sizeCondition)) + funconArgs
+                    if (arg is FunconExpressionContext && arg.name.text == "datatype-value") {
+                        val (i, v) = (arg.args() as MultipleArgsContext).exprs().expr()
+                        i as TypeExpressionContext
+                        v as TypeExpressionContext
+                        listOf(
+                            RewriteData(i.value, i.type, "$newStr.id"),
+                            RewriteData(v.value, v.type, "$newStr.args")
+                        )
+                    } else {
+                        val sizeCondition = makeSizeCondition(arg, newStr)
+                        val funconArgs = extractArgsRecursive(arg, newStr)
+                        listOf(RewriteData(null, arg, newStr, sizeCondition = sizeCondition)) + funconArgs
+                    }
                 }
 
                 is SuffixExpressionContext, is VariableContext, is NumberContext -> {
