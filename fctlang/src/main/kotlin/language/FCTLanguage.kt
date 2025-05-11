@@ -1,6 +1,10 @@
 package language
 
-import builtin.*
+import builtin.ComplementTypeNode
+import builtin.IntersectionTypeNode
+import builtin.TermNode
+import builtin.UnionTypeNode
+import builtin.ValueNodeFactory.atomNode
 import builtin.ValueNodeFactory.intNode
 import builtin.ValueNodeFactory.strNode
 import com.oracle.truffle.api.CallTarget
@@ -103,7 +107,7 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
                 if (funconName == "atom") {
                     val expr = (parseTree.args() as SingleArgsContext).expr()
                     val value = (expr as SequenceExpressionContext).sequenceExpr().expr()[0].text
-                    AtomNode(value)
+                    atomNode(value)
                 } else {
                     val args = parseTree.args()
                     val children = when (args) {

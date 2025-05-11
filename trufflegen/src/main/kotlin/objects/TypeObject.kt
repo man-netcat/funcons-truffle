@@ -69,7 +69,7 @@ class TypeObject(
         }
 
     val elementInBody: String
-        get() = if (definitionExpr != null) {
+        get() = if (definitionExpr != null && name !in builtinOverride) {
             val conditionStr = when (definitionExpr) {
                 is AndExpressionContext -> {
                     val defs = extractAndOrExprs(definitionExpr)

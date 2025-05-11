@@ -149,12 +149,21 @@ class FunconObject(
                 when (premise) {
                     is RewritePremiseContext -> {
                         val rewriteLhs = rewrite(pattern, lhs, rewriteData)
-                        val rewriteRhs = makeGetter(variables.getVar(rewriteLhs, "r"), frame = true)
-                        val newRewriteData = if (rhs is FunconExpressionContext) {
-                            getParamStrs(rhs, rewriteRhs)
+                        val newRewriteData = if (rhs is FunconExpressionContext && rhs.name.text == "datatype-value") {
+                            val (i, v) = (rhs.args() as MultipleArgsContext).exprs().expr()
+                            i as TypeExpressionContext
+                            v as TypeExpressionContext
+                            listOf(
+                                RewriteData(i.value, i.type, "$rewriteLhs.id"),
+                                RewriteData(v.value, v.type, "$rewriteLhs.args")
+                            )
+                        } else if (rhs is FunconExpressionContext) {
+                            val rewriteRhs = makeGetter(variables.getVar(rewriteLhs, "r"), frame = true)
+                            getParamStrs(rhs, rewriteRhs) + listOf(makeRewriteDataObject(rhs, rewriteRhs))
                         } else {
-                            emptyList()
-                        } + makeRewriteDataObject(rhs, rewriteRhs)
+                            val rewriteRhs = makeGetter(variables.getVar(rewriteLhs, "r"), frame = true)
+                            listOf(makeRewriteDataObject(rhs, rewriteRhs))
+                        }
                         rewriteData.addAll(newRewriteData)
                     }
 

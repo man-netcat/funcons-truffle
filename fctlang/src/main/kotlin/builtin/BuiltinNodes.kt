@@ -22,7 +22,7 @@ fun TermNode.isInEmptyType(): Boolean = false
 
 open class GroundValuesNode : ValueTypesNode(), GroundValuesInterface
 
-fun TermNode.isInGroundValues(): Boolean = this is GroundValuesNode
+fun TermNode.isInGroundValues(): Boolean = this is GroundValuesNode || this.isInDatatypeValues()
 
 class ComputationTypesNode() : ValueTypesNode(), ComputationTypesInterface
 
@@ -128,20 +128,6 @@ class PrintNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : 
         appendEntity(frame, "standard-out", get(0))
         return NullValueNode()
     }
-}
-
-open class AtomsNode : ValueTypesNode(), AtomsInterface
-
-fun TermNode.isInAtoms(): Boolean = this is AtomsNode
-
-data class AtomNode(override val value: String) : AtomsNode() {
-    override fun equals(other: Any?): Boolean = when (other) {
-        is AtomNode -> this.value == other.value
-        else -> false
-    }
-
-    override fun toString(): String = "atom($value)"
-    override fun hashCode(): Int = value.hashCode()
 }
 
 class InitialiseGeneratingNode(@Child override var p0: TermNode) : TermNode(), InitialiseGeneratingInterface {

@@ -151,6 +151,7 @@ abstract class TermNode : Node() {
                 ) continue
 
                 if (currentParam is TupleElementsNode && currentParam.p0 is ValueTupleNode) {
+                    if (DEBUG) println("unpacking ${currentParam::class.simpleName}")
                     // In the case this is a fully reduced tuple-elements node, we must unpack it
                     unpackTupleElements(i, currentParam)
                 } else {
@@ -189,6 +190,7 @@ abstract class TermNode : Node() {
             is AbstractionsNode -> this.isInAbstractions()
             is AtomsNode -> this.isInAtoms()
             is IdentifiersNode -> this.isInIdentifiers()
+            is LinksNode -> this.isInLinks()
 
             else -> type::class.isInstance(this)
         }
@@ -226,6 +228,10 @@ abstract class TermNode : Node() {
         if (this::class != other::class) return false
         if (this is SequenceNode && other is SequenceNode) {
             return this.elements.zip(other.elements).all { (a, b) -> a == b }
+        }
+
+        if (this is AbstractDatatypeValueNode && other is AbstractDatatypeValueNode) {
+            return this.id == other.id && this.args == other.args
         }
 
         val thisParams = this.params
@@ -283,6 +289,8 @@ abstract class TermNode : Node() {
         return constructor.call(*args)
     }
 
+    open val id: TermNode get() = FailNode()
+    open val args: TermNode get() = FailNode()
     open val head: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
     open val second: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
     open val third: TermNode get() = abort("not a sequence: ${this::class.simpleName}")

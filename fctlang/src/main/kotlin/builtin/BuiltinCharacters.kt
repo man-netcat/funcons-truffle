@@ -25,3 +25,5 @@ class UnicodeCharacterNode(override val p0: TermNode) : TermNode(), UnicodeChara
 class IsoLatin1CharactersNode : CharactersNode(), IsoLatin1CharactersInterface
 class BasicMultilingualPlaneCharactersNode : CharactersNode(), BasicMultilingualPlaneCharactersInterface
 class AsciiCharactersNode : CharactersNode(), AsciiCharactersInterface
+class UnicodePointsNode : BoundedIntegersNode(IntegerNode(0), UnsignedBitVectorMaximumNode(IntegerNode(21))),
+    UnicodePointsInterface

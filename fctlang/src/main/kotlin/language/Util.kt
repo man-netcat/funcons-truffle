@@ -1,6 +1,6 @@
 package language
 
 object Util {
-//        const val DEBUG = true
-    const val DEBUG = false
+    const val DEBUG = true
+//    const val DEBUG = false
 }

@@ -1,38 +1,61 @@
 package builtin
 
+import builtin.ValueNodeFactory.strLiteralNode
 import com.oracle.truffle.api.frame.VirtualFrame
-import generated.DatatypeValuesInterface
-import generated.IdentifierTaggedNode
-import generated.StringsNode
-import generated.isInIdentifiers
+import generated.*
 import language.NodeFactory.createNode
 
 object ValueNodeFactory {
     private val strCache = mutableMapOf<String, ValueListNode>()
     private val charCache = mutableMapOf<Char, CharacterNode>()
     private val intCache = mutableMapOf<Int, TermNode>()
-    private val valueCache = mutableMapOf<Pair<String, Int>, AbstractDatatypeValueNode>()
+    private val valueCache = mutableMapOf<Pair<String, SequenceNode>, AbstractDatatypeValueNode>()
+    private val atomCache = mutableMapOf<String, AtomNode>()
+    private val strLiteralCache = mutableMapOf<String, StringLiteralNode>()
 
     fun datatypeValueNode(
         name: String,
         args: SequenceNode,
         constructor: () -> AbstractDatatypeValueNode
     ): AbstractDatatypeValueNode {
-        return valueCache.getOrPut(name to args.hashCode(), constructor)
+        return valueCache.getOrPut(name to args, constructor)
     }
 
     fun intNode(int: Int): TermNode = intCache.getOrPut(int) { IntegerNode(int) }
-
+    fun charNode(char: Char): CharacterNode = charCache.getOrPut(char) { CharacterNode(char) }
     fun strNode(str: String): ValueListNode = strCache.getOrPut(str) {
         val sequence = SequenceNode(*str.map { char -> charNode(char) }.toTypedArray())
         ValueListNode(sequence)
     }
 
-    fun charNode(char: Char): CharacterNode = charCache.getOrPut(char) { CharacterNode(char) }
+    fun atomNode(id: String): AtomNode = atomCache.getOrPut(id) { AtomNode(id) }
+
+    fun strLiteralNode(str: String): StringLiteralNode = strLiteralCache.getOrPut(str) { StringLiteralNode(str) }
 }
 
-data class StringLiteralNode(override val value: String) : StringsNode() {
+class StringLiteralNode(override val value: String) : StringsNode() {
     override fun toString(): String = value
+}
+
+
+open class StringsNode : ListsNode(CharactersNode())
+
+fun TermNode.isInStrings(): Boolean {
+    return this.isInLists() || this is StringLiteralNode
+}
+
+open class AtomsNode : ValueTypesNode(), AtomsInterface
+
+fun TermNode.isInAtoms(): Boolean = this is AtomsNode
+
+class AtomNode(override val value: String) : AtomsNode() {
+    override fun equals(other: Any?): Boolean = when (other) {
+        is AtomNode -> this.value == other.value
+        else -> false
+    }
+
+    override fun toString(): String = "atom($value)"
+    override fun hashCode(): Int = value.hashCode()
 }
 
 open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
@@ -40,30 +63,22 @@ open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
 class DatatypeValueNode(@Eager @Child var p0: TermNode, @Eager @Child var p1: SequenceNode) : TermNode() {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         if (!p0.isInIdentifiers()) abort("datatype-value")
-
-        val identifier = when (p0) {
-            is IdentifierTaggedNode -> "TODO"
-            is ValueListNode -> p0.elements.joinToString {
-                it as CharacterNode
-                it.value.toString()
-            }
-
-            else -> abort("datatype-value")
-        }
-
+        val identifier = p0.toString()
         return createNode(identifier, listOf(*p1.elements))
     }
 }
 
 fun TermNode.isInDatatypeValues(): Boolean = this is AbstractDatatypeValueNode
 
-abstract class AbstractDatatypeValueNode(var id: String, @Child var args: SequenceNode) :
-    DatatypeValuesNode() {
-    override fun toString() = if (args.isNotEmpty()) "$id(${args})" else "$id()"
+abstract class AbstractDatatypeValueNode(
+    @Child override var id: StringLiteralNode,
+    @Child override var args: SequenceNode
+) : DatatypeValuesNode() {
+    override fun toString() = if (args.isNotEmpty()) "${id}(${args})" else "${id}()"
 }
 
-data class ValueListNode(@Child var vp0: SequenceNode = SequenceNode()) :
-    AbstractDatatypeValueNode("list", SequenceNode(vp0)) {
+class ValueListNode(@Child var vp0: SequenceNode = SequenceNode()) :
+    AbstractDatatypeValueNode(strLiteralNode("list"), SequenceNode(vp0)) {
     override fun toString(): String {
         return if (vp0.isNotEmpty() && vp0.elements.all { it is CharacterNode }) {
             vp0.elements.joinToString("") { it.toString() }
@@ -71,112 +86,101 @@ data class ValueListNode(@Child var vp0: SequenceNode = SequenceNode()) :
     }
 }
 
-data class ValueTupleNode(@Child var vp0: SequenceNode = SequenceNode()) :
-    AbstractDatatypeValueNode("tuple", SequenceNode(vp0)) {
-    override fun toString() = super.toString()
-}
+class ValueTupleNode(@Child var vp0: SequenceNode = SequenceNode()) :
+    AbstractDatatypeValueNode(strLiteralNode("tuple"), SequenceNode(vp0))
 
-data class ValueReturnedNode(@Child var vp0: TermNode) :
-    AbstractDatatypeValueNode("returned", SequenceNode(vp0)) {
-    override fun toString() = super.toString()
-}
+class ValueReturnedNode(@Child var vp0: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("returned"), SequenceNode(vp0))
 
-data class ValueThrownNode(@Child var vp0: TermNode) :
-    AbstractDatatypeValueNode("thrown", SequenceNode(vp0)) {
-    override fun toString() = super.toString()
-}
+class ValueThrownNode(@Child var vp0: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("thrown"), SequenceNode(vp0))
 
-data class ValueVariableNode(@Child var vp0: TermNode, @Child var vp1: TermNode) :
-    AbstractDatatypeValueNode("variable", SequenceNode(vp0, vp1)) {
-    override fun toString() = super.toString()
-}
+class ValueVariableNode(@Child var vp0: TermNode, @Child var vp1: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("variable"), SequenceNode(vp0, vp1))
 
-data class ValueLinkNode(@Child var vp0: TermNode) :
-    AbstractDatatypeValueNode("link", SequenceNode(vp0)) {
-    override fun toString() = super.toString()
-}
+class ValueLinkNode(@Child var vp0: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("link"), SequenceNode(vp0))
 
-data class ValueThunkNode(@Child var vp0: TermNode) :
-    AbstractDatatypeValueNode("thunk", SequenceNode(vp0)) {
-    override fun toString() = super.toString()
-}
+class ValueThunkNode(@Child var vp0: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("thunk"), SequenceNode(vp0))
 
-data class ValueClassNode(@Child var vp0: TermNode, @Child var vp1: TermNode, @Child var vp2: TermNode) :
-    AbstractDatatypeValueNode("class", SequenceNode(vp0, vp1, vp2)) {
-    override fun toString() = super.toString()
-}
+class ValueClassNode(@Child var vp0: TermNode, @Child var vp1: TermNode, @Child var vp2: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("class"), SequenceNode(vp0, vp1, vp2))
 
-data class ValueObjectNode(
+class ValueObjectNode(
     @Child var vp0: TermNode,
     @Child var vp1: TermNode,
     @Child var vp2: TermNode,
     @Child var vp3: TermNode,
-) : AbstractDatatypeValueNode("object", SequenceNode(vp0, vp1, vp2, vp3)) {
-    override fun toString() = super.toString()
-}
+) : AbstractDatatypeValueNode(strLiteralNode("object"), SequenceNode(vp0, vp1, vp2, vp3))
 
-data class ValueReferenceNode(@Child var vp0: TermNode) :
-    AbstractDatatypeValueNode("reference", SequenceNode(vp0)) {
-    override fun toString() = super.toString()
-}
+class ValueReferenceNode(@Child var vp0: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("reference"), SequenceNode(vp0))
 
-data class ValuePatternNode(@Child var vp0: TermNode) :
-    AbstractDatatypeValueNode("pattern", SequenceNode(vp0)) {
-    override fun toString() = super.toString()
-}
+class ValuePatternNode(@Child var vp0: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("pattern"), SequenceNode(vp0))
 
-data class ValueFunctionNode(@Child var vp0: TermNode) :
-    AbstractDatatypeValueNode("function", SequenceNode(vp0)) {
-    override fun toString() = super.toString()
-}
+class ValueFunctionNode(@Child var vp0: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("function"), SequenceNode(vp0))
 
-data class ValueBitVectorNode(@Child var vp0: TermNode) :
-    AbstractDatatypeValueNode("bit-vector", SequenceNode(vp0)) {
-    override fun toString() = super.toString()
-}
+class ValueBitVectorNode(@Child var vp0: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("bit-vector"), SequenceNode(vp0))
 
-data class ValueIdentifierTaggedNode(@Child var vp0: TermNode, @Child var vp1: TermNode) :
-    AbstractDatatypeValueNode("identifier-tagged", SequenceNode(vp0, vp1)) {
-    override fun toString() = super.toString()
-}
+class ValueIdentifierTaggedNode(@Child var vp0: TermNode, @Child var vp1: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("identifier-tagged"), SequenceNode(vp0, vp1))
 
-data class ValueContinuationNode(@Child var vp0: TermNode) :
-    AbstractDatatypeValueNode("continuation", SequenceNode(vp0)) {
-    override fun toString() = super.toString()
-}
+class ValueContinuationNode(@Child var vp0: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("continuation"), SequenceNode(vp0))
 
-data class ValueVariantNode(@Child var vp0: TermNode, @Child var vp1: TermNode) :
-    AbstractDatatypeValueNode("variant", SequenceNode(vp0, vp1)) {
-    override fun toString() = super.toString()
-}
+class ValueVariantNode(@Child var vp0: TermNode, @Child var vp1: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("variant"), SequenceNode(vp0, vp1))
 
-data class ValueRecordNode(@Child var vp0: TermNode) :
-    AbstractDatatypeValueNode("record", SequenceNode(vp0)) {
-    override fun toString() = super.toString()
-}
+class ValueRecordNode(@Child var vp0: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("record"), SequenceNode(vp0))
 
-data class ValueVectorNode(@Child var vp0: SequenceNode = SequenceNode()) :
-    AbstractDatatypeValueNode("vector", SequenceNode(vp0)) {
-    override fun toString() = super.toString()
-}
+class ValueVectorNode(@Child var vp0: SequenceNode = SequenceNode()) :
+    AbstractDatatypeValueNode(strLiteralNode("vector"), SequenceNode(vp0))
 
-data class ValueTreeNode(@Child var vp0: TermNode, @Child var vp1: SequenceNode = SequenceNode()) :
-    AbstractDatatypeValueNode("tree", SequenceNode(vp0, vp1)) {
-    override fun toString() = super.toString()
-}
+class ValueTreeNode(@Child var vp0: TermNode, @Child var vp1: SequenceNode = SequenceNode()) :
+    AbstractDatatypeValueNode(strLiteralNode("tree"), SequenceNode(vp0, vp1))
 
-class ValueFalseNode() : AbstractDatatypeValueNode("false", SequenceNode())
-class ValueTrueNode() : AbstractDatatypeValueNode("true", SequenceNode())
-class ValueBrokenNode() : AbstractDatatypeValueNode("broken", SequenceNode())
-class ValueContinuedNode() : AbstractDatatypeValueNode("continued", SequenceNode())
-class ValueFailedNode() : AbstractDatatypeValueNode("failed", SequenceNode())
-class ValueDecimal128Node() : AbstractDatatypeValueNode("decimal128", SequenceNode())
-class ValueDecimal64Node() : AbstractDatatypeValueNode("decimal64", SequenceNode())
-class ValueBinary128Node() : AbstractDatatypeValueNode("binary128", SequenceNode())
-class ValueBinary64Node() : AbstractDatatypeValueNode("binary64", SequenceNode())
-class ValueBinary32Node() : AbstractDatatypeValueNode("binary32", SequenceNode())
-class ValueSignalNode() : AbstractDatatypeValueNode("signal", SequenceNode())
-class ValueNullValueNode() : AbstractDatatypeValueNode("null-value", SequenceNode())
-class ValuePointerNullNode() : AbstractDatatypeValueNode("pointer-null", SequenceNode())
+class ValueFalseNode :
+    AbstractDatatypeValueNode(strLiteralNode("false"), SequenceNode())
+
+class ValueTrueNode :
+    AbstractDatatypeValueNode(strLiteralNode("true"), SequenceNode())
+
+class ValueBrokenNode :
+    AbstractDatatypeValueNode(strLiteralNode("broken"), SequenceNode())
+
+class ValueContinuedNode :
+    AbstractDatatypeValueNode(strLiteralNode("continued"), SequenceNode())
+
+class ValueFailedNode :
+    AbstractDatatypeValueNode(strLiteralNode("failed"), SequenceNode())
+
+class ValueDecimal128Node :
+    AbstractDatatypeValueNode(strLiteralNode("decimal128"), SequenceNode())
+
+class ValueDecimal64Node :
+    AbstractDatatypeValueNode(strLiteralNode("decimal64"), SequenceNode())
+
+class ValueBinary128Node :
+    AbstractDatatypeValueNode(strLiteralNode("binary128"), SequenceNode())
+
+class ValueBinary64Node :
+    AbstractDatatypeValueNode(strLiteralNode("binary64"), SequenceNode())
+
+class ValueBinary32Node :
+    AbstractDatatypeValueNode(strLiteralNode("binary32"), SequenceNode())
+
+class ValueSignalNode :
+    AbstractDatatypeValueNode(strLiteralNode("signal"), SequenceNode())
+
+class ValueNullValueNode :
+    AbstractDatatypeValueNode(strLiteralNode("null-value"), SequenceNode())
+
+class ValuePointerNullNode :
+    AbstractDatatypeValueNode(strLiteralNode("pointer-null"), SequenceNode())
 
 // TODO: At this stage, this could probably be automated actually, but I can't be bothered to rewrite this
