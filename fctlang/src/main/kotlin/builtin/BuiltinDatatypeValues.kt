@@ -74,7 +74,11 @@ abstract class AbstractDatatypeValueNode(
     @Child override var id: StringLiteralNode,
     @Child override var args: SequenceNode
 ) : DatatypeValuesNode() {
-    override fun toString() = if (args.isNotEmpty()) "${id}(${args})" else "${id}()"
+    override fun toString() = if (primaryConstructor.parameters.isEmpty()) {
+        "$id"
+    } else if (args.isNotEmpty()) {
+        "${id}(${args})"
+    } else "${id}()"
 }
 
 class ValueListNode(@Child var vp0: SequenceNode = SequenceNode()) :
