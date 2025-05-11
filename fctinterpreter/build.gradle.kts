@@ -30,9 +30,9 @@ tasks.named<JavaExec>("run") {
     args = project.findProperty("args")?.toString()?.split(" ") ?: emptyList()
 }
 
-tasks.compileKotlin {
-    dependsOn(":trufflegen:run")
-}
+//tasks.compileKotlin {
+//    dependsOn(":trufflegen:run")
+//}
 
 sourceSets.main {
     java.srcDir("fctlang/src/main/kotlin/generated")
