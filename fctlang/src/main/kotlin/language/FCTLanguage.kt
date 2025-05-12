@@ -6,7 +6,7 @@ import builtin.TermNode
 import builtin.UnionTypeNode
 import builtin.ValueNodeFactory.atomNode
 import builtin.ValueNodeFactory.intNode
-import builtin.ValueNodeFactory.strNode
+import builtin.ValueNodeFactory.strLiteralNode
 import com.oracle.truffle.api.CallTarget
 import com.oracle.truffle.api.TruffleLanguage
 import com.oracle.truffle.api.frame.FrameDescriptor
@@ -158,7 +158,7 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
 
             is StringContext -> {
                 val str = parseTree.STRING().text
-                strNode(str)
+                strLiteralNode(str)
             }
 
             is NumberContext -> {

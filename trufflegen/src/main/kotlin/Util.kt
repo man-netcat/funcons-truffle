@@ -478,7 +478,7 @@ fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
 
             obj is DatatypeFunconObject -> "$paramStr ${complementStr}is Value${obj.nodeName}"
 
-            obj.name == "datatype-value" -> "$paramStr ${complementStr}is AbstractDatatypeValueNode"
+            obj.name == "datatype-value" -> "${complementStr}$paramStr.isInDatatypeValues()"
 
             else -> "$paramStr ${complementStr}is ${obj.nodeName}"
         }

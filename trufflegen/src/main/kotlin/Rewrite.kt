@@ -73,7 +73,7 @@ fun rewrite(
 
             is VariableContext -> mapParamString(term.text)
             is NumberContext -> "ValueNodeFactory.intNode(${term.text})"
-            is StringContext -> "ValueNodeFactory.strNode(${term.text})"
+            is StringContext -> "ValueNodeFactory.strLiteralNode(${term.text})"
 
             is TypeExpressionContext -> rewriteRecursive(term.value)
             is NestedExpressionContext -> rewriteRecursive(term.expr())
@@ -176,6 +176,7 @@ fun getParamStrs(
                         i as TypeExpressionContext
                         v as TypeExpressionContext
                         listOf(
+                            RewriteData(null, arg, newStr),
                             RewriteData(i.value, i.type, "$newStr.id"),
                             RewriteData(v.value, v.type, "$newStr.args")
                         )

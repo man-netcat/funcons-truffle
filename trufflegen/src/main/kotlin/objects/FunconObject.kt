@@ -154,6 +154,7 @@ class FunconObject(
                             i as TypeExpressionContext
                             v as TypeExpressionContext
                             listOf(
+                                RewriteData(null, rhs, rewriteLhs),
                                 RewriteData(i.value, i.type, "$rewriteLhs.id"),
                                 RewriteData(v.value, v.type, "$rewriteLhs.args")
                             )

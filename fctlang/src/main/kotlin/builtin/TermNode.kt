@@ -225,7 +225,6 @@ abstract class TermNode : Node() {
         if (other == null) return false
         if (this === other) return true
         if (other !is TermNode) return false
-        if (this::class != other::class) return false
         if (this is SequenceNode && other is SequenceNode) {
             return this.elements.zip(other.elements).all { (a, b) -> a == b }
         }
@@ -233,6 +232,8 @@ abstract class TermNode : Node() {
         if (this is AbstractDatatypeValueNode && other is AbstractDatatypeValueNode) {
             return this.id == other.id && this.args == other.args
         }
+
+        if (this::class != other::class) return false
 
         val thisParams = this.params
         val otherParams = other.params
