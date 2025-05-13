@@ -8,7 +8,7 @@ open class ValueTypesNode : ValuesNode(), ValueTypesInterface {
 }
 
 fun TermNode.isInValueTypes(): Boolean =
-    this is ValueTypesNode || this::class == ValuesNode::class
+    this is ValueTypesNode || this::class == ValuesNode::class || this::class == AbstractionsNode::class
 
 open class ValuesNode : TermNode(), ValuesInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = abort("values")

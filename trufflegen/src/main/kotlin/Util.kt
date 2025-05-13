@@ -484,6 +484,11 @@ fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
         }
     }
 
+    fun makeSetCondition(funcon: FunconExpressionContext): String {
+        val obj = getObject(funcon)
+        return "this.isIn${obj.camelCaseName}()"
+    }
+
     val expr = (coreExpr as? NestedExpressionContext)?.expr() ?: coreExpr
 
     val operator = when (expr) {
@@ -493,11 +498,26 @@ fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
     }
 
     return if (operator.isNotEmpty()) {
-        val conditions = extractAndOrExprs(expr)
+        val exprs = extractAndOrExprs(expr)
+        val conditions = exprs
+            .filter { it is FunconExpressionContext }
             .map { getObject(it) }
             .map(::makeObjCondition)
 
-        conditions.joinToString(prefix = "(", postfix = ")", separator = operator)
+        val elementFuncons = exprs
+            .filter { def -> def is SetExpressionContext }
+            .flatMap { set ->
+                set as SetExpressionContext
+                set.elements.expr().map { setElement ->
+                    setElement as TypeExpressionContext
+                    setElement.type as FunconExpressionContext
+                }
+            }
+            .map(::makeSetCondition)
+
+        val cond1 = conditions.joinToString(prefix = "(", postfix = ")", separator = operator)
+        val cond2 = elementFuncons.joinToString(prefix = "(", postfix = ")", separator = operator)
+        listOf(cond1, cond2).filter { it != "()" }.joinToString(" || ")
     } else {
         makeObjCondition(getObject(expr))
     }

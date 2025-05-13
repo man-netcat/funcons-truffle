@@ -33,14 +33,11 @@ object ValueNodeFactory {
     fun strLiteralNode(str: String): StringLiteralNode = strLiteralCache.getOrPut(str) { StringLiteralNode(str) }
 }
 
-fun SequenceNode.toStringValue(): String =
-    elements.joinToString("") { (it as CharacterNode).value.toString() }
-
 class StringLiteralNode(override val value: String) : StringsNode() {
     override fun toString(): String = value
 
     override fun equals(other: Any?): Boolean = when (other) {
-        is ValueListNode -> value == other.vp0.toStringValue()
+        is ValueListNode -> value == other.vp0.toStringLiteral()
         is StringLiteralNode -> value == other.value
         else -> false
     }
@@ -51,7 +48,7 @@ class StringLiteralNode(override val value: String) : StringsNode() {
 open class StringsNode : ListsNode(CharactersNode())
 
 fun TermNode.isInStrings(): Boolean {
-    return this.isInLists() || this is StringLiteralNode
+    return (this.isInLists() && this.get(0).elements.all { it.isInCharacters() }) || this is StringLiteralNode
 }
 
 open class AtomsNode : ValueTypesNode(), AtomsInterface
@@ -95,18 +92,17 @@ abstract class AbstractDatatypeValueNode(
 class ValueListNode(@Child var vp0: SequenceNode = SequenceNode()) :
     AbstractDatatypeValueNode(strLiteralNode("list"), SequenceNode(vp0)) {
 
-    override fun toString(): String = when {
-        vp0.isEmpty() -> "[]"
-        vp0.elements.all { it is CharacterNode } -> vp0.toStringValue()
-        else -> "[${vp0}]"
+    override fun toString(): String = when (val str = vp0.toStringLiteral()) {
+        null -> if (vp0.isNotEmpty()) "[${vp0}]" else "[]"
+        else -> str
     }
 
     override fun equals(other: Any?): Boolean = when (other) {
-        is StringLiteralNode -> vp0.toStringValue() == other.value
+        is StringLiteralNode -> vp0.toStringLiteral() == other.value
         else -> super.equals(other)
     }
 
-    override fun hashCode(): Int = vp0.toStringValue().hashCode()
+    override fun hashCode(): Int = vp0.toStringLiteral()?.hashCode() ?: super.hashCode()
 }
 
 class ValueTupleNode(@Child var vp0: SequenceNode = SequenceNode()) :

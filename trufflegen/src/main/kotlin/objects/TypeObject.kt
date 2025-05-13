@@ -70,16 +70,7 @@ class TypeObject(
 
     val elementInBody: String
         get() = if (definitionExpr != null && name !in builtinOverride) {
-            val conditionStr = when (definitionExpr) {
-                is AndExpressionContext -> {
-                    val defs = extractAndOrExprs(definitionExpr)
-                    defs.joinToString(" && ") { def -> makeTypeCondition("this", def) }
-                }
-
-                else -> makeTypeCondition("this", definitionExpr)
-
-            }
-            // TODO: Also implement subtypes such as lists of chars for strings
+            val conditionStr = makeTypeCondition("this", definitionExpr)
             makeIsInTypeFunction(camelCaseName, "return $conditionStr")
         } else ""
 }

@@ -49,17 +49,7 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
 
             "::=" -> {
                 val definitions = extractAndOrExprs(ctx.definition)
-
-                val elementFuncons = definitions.filter { def -> def is SetExpressionContext }
-                    .flatMap { set ->
-                        set as SetExpressionContext
-                        set.elements.expr().map { setElement ->
-                            setElement as TypeExpressionContext
-                            setElement.type as FunconExpressionContext
-                        }
-                    }
-
-                val datatypeDataContainer = AlgebraicDatatypeObject(ctx, fileMetavariables, elementFuncons)
+                val datatypeDataContainer = AlgebraicDatatypeObject(ctx, fileMetavariables)
                 addObjectReference(datatypeDataContainer)
 
 

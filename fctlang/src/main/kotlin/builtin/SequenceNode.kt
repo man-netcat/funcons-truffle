@@ -114,6 +114,12 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         return elements.contentEquals(other.elements)
     }
 
+    fun toStringLiteral(): String? {
+        return if (elements.all { it is CharacterNode }) {
+            elements.joinToString("") { (it as CharacterNode).value.toString() }
+        } else null
+    }
+
     override fun getEntity(frame: VirtualFrame, key: String): TermNode =
         abort("Invalid invocation on a sequence: getEntity")
 

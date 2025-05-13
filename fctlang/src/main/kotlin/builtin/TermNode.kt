@@ -176,23 +176,33 @@ abstract class TermNode : Node() {
         if (type::class == NullTypeNode::class) return false
 
         return when (type) {
-            is UnionTypeNode -> type.types.any { this.isInType(it) }
-            is IntersectionTypeNode -> type.types.all { this.isInType(it) }
-            is ComplementTypeNode -> !this.isInType(type.type)
+            is UnionTypeNode -> (type as UnionTypeNode).types.any { this.isInType(it) }
+            is IntersectionTypeNode -> (type as IntersectionTypeNode).types.all { this.isInType(it) }
+            is ComplementTypeNode -> !this.isInType((type as ComplementTypeNode).type)
             is NullTypeNode -> false
             is NaturalNumbersNode -> this is NaturalNumberNode || (this is IntegerNode && value >= 0)
             is IntegersNode -> this is NaturalNumberNode || this is IntegerNode
             is BooleansNode -> this.isInBooleans()
             is MapsNode -> this.isInMaps()
             is StringsNode -> this.isInStrings()
-            is ListsNode -> this.isInLists()
-            is VectorsNode -> this.isInVectors()
             is AbstractionsNode -> this.isInAbstractions()
             is AtomsNode -> this.isInAtoms()
             is IdentifiersNode -> this.isInIdentifiers()
             is LinksNode -> this.isInLinks()
-
-            else -> type::class.isInstance(this)
+            is PatternsNode -> this.isInPatterns()
+            is ThunksNode -> this.isInThunks()
+            is VariantsNode -> this.isInVariants()
+            is RecordsNode -> this.isInRecords()
+            is ReferencesNode -> this.isInReferences()
+            is PointersNode -> this.isInPointers()
+            is ClassesNode -> this.isInClasses()
+            is ObjectsNode -> this.isInObjects()
+            is VectorsNode -> this.isInVectors()
+            is BitVectorsNode -> this.isInBitVectors()
+            is ListsNode -> this.isInLists()
+            is TuplesNode -> this.isInTuples()
+            is DatatypeValuesNode -> this.isInDatatypeValues()
+            else -> false
         }
     }
 
