@@ -92,10 +92,11 @@ abstract class AbstractDatatypeValueNode(
 class ValueListNode(@Child var vp0: SequenceNode = SequenceNode()) :
     AbstractDatatypeValueNode(strLiteralNode("list"), SequenceNode(vp0)) {
 
-    override fun toString(): String = when (val str = vp0.toStringLiteral()) {
-        null -> if (vp0.isNotEmpty()) "[${vp0}]" else "[]"
-        else -> str
+    override fun toString(): String {
+        return if (vp0.isNotEmpty()) vp0.toStringLiteral() ?: "[${vp0}]"
+        else "[]"
     }
+
 
     override fun equals(other: Any?): Boolean = when (other) {
         is StringLiteralNode -> vp0.toStringLiteral() == other.value
