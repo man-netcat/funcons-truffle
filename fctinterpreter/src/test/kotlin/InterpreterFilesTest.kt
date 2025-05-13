@@ -39,13 +39,12 @@ class InterpreterFilesTest {
 
     private fun collectTestFiles(rootDir: Path): List<Path> {
         val blacklist = listOf<String>(
-//            "atomic",
-//            "Abstraction/Patterns",
-//            "structural-assign",
-//            "catch-else-throw",
+//            "atomic.config",
+//            "pattern-bind.config",
         )
 
         return Files.walk(rootDir)
+//            .filter { it.isRegularFile() && it.extension == "config" && blacklist.any(it.pathString::contains) }
             .filter { it.isRegularFile() && it.extension == "config" && blacklist.none(it.pathString::contains) }
             .toList()
     }

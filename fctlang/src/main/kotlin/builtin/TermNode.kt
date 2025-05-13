@@ -105,7 +105,7 @@ abstract class TermNode : Node() {
     internal fun reduce(frame: VirtualFrame): TermNode {
         if (DEBUG) println("reducing: ${this::class.simpleName} with params ${params.map { it::class.simpleName }}")
         // Reduce the parameters of a funcon first where possible
-        reduceComputations(frame)?.let { new -> return replace(new) }
+        if (this !is DirectionalNode) reduceComputations(frame)?.let { new -> return replace(new) }
         // Reduce according to CBS semantic rules
         reduceRules(frame).let { new -> return replace(new) }
     }
@@ -162,7 +162,7 @@ abstract class TermNode : Node() {
                 val reconstructed = primaryConstructor.call(*newParams.toTypedArray())
                 return reconstructed
 
-            } catch (e: Exception) {
+            } catch (e: StuckException) {
                 if (DEBUG) println("Stuck with exception $e in class ${this::class.simpleName}")
             }
         }
@@ -171,38 +171,92 @@ abstract class TermNode : Node() {
     }
 
     open fun isInType(type: TermNode): Boolean {
-        if (this::class == type::class) return true
-        if (type::class == ValuesNode::class) return true
-        if (type::class == NullTypeNode::class) return false
+        return when {
+            type::class == ValuesNode::class -> true
+            type::class == EmptyTypeNode::class -> false
+            type::class == UnionTypeNode::class -> (type as UnionTypeNode).types.any { this.isInType(it) }
+            type::class == IntersectionTypeNode::class -> (type as IntersectionTypeNode).types.all { this.isInType(it) }
+            type::class == ComplementTypeNode::class -> !(type as ComplementTypeNode).type.let { this.isInType(it) }
+            type::class == GroundValuesNode::class -> this.isInGroundValues()
+            type::class == NullTypeNode::class -> false
+            type::class == NaturalNumbersNode::class -> this is NaturalNumberNode || (this is IntegerNode && value >= 0)
+            type::class == IntegersNode::class -> this is NaturalNumberNode || this is IntegerNode
+            type::class == BooleansNode::class -> this.isInBooleans()
+            type::class == MapsNode::class -> {
+                type as MapsNode
+                this is ValueMapNode && this.vp0.elements.all { tuple ->
+                    tuple as ValueTupleNode
+                    val (tuple0, tuple1) = tuple.vp0.elements
+                    tuple0.isInType(type.mapsTp0) && tuple1.isInType(type.mapsTp1)
+                }
+            }
 
-        return when (type) {
-            is UnionTypeNode -> (type as UnionTypeNode).types.any { this.isInType(it) }
-            is IntersectionTypeNode -> (type as IntersectionTypeNode).types.all { this.isInType(it) }
-            is ComplementTypeNode -> !this.isInType((type as ComplementTypeNode).type)
-            is NullTypeNode -> false
-            is NaturalNumbersNode -> this is NaturalNumberNode || (this is IntegerNode && value >= 0)
-            is IntegersNode -> this is NaturalNumberNode || this is IntegerNode
-            is BooleansNode -> this.isInBooleans()
-            is MapsNode -> this.isInMaps()
-            is StringsNode -> this.isInStrings()
-            is AbstractionsNode -> this.isInAbstractions()
-            is AtomsNode -> this.isInAtoms()
-            is IdentifiersNode -> this.isInIdentifiers()
-            is LinksNode -> this.isInLinks()
-            is PatternsNode -> this.isInPatterns()
-            is ThunksNode -> this.isInThunks()
-            is VariantsNode -> this.isInVariants()
-            is RecordsNode -> this.isInRecords()
-            is ReferencesNode -> this.isInReferences()
-            is PointersNode -> this.isInPointers()
-            is ClassesNode -> this.isInClasses()
-            is ObjectsNode -> this.isInObjects()
-            is VectorsNode -> this.isInVectors()
-            is BitVectorsNode -> this.isInBitVectors()
-            is ListsNode -> this.isInLists()
-            is TuplesNode -> this.isInTuples()
-            is DatatypeValuesNode -> this.isInDatatypeValues()
-            else -> false
+            type::class == StoresNode::class -> {
+                type as MapsNode
+                this is ValueMapNode && this.vp0.elements.all { tuple ->
+                    tuple.printWithClassName()
+                    tuple as ValueTupleNode
+                    val tuple0 = tuple.vp0.elements[0]
+                    val tuple1 = tuple.vp0.elements.getOrElse(1) { SequenceNode() }
+                    tuple0.isInType(LocationsNode()) && tuple1.isInType(UnionTypeNode(ValuesNode(), SequenceNode()))
+                }
+            }
+
+            type::class == StringsNode::class -> {
+                type as ListsNode
+                this is ValueListNode && this.vp0.elements.all { element ->
+                    element.isInType(CharactersNode())
+                }
+            }
+
+            type::class == EnvironmentsNode::class -> this.isInEnvironments()
+            type::class == LocationsNode::class -> this.isInLocations()
+            type::class == AbstractionsNode::class -> this.isInAbstractions()
+            type::class == AtomsNode::class -> this.isInAtoms()
+            type::class == IdentifiersNode::class -> this.isInIdentifiers()
+            type::class == LinksNode::class -> this.isInLinks()
+            type::class == PatternsNode::class -> this.isInPatterns()
+            type::class == ThunksNode::class -> this.isInThunks()
+            type::class == VariantsNode::class -> this.isInVariants()
+            type::class == RecordsNode::class -> this.isInRecords()
+            type::class == ReferencesNode::class -> this.isInReferences()
+            type::class == PointersNode::class -> this.isInPointers()
+            type::class == ClassesNode::class -> this.isInClasses()
+            type::class == ObjectsNode::class -> this.isInObjects()
+            type::class == BitVectorsNode::class -> this.isInBitVectors()
+            type::class == VectorsNode::class -> {
+                type as VectorsNode
+                this is ValueVectorNode && this.vp0.elements.all { element ->
+                    element.isInType(type.vectorsTp0)
+                }
+            }
+
+            type::class == ListsNode::class -> {
+                type as ListsNode
+                this is ValueListNode && this.vp0.elements.all { element ->
+                    element.isInType(type.listsTp0)
+                }
+            }
+
+            type::class == SetsNode::class -> {
+                type as SetsNode
+                this is ValueSetNode && this.vp0.elements.all { element ->
+                    element.isInType(type.setsTp0)
+                }
+            }
+
+            type::class == TuplesNode::class -> {
+                type as TuplesNode
+                this is ValueTupleNode && this.vp0.elements.zip(type.tuplesTp0.elements)
+                    .all { (tupleElement, tupleType) ->
+                        tupleElement.isInType(tupleType)
+                    }
+            }
+
+            type::class == DatatypeValuesNode::class -> this.isInDatatypeValues()
+            type::class == ValueTypesNode::class -> this.isInValueTypes()
+            // TODO: Check if everything is here. May need to figure out way to automate this
+            else -> throw IllegalStateException("Unexpected type: $type")
         }
     }
 

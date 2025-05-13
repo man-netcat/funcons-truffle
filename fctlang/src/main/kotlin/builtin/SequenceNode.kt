@@ -2,6 +2,7 @@ package builtin
 
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.FailNode
+import language.StuckException
 import language.Util.DEBUG
 
 class SequenceNode(@Children override vararg var elements: TermNode) : TermNode() {
@@ -56,7 +57,7 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
                 try {
                     newElements[index] = newElements[index].reduce(frame)
                     return SequenceNode(*newElements.toTypedArray())
-                } catch (e: Exception) {
+                } catch (e: StuckException) {
                     if (DEBUG) println("Stuck with exception $e")
                 }
             }

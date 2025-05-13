@@ -3,7 +3,7 @@ package builtin
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
 
-data class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : MapsNode(GroundValuesNode(), ValuesNode()) {
+data class ValueMapNode(@Child var vp0: SequenceNode = SequenceNode()) : MapsNode(GroundValuesNode(), ValuesNode()) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is ValueMapNode) return false
@@ -32,7 +32,7 @@ data class ValueMapNode(@Child var p0: SequenceNode = SequenceNode()) : MapsNode
     }
 }
 
-open class MapsNode(@Eager @Child var tp0: TermNode, @Eager @Child var tp1: TermNode) : GroundValuesNode(),
+open class MapsNode(@Eager @Child var mapsTp0: TermNode, @Eager @Child var mapsTp1: TermNode) : GroundValuesNode(),
     MapsInterface
 
 fun TermNode.isInMaps(): Boolean = this is ValueMapNode
