@@ -39,7 +39,6 @@ class InterpreterFilesTest {
 
     private fun collectTestFiles(rootDir: Path): List<Path> {
         val blacklist = listOf<String>(
-//            "atomic.config",
 //            "pattern-bind.config",
         )
 

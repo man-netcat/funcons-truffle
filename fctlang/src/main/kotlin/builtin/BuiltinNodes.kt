@@ -160,7 +160,54 @@ class ToStringNode(override val p0: TermNode) : TermNode(), ToStringInterface {
 }
 
 class AtomicNode(override val p0: TermNode) : TermNode(), AtomicInterface {
+    @Child
+    private lateinit var s0: TermNode
+
+    @Child
+    private lateinit var s1: TermNode
+
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        TODO("Not yet implemented: $name")
+        return when {
+            get(0).isReducible() -> {
+                s0 = insert(get(0)).reduce(frame)
+                val yielded = getEntity(frame, "yielded")
+                when {
+                    yielded.isEmpty() -> {
+                        putEntity(frame, "yielded", SequenceNode())
+                        when {
+                            s0.isReducible() -> {
+                                s1 = insert(s0).reduce(frame)
+                                val yielded2 = getEntity(frame, "yielded")
+                                when {
+                                    yielded2.isEmpty() -> {
+                                        putEntity(frame, "yielded", SequenceNode())
+                                        s1
+                                    }
+
+                                    else -> abort("atomic")
+                                }
+                            }
+
+                            s0.isInValues() -> {
+                                putEntity(frame, "yielded", SequenceNode())
+                                s0
+                            }
+
+                            else -> abort("atomic")
+                        }
+                    }
+
+                    yielded is SignalNode -> {
+                        putEntity(frame, "yielded", SequenceNode())
+                        AtomicNode(s0)
+                    }
+
+                    else -> abort("atomic")
+                }
+            }
+
+            get(0).isInValues() -> getCopy(0)
+            else -> abort("atomic")
+        }
     }
 }
