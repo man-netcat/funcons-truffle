@@ -49,10 +49,7 @@ class TypeObject(
             val definitions = if (definitionExpr != null) extractAndOrExprs(definitionExpr) else emptyList()
             return when (definitions.size) {
                 0 -> {
-                    val superClassName = when (name) {
-                        "abstractions" -> toNodeName("values")
-                        else -> toNodeName("ground-values")
-                    }
+                    val superClassName = toNodeName("value-types")
                     emptySuperClass(superClassName)
                 }
 

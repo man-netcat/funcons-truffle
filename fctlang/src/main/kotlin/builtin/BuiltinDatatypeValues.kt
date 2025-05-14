@@ -67,7 +67,10 @@ class AtomNode(override val value: String) : AtomsNode() {
 
 open class DatatypeValuesNode : GroundValuesNode(), DatatypeValuesInterface
 
-class DatatypeValueNode(@Eager @Child var p0: TermNode, @Eager @Child var p1: SequenceNode) : TermNode() {
+class DatatypeValueNode(
+    @Eager @Child var p0: TermNode,
+    @Eager @Child var p1: SequenceNode
+) : TermNode() {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         if (!p0.isInIdentifiers()) abort("datatype-value")
         if (p1.elements.any { it !is ValuesNode }) abort("datatype-value")
