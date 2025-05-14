@@ -116,58 +116,59 @@ abstract class TermNode : Node() {
         var newParams = params.toMutableList()
         var attemptedReduction = false
 
-        fun unpackTupleElements(i: Int, currentParam: TupleElementsNode): List<TermNode> {
-            val tupleElements = (currentParam.p0 as ValueTupleNode).get(0).elements.toList()
-
-            // Replace the tuple-elements node for its contents in-place in the parameter list
-            newParams.removeAt(i)
-            newParams.addAll(i, tupleElements)
-
-            val sequenceIndex = primaryConstructor.parameters.indexOfFirst {
-                it.type.classifier == SequenceNode::class
-            }
-
-            // If the original node expects a sequence, rebuild the parameter sequence to accomodate for this
-            if (sequenceIndex != -1) {
-                val beforeSequence = newParams.take(sequenceIndex)
-                val afterSequence = newParams.drop(sequenceIndex).toTypedArray()
-                newParams = (beforeSequence + SequenceNode(*afterSequence)) as MutableList<TermNode>
-            }
-
-            // Truncate newParams
-            newParams = newParams.take(params.size).toMutableList()
-
-            return newParams
-        }
-
-        for ((i, param) in primaryConstructor.parameters.withIndex()) {
+        for ((index, kParam) in primaryConstructor.parameters.withIndex()) {
             try {
-                val currentParam = newParams[i]
+                val currentParam = newParams[index]
 
-                // We assume tuple-eleemnts is always reducible.
+                // We assume tuple-elements is always reducible.
                 if (
                     currentParam !is TupleElementsNode &&
-                    (param.findAnnotation<Eager>() == null || !currentParam.isReducible())
+                    (kParam.findAnnotation<Eager>() == null || !currentParam.isReducible())
                 ) continue
 
                 if (currentParam is TupleElementsNode && currentParam.p0 is ValueTupleNode) {
-                    if (DEBUG) println("unpacking ${currentParam::class.simpleName}")
                     // In the case this is a fully reduced tuple-elements node, we must unpack it
-                    unpackTupleElements(i, currentParam)
+                    newParams = unpackTupleElements(index, currentParam, newParams)
                 } else {
                     attemptedReduction = true
-                    newParams[i] = currentParam.reduce(frame)
+                    newParams[index] = currentParam.reduce(frame)
                 }
 
-                val reconstructed = primaryConstructor.call(*newParams.toTypedArray())
-                return reconstructed
+                return primaryConstructor.call(*newParams.toTypedArray())
 
             } catch (e: StuckException) {
                 if (DEBUG) println("Stuck with exception $e in class ${this::class.simpleName}")
             }
         }
 
-        return if (!attemptedReduction) null else abort("stuck!")
+        return if (attemptedReduction) abort("stuck!") else null
+    }
+
+    private fun unpackTupleElements(
+        index: Int,
+        tupleElementsNode: TupleElementsNode,
+        paramList: MutableList<TermNode>
+    ): MutableList<TermNode> {
+        if (DEBUG) println("unpacking tuple-elements with params ${tupleElementsNode.p0.elements.map { it::class.simpleName }}")
+        val tupleElements = (tupleElementsNode.p0 as ValueTupleNode).get(0).elements.toList()
+
+        // Replace the tuple-elements node for its contents in-place in the parameter list
+        paramList.removeAt(index)
+        paramList.addAll(index, tupleElements)
+
+        val sequenceIndex = primaryConstructor.parameters.indexOfFirst {
+            it.type.classifier == SequenceNode::class
+        }
+
+        // If the original node expects a sequence, rebuild the parameter sequence to accommodate for this
+        val newParams = if (sequenceIndex != -1) {
+            val beforeSequence = paramList.take(sequenceIndex)
+            val afterSequence = paramList.drop(sequenceIndex).toTypedArray()
+            beforeSequence + SequenceNode(*afterSequence)
+        } else paramList
+
+        // Return truncated param list
+        return newParams.take(params.size).toMutableList()
     }
 
     open fun isInType(type: TermNode): Boolean {
