@@ -19,13 +19,13 @@ abstract class TermNode : Node() {
         ENTITIES,
     }
 
-    val primaryConstructor = this::class.primaryConstructor!!
-    val memberProperties = this::class.memberProperties
+    val primaryCtor = this::class.primaryConstructor!!
+    val props = this::class.memberProperties
     val members = this::class.members
 
     val params: List<TermNode> by lazy {
-        primaryConstructor.parameters.mapNotNull { param ->
-            memberProperties.first { it.name == param.name }.getter.call(this) as? TermNode
+        primaryCtor.parameters.mapNotNull { param ->
+            props.first { it.name == param.name }.getter.call(this) as? TermNode
         }
     }
 
@@ -116,7 +116,7 @@ abstract class TermNode : Node() {
         var newParams = params.toMutableList()
         var attemptedReduction = false
 
-        for ((index, kParam) in primaryConstructor.parameters.withIndex()) {
+        for ((index, kParam) in primaryCtor.parameters.withIndex()) {
             try {
                 val currentParam = newParams[index]
 
@@ -134,7 +134,7 @@ abstract class TermNode : Node() {
                     newParams[index] = currentParam.reduce(frame)
                 }
 
-                return primaryConstructor.call(*newParams.toTypedArray())
+                return primaryCtor.call(*newParams.toTypedArray())
 
             } catch (e: StuckException) {
                 if (DEBUG) println("Stuck with exception $e in class ${this::class.simpleName}")
@@ -156,7 +156,7 @@ abstract class TermNode : Node() {
         paramList.removeAt(index)
         paramList.addAll(index, tupleElements)
 
-        val sequenceIndex = primaryConstructor.parameters.indexOfFirst {
+        val sequenceIndex = primaryCtor.parameters.indexOfFirst {
             it.type.classifier == SequenceNode::class
         }
 
@@ -195,7 +195,6 @@ abstract class TermNode : Node() {
             type::class == StoresNode::class -> {
                 type as MapsNode
                 this is ValueMapNode && this.vp0.elements.all { tuple ->
-                    tuple.printWithClassName()
                     tuple as ValueTupleNode
                     val tuple0 = tuple.vp0.elements[0]
                     val tuple1 = tuple.vp0.elements.getOrElse(1) { SequenceNode() }
@@ -268,7 +267,7 @@ abstract class TermNode : Node() {
     fun printTree(indent: String = "", prefix: String = "", hasMoreSiblings: Boolean = false) {
         println("$indent$prefix${this::class.simpleName}" + if (value == null) "" else " ($this)")
 
-        val children = primaryConstructor.parameters.mapNotNull { param ->
+        val children = primaryCtor.parameters.mapNotNull { param ->
             members.firstOrNull { it.name == param.name }?.call(this)
         }.flatMap {
             when (it) {
@@ -347,7 +346,7 @@ abstract class TermNode : Node() {
     override fun deepCopy(): TermNode {
         if (DEBUG) println("deepcopying ${this::class.simpleName}")
         if (!isReducible()) return this
-        val constructor = primaryConstructor
+        val constructor = primaryCtor
         val args = params.map { param ->
             if (param.isReducible()) param.deepCopy() else param
         }.toTypedArray()
