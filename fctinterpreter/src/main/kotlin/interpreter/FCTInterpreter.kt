@@ -14,7 +14,7 @@ fun main(args: Array<String>) {
         return
     }
 
-    val filePath = Paths.get(args[0])
+    val filePath = Paths.get(args[0]).toAbsolutePath().normalize()
     val standardInArgs = args.drop(1).toTypedArray()
 
     try {
