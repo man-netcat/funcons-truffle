@@ -2,7 +2,6 @@ package main
 
 import cbs.CBSLexer
 import cbs.CBSParser
-import fct.FCTLexer
 import fct.FCTParser
 import main.exceptions.DetailedException
 import main.objects.AlgebraicDatatypeObject
@@ -16,11 +15,8 @@ import objects.DatatypeFunconObject
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.Path
 
 val globalObjects: MutableMap<String, Object> = mutableMapOf()
-val globalFiles: MutableMap<String, File> = mutableMapOf()
 val builtinOverride: MutableSet<String> = mutableSetOf(
     "left-to-right", "right-to-left",          // Ambiguous semantics
     "some-element", "choice", "else-choice",   // Utilises random
@@ -32,12 +28,7 @@ val builtinOverride: MutableSet<String> = mutableSetOf(
     "strings",                                 // Also using literal strings for datatype ids
 )
 
-class TruffleGen(
-    private val cbsDir: File,
-    private val outputDir: File,
-    private vararg val fctFiles: File,
-    private val indexFile: File?,
-) {
+class TruffleGen(private val cbsDir: File) {
     private val cbsFiles: MutableMap<String, CBSFile> = mutableMapOf()
     private var cbsParseTrees = mutableMapOf<String, CBSParser.RootContext>()
     private val fctParseTrees = mutableMapOf<String, FCTParser.RootContext>()
@@ -72,24 +63,6 @@ class TruffleGen(
             val parser = CBSParser(tokens)
             val root = parser.root()
             cbsParseTrees[file.name] = root
-        }
-
-        fctFiles.forEach { file ->
-            val input = CharStreams.fromPath(file.toPath())
-            val lexer = FCTLexer(input)
-            val tokens = CommonTokenStream(lexer)
-            val parser = FCTParser(tokens)
-            val root = parser.root()
-            fctParseTrees[file.name] = root
-        }
-
-        indexFile?.let { file ->
-            val input = CharStreams.fromPath(file.toPath())
-            val lexer = CBSLexer(input)
-            val tokens = CommonTokenStream(lexer)
-            val parser = CBSParser(tokens)
-            val root = parser.root()
-            indexParseTree = root
         }
     }
 
@@ -179,21 +152,27 @@ class TruffleGen(
     }
 
     private fun generateCode() {
-        val outputDirPath = Path.of(outputDir.path)
-        if (!Files.exists(outputDirPath)) {
-            Files.createDirectories(outputDirPath)
+        val hardcodedOutputDir = File("../fctlang/src/main/kotlin/generated")
+        if (!hardcodedOutputDir.exists()) {
+            hardcodedOutputDir.mkdirs()
         }
 
+        // Generate CBS files
         cbsFiles.forEach { (name, file) ->
             println("Generating code for file $name...")
             val code = file.generateCode(generatedDependencies)
             if (code != null) {
                 val fileNameWithoutExtension = name.removeSuffix(".cbs")
-                val filePath = File(outputDir, "$fileNameWithoutExtension.kt")
-                filePath.writeText(code)
+                val filePath = File(hardcodedOutputDir, "$fileNameWithoutExtension.kt")
+                filePath.bufferedWriter().use { writer ->
+                    writer.write(code)
+                    writer.flush()
+                }
             }
         }
-        val aliasFilePath = File(outputDir, "Aliases.kt")
+
+        // Generate alias file
+        val aliasFilePath = File(hardcodedOutputDir, "Aliases.kt")
         val stringBuilder = StringBuilder()
 
         stringBuilder.appendLine("package generated")
@@ -217,7 +196,6 @@ class TruffleGen(
             .joinToString(",\n    ", prefix = "    ", postfix = "\n)")
             .let(stringBuilder::append)
 
-
         stringBuilder.appendLine()
         objectsToProcess.flatMap { obj ->
             obj.aliases
@@ -230,55 +208,23 @@ class TruffleGen(
             .joinToString("\n")
             .let(stringBuilder::appendLine)
 
-        aliasFilePath.writeText(stringBuilder.toString())
+        aliasFilePath.bufferedWriter().use { writer ->
+            writer.write(stringBuilder.toString())
+            writer.flush()
+        }
     }
 
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            if (args.size < 2) {
-                println("Usage: <program> <cbsDir> <outputDir> [--index <indexFile>] [included...]")
+            if (args.isEmpty()) {
+                println("Usage: trufflegen <cbsDir>")
                 return
             }
 
             val cbsDir = File(args[0])
-            val outputDir = File(args[1])
-            val fctFiles = mutableListOf<File>()
-            var indexFile: File? = null
 
-            var i = 2
-            while (i < args.size) {
-                when (args[i]) {
-                    "--index" -> {
-                        if (i + 1 < args.size) {
-                            indexFile = File(args[i + 1])
-                            i++
-                        } else {
-                            println("Error: --index option requires a file argument.")
-                            return
-                        }
-                    }
-
-                    else -> fctFiles.add(File(args[i]))
-                }
-                i++
-            }
-
-            listOf(cbsDir, outputDir).map { file ->
-                if (!file.exists() || !file.isDirectory) {
-                    println("Invalid directory: ${file.path}")
-                    return
-                }
-            }
-
-            fctFiles.map { file ->
-                if (!file.exists() || !file.isFile) {
-                    println("Invalid file: ${file.path}")
-                    return
-                }
-            }
-
-            val truffleGen = TruffleGen(cbsDir, outputDir, *fctFiles.toTypedArray(), indexFile = indexFile)
+            val truffleGen = TruffleGen(cbsDir)
 
             truffleGen.process()
         }

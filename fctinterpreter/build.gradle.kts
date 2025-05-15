@@ -1,3 +1,5 @@
+// build.gradle.kts (:fctinterpreter)
+
 import java.time.Duration
 
 plugins {
@@ -14,28 +16,30 @@ repositories {
 
 dependencies {
     implementation(project(":fctlang"))
-    implementation(libs.polyglot)
     implementation(libs.graal.sdk)
     implementation(libs.truffle.api)
+    implementation(libs.polyglot)
+
+    runtimeOnly(libs.truffle.runtime)
+    runtimeOnly(libs.truffle.nfi)
+    runtimeOnly(libs.polyglot)
+
     testImplementation(kotlin("test"))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
+
 application {
     mainClass.set("interpreter.FCTInterpreterKt")
 }
 
-tasks.named<JavaExec>("run") {
-    args = project.findProperty("args")?.toString()?.split(" ") ?: emptyList()
-}
-
 tasks.compileKotlin {
-    dependsOn(":trufflegen:run")
+    dependsOn(":fctlang:compileKotlin")
 }
 
-sourceSets.main {
-    java.srcDir("fctlang/src/main/kotlin/generated")
+sourceSets["main"].kotlin {
+    srcDirs("src/main/kotlin", "src/main/kotlin/generated")
 }
 
 tasks.withType<Test> {

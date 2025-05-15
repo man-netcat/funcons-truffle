@@ -6,14 +6,16 @@ junit-platform = "1.13.0-M2"
 antlr = "4.13.2"
 
 [libraries]
-kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib-jdk8", version.ref = "kotlin" }
-kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
-junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
-junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
 antlr-runtime = { module = "org.antlr:antlr4-runtime", version.ref = "antlr" }
 antlr-tool = { module = "org.antlr:antlr4", version.ref = "antlr" }
 graal-sdk = { module = "org.graalvm.sdk:graal-sdk", version.ref = "graalvm" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
+kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib-jdk8", version.ref = "kotlin" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+polyglot = { module = "org.graalvm.polyglot:polyglot", version.ref = "graalvm" }
 truffle-api = { module = "org.graalvm.truffle:truffle-api", version.ref = "graalvm" }
 truffle-dsl-processor = { module = "org.graalvm.truffle:truffle-dsl-processor", version.ref = "graalvm" }
-polyglot = { module = "org.graalvm.polyglot:polyglot", version.ref = "graalvm" }
-kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+truffle-nfi = { module = "org.graalvm.truffle:truffle-nfi", version.ref = "graalvm" }
+truffle-runtime = { module = "org.graalvm.truffle:truffle-runtime", version.ref = "graalvm" }

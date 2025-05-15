@@ -1,6 +1,8 @@
+// build.gradle.kts (:fctlang)
+
 plugins {
     kotlin("jvm") version "2.1.0"
-    kotlin("kapt")
+    id("org.jetbrains.kotlin.kapt")
     java
 }
 
@@ -12,18 +14,31 @@ dependencies {
     implementation(project(":antlr"))
     implementation(libs.graal.sdk)
     implementation(libs.truffle.api)
-    kapt(libs.truffle.dsl.processor)
     implementation(libs.antlr.runtime)
     implementation(libs.kotlin.reflect)
+    kapt(libs.truffle.dsl.processor)
     testImplementation(libs.junit.jupiter)
+}
+
+sourceSets["main"].kotlin {
+    srcDirs(
+        "src/main/kotlin",
+        "src/main/kotlin/generated",
+        "build/generated/sources/kapt/main"
+    )
 }
 
 tasks.test {
     useJUnitPlatform()
 }
 
-tasks.jar {
+tasks.compileKotlin {
     dependsOn(":antlr:generateGrammarSource")
+    dependsOn(":trufflegen:run")
+}
+
+
+tasks.jar {
     // Add resources/META-INF to JAR
     from(sourceSets.main.get().output)
     from(sourceSets.main.get().resources) {
