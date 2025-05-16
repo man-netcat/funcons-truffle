@@ -8,26 +8,27 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.io.path.pathString
 
-fun main(args: Array<String>) {
-    if (args.isEmpty()) {
-        println("Usage: FCTInterpreter <file_path> [args...]")
-        return
-    }
-
-    val filePath = Paths.get(args[0]).toAbsolutePath().normalize()
-    val standardInArgs = args.drop(1).toTypedArray()
-
-    try {
-        Interpreter.createContext(standardInArgs).use { context ->
-            val result = Interpreter.evalFile(context, filePath)
-            Interpreter.processResult(result)
+object FCTInterpreter {
+    @JvmStatic
+    fun main(args: Array<String>) {
+        if (args.isEmpty()) {
+            println("Usage: Interpreter <file_path> [args...]")
+            return
         }
-    } catch (e: Exception) {
-        println("Error: ${e.message}")
-    }
-}
 
-object Interpreter {
+        val filePath = Paths.get(args[0]).toAbsolutePath().normalize()
+        val standardInArgs = args.drop(1).toTypedArray()
+
+        try {
+            createContext(standardInArgs).use { context ->
+                val result = evalFile(context, filePath)
+                processResult(result)
+            }
+        } catch (e: Exception) {
+            println("Error: ${e.message}")
+        }
+    }
+
     fun createContext(args: Array<String> = emptyArray()): Context {
         return Context.newBuilder("fctlang")
             .allowAllAccess(true)

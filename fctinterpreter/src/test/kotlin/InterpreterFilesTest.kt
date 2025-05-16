@@ -16,7 +16,7 @@ class InterpreterFilesTest {
 
     @BeforeAll
     fun setup() {
-        context = Interpreter.createContext()
+        context = FCTInterpreter.createContext()
     }
 
     @AfterAll
@@ -50,8 +50,8 @@ class InterpreterFilesTest {
 
     private fun runTestFile(path: Path, displayName: String) {
         println(displayName)
-        val result = Interpreter.evalFile(context, path)
-        Interpreter.processResult(result)
+        val result = FCTInterpreter.evalFile(context, path)
+        FCTInterpreter.processResult(result)
         println("----------------------------------------")
     }
 }

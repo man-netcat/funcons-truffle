@@ -31,7 +31,7 @@ dependencies {
 
 
 application {
-    mainClass.set("interpreter.FCTInterpreterKt")
+    mainClass.set("interpreter.FCTInterpreter")
 }
 
 tasks.compileKotlin {
