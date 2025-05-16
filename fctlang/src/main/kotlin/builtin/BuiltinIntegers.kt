@@ -1,5 +1,6 @@
 package builtin
 
+import builtin.ValueNodeFactory.intNode
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
 import kotlin.math.abs
@@ -12,10 +13,9 @@ fun TermNode.isInIntegers(): Boolean = this is IntegersNode
 open class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
 open class IntegersUpToNode(@Child override var p0: TermNode) : IntegersNode(), IntegersUpToInterface
 
-data class NaturalNumberNode(override val value: Int) : NaturalNumbersNode() {
+abstract class NumberNode(override val value: Number) : IntegersNode() {
     override fun equals(other: Any?): Boolean = when (other) {
-        is NaturalNumberNode -> this.value == other.value
-        is IntegerNode -> this.value == other.value
+        is NumberNode -> this.value.toLong() == other.value.toLong()
         else -> false
     }
 
@@ -23,22 +23,14 @@ data class NaturalNumberNode(override val value: Int) : NaturalNumbersNode() {
     override fun toString(): String = value.toString()
 }
 
-data class IntegerNode(override val value: Int) : IntegersNode() {
-    override fun equals(other: Any?): Boolean = when (other) {
-        is NaturalNumberNode -> this.value == other.value
-        is IntegerNode -> this.value == other.value
-        else -> false
-    }
-
-    override fun hashCode(): Int = value.hashCode()
-    override fun toString(): String = value.toString()
-}
+class NaturalNumberNode(override val value: Int) : NumberNode(value)
+class IntegerNode(override val value: Int) : NumberNode(value)
 
 class IntegerAddNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), IntegerAddInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         if (p0.elements.any { !it.isInIntegers() }) abort("integer-add")
         val sum = p0.elements.sumOf { it.value as Int }
-        return IntegerNode(sum)
+        return intNode(sum)
     }
 }
 
@@ -47,7 +39,7 @@ class IntegerSubtractNode(@Eager @Child override var p0: TermNode, @Eager @Child
     IntegerSubtractInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         if (!p0.isInIntegers() || !p1.isInIntegers()) abort("integer-subtract")
-        return IntegerNode((p0.value as Int) - (p1.value as Int))
+        return intNode((p0.value as Int) - (p1.value as Int))
     }
 }
 
@@ -56,7 +48,7 @@ class IntegerMultiplyNode(@Eager @Child override var p0: SequenceNode = Sequence
     override fun reduceRules(frame: VirtualFrame): TermNode {
         if (p0.elements.any { !it.isInIntegers() }) abort("integer-multiply")
         val product = p0.elements.fold(1) { acc, node -> acc * (node.value as Int) }
-        return IntegerNode(product)
+        return intNode(product)
     }
 }
 
@@ -65,7 +57,7 @@ class IntegerDivideNode(@Eager @Child override var p0: TermNode, @Eager @Child o
     override fun reduceRules(frame: VirtualFrame): TermNode {
         if (!p0.isInIntegers() || !p1.isInIntegers()) abort("integer-divide")
         if ((p1.value as Int) == 0) return SequenceNode()
-        return IntegerNode((p0.value as Int) / (p1.value as Int))
+        return intNode((p0.value as Int) / (p1.value as Int))
     }
 }
 
@@ -74,7 +66,7 @@ class IntegerModuloNode(@Eager @Child override var p0: TermNode, @Eager @Child o
     override fun reduceRules(frame: VirtualFrame): TermNode {
         if (!p0.isInIntegers() || !p1.isInIntegers()) abort("integer-modulo")
         if ((p1.value as Int) == 0) return SequenceNode()
-        return IntegerNode((p0.value as Int) % (p1.value as Int))
+        return intNode((p0.value as Int) % (p1.value as Int))
     }
 }
 
@@ -85,14 +77,14 @@ class IntegerPowerNode(@Eager @Child override var p0: TermNode, @Eager @Child ov
         val base = p0.value as Int
         val exponent = p1.value as Int
         if (exponent < 0) abort("natural-power")
-        return IntegerNode(base.toDouble().pow(exponent).toInt())
+        return intNode(base.toDouble().pow(exponent).toInt())
     }
 }
 
 class IntegerAbsoluteValueNode(@Eager @Child override var p0: TermNode) : TermNode(), IntegerAbsoluteValueInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         if (!p0.isInIntegers()) abort("integer-abs")
-        return IntegerNode(abs(p0.value as Int))
+        return intNode(abs(p0.value as Int))
     }
 }
 
@@ -133,14 +125,14 @@ class IntegerIsGreaterOrEqualNode(@Eager @Child override var p0: TermNode, @Eage
 
 class NaturalSuccessorNode(@Eager @Child override var p0: TermNode) : TermNode(), NaturalSuccessorInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        return NaturalNumberNode((p0.value as Int) + 1)
+        return intNode((p0.value as Int) + 1)
     }
 }
 
 class NaturalPredecessorNode(@Eager @Child override var p0: TermNode) : TermNode(), NaturalPredecessorInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val value = p0.value as Int
-        return if (value == 0) SequenceNode() else NaturalNumberNode(value - 1)
+        return if (value == 0) SequenceNode() else intNode(value - 1)
     }
 }
 
@@ -151,7 +143,7 @@ abstract class BaseConversionNode(
     override fun reduceRules(frame: VirtualFrame): TermNode {
         if (!p0.isInIntegers()) abort("base-conversion")
         val numberStr = (p0.value as Int).toString(base)
-        val digits = numberStr.map { NaturalNumberNode(it.digitToInt()) }
+        val digits = numberStr.map { intNode(it.digitToInt()) }
         return SequenceNode(*digits.toTypedArray())
     }
 }
