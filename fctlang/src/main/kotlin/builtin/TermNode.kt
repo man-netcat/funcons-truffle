@@ -46,9 +46,9 @@ abstract class TermNode : Node() {
         return FCTLanguage.Companion.get(this)
     }
 
-    private fun getEntities(frame: VirtualFrame): MutableMap<String, TermNode?> {
-        return frame.getObject(FrameSlots.ENTITIES.ordinal) as? MutableMap<String, TermNode?>
-            ?: mutableMapOf<String, TermNode?>().also {
+    private fun getEntities(frame: VirtualFrame): MutableMap<String, TermNode> {
+        return frame.getObject(FrameSlots.ENTITIES.ordinal) as? MutableMap<String, TermNode>
+            ?: mutableMapOf<String, TermNode>().also {
                 frame.setObject(FrameSlots.ENTITIES.ordinal, it)
             }
     }
@@ -224,6 +224,7 @@ abstract class TermNode : Node() {
             type::class == ClassesNode::class -> this.isInClasses()
             type::class == ObjectsNode::class -> this.isInObjects()
             type::class == BitVectorsNode::class -> this.isInBitVectors()
+            type::class == VariablesNode::class -> this.isInVariables()
             type::class == VectorsNode::class -> {
                 type as VectorsNode
                 this is ValueVectorNode && this.vp0.elements.all { element ->

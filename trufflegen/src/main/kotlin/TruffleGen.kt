@@ -46,7 +46,7 @@ class TruffleGen(private val cbsDir: File) {
         verifyObjects()
 
         // Generate dependencies from objects
-        generateDependencies()
+//        generateDependencies()
 
         // Generates a graphviz visualisation for dependencies
 //        generateGraphViz()
