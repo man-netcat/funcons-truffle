@@ -5,7 +5,8 @@ grammar FCT;
 }
 
 root
-   : generalBlock (inputsBlock)? (testsBlock)? EOF
+   : expr # FCTFile
+   | generalBlock (inputsBlock)? (testsBlock)? EOF # ConfigFile
    ;
 
 generalBlock

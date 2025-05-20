@@ -153,9 +153,9 @@ class HoleNode() : TermNode(), HoleInterface {
     }
 }
 
-class ToStringNode(override val p0: TermNode) : TermNode(), ToStringInterface {
+class ToStringNode(@Eager @Child override var p0: TermNode) : TermNode(), ToStringInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        TODO("Not yet implemented: $name")
+        return StringLiteralNode(p0.toString())
     }
 }
 

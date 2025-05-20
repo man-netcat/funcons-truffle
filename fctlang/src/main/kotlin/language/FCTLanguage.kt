@@ -37,38 +37,30 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
     }
 
     override fun parse(request: ParsingRequest): CallTarget {
-        val source = request.source
-        val code = source.characters.toString()
-
-        val charStream = CharStreams.fromString(code)
-        val lexer = FCTLexer(charStream)
-        val tokens = CommonTokenStream(lexer)
-        val parser = FCTParser(tokens)
-
+        val code = request.source.characters.toString()
+        val parser = FCTParser(CommonTokenStream(FCTLexer(CharStreams.fromString(code))))
         val root = parser.root()
 
-        val mainContext = root.generalBlock()
-        val tests = root.testsBlock()
-        val inputs = root.inputsBlock()
+        val (funconTerm, inputs) = when (root) {
+            is FCTFileContext -> root.expr() to emptyArray()
+            is ConfigFileContext -> {
+                val tests = root.testsBlock()
+                println("expected:")
+                println("result-term: ${tests.resultTerm()?.expr()?.text}")
+                tests.store()?.expr()?.text?.let { println("store: $it") }
+                tests.standardOut()?.expr()?.text?.let { println("standard-out: $it") }
+                println()
+                root.generalBlock().funconTerm() to processInput(root.inputsBlock())
+            }
 
-        println("expected:")
-        println("result-term: ${tests.resultTerm()?.expr()?.text}")
-        val store = tests.store()?.expr()?.text
-        if (store != null) println("store: $store")
-        val standardOut = tests.standardOut()?.expr()?.text
-        if (standardOut != null) println("standard-out: $standardOut")
-        println()
-
-        val rootNode = convertToFCTNode(mainContext)
-
-        val inputNodes = processInput(inputs)
+            else -> throw IllegalStateException("Unexpected file type")
+        }
 
         val frameDescriptorBuilder = FrameDescriptor.newBuilder()
-        // Add a frameslot for the entity map
         frameDescriptorBuilder.addSlots(1, FrameSlotKind.Object)
         val frameDescriptor = frameDescriptorBuilder.build()
-        val fctRootNode = FCTRootNode(this, frameDescriptor, rootNode, inputNodes)
-        return fctRootNode.callTarget
+
+        return FCTRootNode(this, frameDescriptor, buildTree(funconTerm), inputs).callTarget
     }
 
     private fun processInput(inputs: InputsBlockContext?): Array<TermNode> {
@@ -88,11 +80,6 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
 
     override fun createContext(env: Env): FCTContext {
         return FCTContext(env)
-    }
-
-    private fun convertToFCTNode(context: GeneralBlockContext): TermNode {
-        val expr = context.funconTerm()
-        return buildTree(expr)
     }
 
     private fun buildTree(parseTree: ParseTree): TermNode {
