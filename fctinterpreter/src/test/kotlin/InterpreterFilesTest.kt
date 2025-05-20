@@ -26,25 +26,30 @@ class InterpreterFilesTest {
 
     @TestFactory
     fun testFiles(): List<DynamicTest> {
-        val rootDir = Paths.get("../CBS-beta/Funcons-beta").normalize().toAbsolutePath()
-        val testFiles = collectTestFiles(rootDir)
-
-        return testFiles.sorted().map { path ->
-            val relativePath = rootDir.relativize(path).pathString
-            DynamicTest.dynamicTest("Testing $relativePath") {
-                runTestFile(path, relativePath)
-            }
-        }
-    }
-
-    private fun collectTestFiles(rootDir: Path): List<Path> {
-        val blacklist = listOf<String>(
-//            "pattern-bind.config",
+        val configTests = collectAndCreateTests(
+            rootDir = Paths.get("../CBS-beta/Funcons-beta"),
+            extension = "config"
         )
 
-        return Files.walk(rootDir)
-//            .filter { it.isRegularFile() && it.extension == "config" && blacklist.any(it.pathString::contains) }
-            .filter { it.isRegularFile() && it.extension == "config" && blacklist.none(it.pathString::contains) }
+        val fctTests = collectAndCreateTests(
+            rootDir = Paths.get("../examples"),
+            extension = "fct"
+        )
+
+        return configTests + fctTests
+    }
+
+    private fun collectAndCreateTests(rootDir: Path, extension: String): List<DynamicTest> {
+        val absoluteRoot = rootDir.normalize().toAbsolutePath()
+        return Files.walk(absoluteRoot)
+            .filter { it.isRegularFile() && it.extension == extension }
+            .sorted()
+            .map { path ->
+                val relativePath = absoluteRoot.relativize(path).pathString
+                DynamicTest.dynamicTest("Testing $relativePath") {
+                    runTestFile(path, relativePath)
+                }
+            }
             .toList()
     }
 
