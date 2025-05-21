@@ -4,23 +4,8 @@ import cbs.CBSParser.*
 import main.*
 import main.dataclasses.RewriteData
 import main.exceptions.DetailedException
-import main.objects.AlgebraicDatatypeObject
 import main.objects.EntityObject
 import main.objects.Object
-import org.antlr.v4.runtime.tree.ParseTree
-
-abstract class AbstractFunconObject(
-    ctx: ParseTree,
-    metaVariables: Set<Pair<ExprContext, ExprContext>>,
-) : Object(ctx, metaVariables) {
-
-    val reducibleIndices = computeReducibles()
-    override val keyWords: List<String> = listOf()
-
-    protected fun computeReducibles(): List<Int> =
-        params.mapIndexedNotNull { index, param -> if (!param.type.computes) index else null }
-
-}
 
 data class Condition(val expr: String, val priority: Int = 1)
 
@@ -29,7 +14,7 @@ class FunconObject(
     val rules: List<RuleDefinitionContext> = emptyList(),
     val term: ExprContext? = null,
     metaVariables: Set<Pair<ExprContext, ExprContext>>,
-) : AbstractFunconObject(ctx, metaVariables) {
+) : Object(ctx, metaVariables) {
 
     inner class VariableGenerator() {
         val prefixIndices = mutableMapOf<String, Int>()
@@ -523,29 +508,5 @@ class FunconObject(
             return outerStringBuilder.toString()
         }
 
-    override val keyWords: List<String> = emptyList()
 }
 
-class DatatypeFunconObject(
-    ctx: FunconExpressionContext,
-    internal val superclass: AlgebraicDatatypeObject,
-    metaVariables: Set<Pair<ExprContext, ExprContext>>,
-) : AbstractFunconObject(ctx, metaVariables) {
-    override val superClassStr: String get() = makeFunCall(TERMNODE)
-    override val keyWords: List<String> = emptyList()
-
-    override val contentStr: String
-        get() {
-            val reduceBuilder = StringBuilder()
-            val paramStr = params.map { param -> "p${param.index}" }
-            val cache = makeFunCall(
-                "ValueNodeFactory.datatypeValueNode",
-                listOf(strStr(name), "SequenceNode(${paramStr.joinToString()})")
-            )
-            val ctor = makeFunCall("Value$nodeName", paramStr)
-            val returnStr = "return $cache { $ctor }"
-
-            reduceBuilder.appendLine(returnStr)
-            return makeReduceFunction(reduceBuilder.toString(), TERMNODE)
-        }
-}
