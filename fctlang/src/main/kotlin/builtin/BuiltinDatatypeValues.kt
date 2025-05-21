@@ -85,11 +85,11 @@ abstract class AbstractDatatypeValueNode(
     @Child override var id: StringLiteralNode,
     @Child override var args: SequenceNode
 ) : DatatypeValuesNode() {
-    override fun toString() = if (primaryCtor.parameters.isEmpty()) {
-        "$id"
-    } else if (args.isNotEmpty()) {
-        "${id}(${args})"
-    } else "${id}()"
+    override fun toString() = when {
+        primaryCtor.parameters.isEmpty() -> "$id"
+        args.isNotEmpty() -> "${id}(${args})"
+        else -> "${id}()"
+    }
 }
 
 class ValueListNode(@Child var vp0: SequenceNode = SequenceNode()) :

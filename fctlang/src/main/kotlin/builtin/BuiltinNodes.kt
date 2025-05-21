@@ -30,7 +30,7 @@ fun TermNode.isInComputationTypes(): Boolean = this !is ValueTypesNode && this !
 
 class AbstractionNode(@Child override var p0: TermNode) : AbstractionsNode(ComputationTypesNode()),
     AbstractionInterface {
-    override fun toString(): String = "abstraction(${p0})"
+    override fun toString(): String = "abstraction(${get(0)})"
 }
 
 fun TermNode.isInAbstractions(): Boolean = this is AbstractionNode
@@ -91,7 +91,7 @@ class SequentialNode(
 class ChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), ChoiceInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         return when {
-            p0.size >= 1 -> p0.random()
+            get(0).size >= 1 -> get(0).random()
             else -> FailNode()
         }
     }
@@ -99,7 +99,7 @@ class ChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNo
 
 class ElseChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), ElseChoiceInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val shuffled = p0.shuffled()
+        val shuffled = get(0).shuffled()
 
         return when (shuffled.size) {
             0 -> FailNode()
@@ -133,7 +133,7 @@ class PrintNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : 
 class InitialiseGeneratingNode(@Child override var p0: TermNode) : TermNode(), InitialiseGeneratingInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         putEntity(frame, "used-atom-set", ValueSetNode(SequenceNode()))
-        return p0
+        return get(0)
     }
 }
 
@@ -155,7 +155,10 @@ class HoleNode() : TermNode(), HoleInterface {
 
 class ToStringNode(@Eager @Child override var p0: TermNode) : TermNode(), ToStringInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        return StringLiteralNode(p0.toString())
+        return when {
+            get(0).isInStrings() -> get(0)
+            else -> StringLiteralNode(get(0).toString())
+        }
     }
 }
 

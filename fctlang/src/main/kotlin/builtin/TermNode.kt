@@ -78,6 +78,12 @@ abstract class TermNode : Node() {
         putEntity(frame, key, newSequence)
     }
 
+    fun restoreEntities(frame: VirtualFrame, snapshot: Map<String, TermNode>) {
+        val entities = getEntities(frame)
+        entities.clear()
+        entities.putAll(snapshot)
+    }
+
     open fun isReducible(): Boolean = when (this) {
         is SequenceNode -> if (elements.isNotEmpty()) {
             elements.any { it !is ValuesNode }
@@ -116,6 +122,8 @@ abstract class TermNode : Node() {
         var newParams = params.toMutableList()
         var attemptedReduction = false
 
+        val entitySnapshot = getEntities(frame).toMap()
+
         for ((index, kParam) in primaryCtor.parameters.withIndex()) {
             try {
                 val currentParam = newParams[index]
@@ -138,6 +146,8 @@ abstract class TermNode : Node() {
 
             } catch (e: StuckException) {
                 if (DEBUG) println("Stuck with exception $e in class ${this::class.simpleName}")
+                // Rollback entities
+                restoreEntities(frame, entitySnapshot)
             }
         }
 
@@ -149,8 +159,8 @@ abstract class TermNode : Node() {
         tupleElementsNode: TupleElementsNode,
         paramList: MutableList<TermNode>
     ): MutableList<TermNode> {
-        if (DEBUG) println("unpacking tuple-elements with params ${tupleElementsNode.p0.elements.map { it::class.simpleName }}")
         val tupleElements = (tupleElementsNode.p0 as ValueTupleNode).get(0).elements.toList()
+        if (DEBUG) println("unpacking tuple-elements with elements: ${tupleElements.map { it::class.simpleName }}")
 
         // Replace the tuple-elements node for its contents in-place in the parameter list
         paramList.removeAt(index)

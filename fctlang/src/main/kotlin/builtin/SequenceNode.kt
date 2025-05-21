@@ -24,8 +24,8 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         return slice(startIndex, endIndex)
     }
 
-    override fun sliceUntil(endIndex: Int, startIndexOffset: Int): SequenceNode {
-        val adjustedEndIndex = if (endIndex == 0) size else size - endIndex
+    override fun sliceUntil(endIndexOffset: Int, startIndexOffset: Int): SequenceNode {
+        val adjustedEndIndex = if (endIndexOffset == 0) size else size - endIndexOffset
         val startIndex = startIndexOffset
         return slice(startIndex, adjustedEndIndex)
     }
@@ -58,7 +58,7 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
                     newElements[index] = newElements[index].reduce(frame)
                     return SequenceNode(*newElements.toTypedArray())
                 } catch (e: StuckException) {
-                    if (DEBUG) println("Stuck with exception $e")
+                    if (DEBUG) println("Stuck with exception $e in node ${this::class.simpleName}")
                 }
             }
         }
