@@ -2,7 +2,6 @@ package main
 
 import cbs.CBSBaseVisitor
 import cbs.CBSParser.*
-import main.dataclasses.Type
 import main.exceptions.DetailedException
 import main.objects.*
 import objects.DatatypeFunconObject
@@ -25,8 +24,6 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
     }
 
     override fun visitFunconDefinition(ctx: FunconDefinitionContext) {
-        val returns = Type(ctx.returnType)
-
         val dataContainer = FunconObject(
             ctx,
             rules = ctx.ruleDefinition(),
@@ -118,17 +115,9 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
         imports.forEach { stringBuilder.appendLine("import $it") }
         stringBuilder.appendLine()
 
-//        fileMetavariables.forEach { (varName, superType) ->
-//            val varStr = rewriteType(Type(varName), nullable = false)
-//            val superTypeStr = rewriteType(Type(superType), nullable = false)
-//            stringBuilder.appendLine("typealias $varStr = $superTypeStr")
-//        }
-//        stringBuilder.appendLine()
-
         for (obj in toProcess) {
             if (obj is EntityObject) continue
             println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $fileName)")
-            //            try {
             val code = obj.makeCode()
             stringBuilder.appendLine()
             stringBuilder.appendLine(code)
@@ -139,12 +128,6 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
                 stringBuilder.appendLine()
                 stringBuilder.appendLine(obj.elementInBody)
             }
-
-            //            } catch (e: StringNotFoundException) {
-            //                println(e)
-            //            } catch (e: EmptyConditionException) {
-            //                println(e)
-            //            }
         }
 
         return stringBuilder.toString().trim()

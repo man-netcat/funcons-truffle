@@ -130,7 +130,7 @@ class ElementNotInNode(
             is AtomsNode -> {
                 var i = 1
                 while (true) {
-                    val value = "\"@$i\""
+                    val value = "@$i"
                     if (value !in elementsInSet) return AtomNode(value)
                     i++
                     if (i < 0) break

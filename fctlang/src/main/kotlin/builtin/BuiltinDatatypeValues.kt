@@ -51,7 +51,7 @@ fun TermNode.isInStrings(): Boolean {
     return (this.isInLists() && this.get(0).elements.all { it.isInCharacters() }) || this is StringLiteralNode
 }
 
-open class AtomsNode : ValueTypesNode(), AtomsInterface
+open class AtomsNode : GroundValuesNode(), AtomsInterface
 
 fun TermNode.isInAtoms(): Boolean = this is AtomsNode
 
@@ -61,7 +61,7 @@ class AtomNode(override val value: String) : AtomsNode() {
         else -> false
     }
 
-    override fun toString(): String = "atom($value)"
+    override fun toString(): String = value
     override fun hashCode(): Int = value.hashCode()
 }
 

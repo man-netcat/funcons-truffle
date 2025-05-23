@@ -178,7 +178,14 @@ abstract class TermNode : Node() {
         } else paramList
 
         // Return truncated param list
-        return newParams.take(params.size).toMutableList()
+        val (truncated, dropped) = Pair(
+            newParams.take(primaryCtor.parameters.size),
+            newParams.drop(primaryCtor.parameters.size)
+        )
+
+        if (!dropped.all { it == SequenceNode() }) abort("unpacking")
+
+        return truncated.toMutableList()
     }
 
     open fun isInType(type: TermNode): Boolean {
@@ -189,7 +196,7 @@ abstract class TermNode : Node() {
             type::class == IntersectionTypeNode::class -> (type as IntersectionTypeNode).types.all { this.isInType(it) }
             type::class == ComplementTypeNode::class -> !(type as ComplementTypeNode).type.let { this.isInType(it) }
             type::class == GroundValuesNode::class -> this.isInGroundValues()
-            type::class == NullTypeNode::class -> false
+            type::class == NullTypeNode::class -> this.isInNullType()
             type::class == NaturalNumbersNode::class -> this is NaturalNumberNode || (this is IntegerNode && value >= 0)
             type::class == IntegersNode::class -> this is NaturalNumberNode || this is IntegerNode
             type::class == BooleansNode::class -> this.isInBooleans()
@@ -219,6 +226,7 @@ abstract class TermNode : Node() {
                 }
             }
 
+            type::class == CharactersNode::class -> this.isInCharacters()
             type::class == EnvironmentsNode::class -> this.isInEnvironments()
             type::class == LocationsNode::class -> this.isInLocations()
             type::class == AbstractionsNode::class -> this.isInAbstractions()
@@ -235,6 +243,12 @@ abstract class TermNode : Node() {
             type::class == ObjectsNode::class -> this.isInObjects()
             type::class == BitVectorsNode::class -> this.isInBitVectors()
             type::class == VariablesNode::class -> this.isInVariables()
+            type::class == ContinuationsNode::class -> this.isInContinuations()
+            type::class == ThrowingNode::class -> this.isInThrowing()
+            type::class == YieldingNode::class -> this.isInYielding()
+            type::class == FunctionsNode::class -> this.isInFunctions()
+            type::class == ThunksNode::class -> this.isInThunks()
+            type::class == TreesNode::class -> this.isInTrees()
             type::class == VectorsNode::class -> {
                 type as VectorsNode
                 this is ValueVectorNode && this.vp0.elements.all { element ->
@@ -267,7 +281,7 @@ abstract class TermNode : Node() {
             type::class == DatatypeValuesNode::class -> this.isInDatatypeValues()
             type::class == ValueTypesNode::class -> this.isInValueTypes()
             // TODO: Check if everything is here. May need to figure out way to automate this
-            else -> throw IllegalStateException("Unexpected type: $type")
+            else -> abort("Unexpected type: $type")
         }
     }
 
@@ -340,9 +354,7 @@ abstract class TermNode : Node() {
         return result
     }
 
-    fun printWithClassName() {
-        println("$this: ${this::class.simpleName}")
-    }
+    fun printWithClassName() = println("$this: ${this::class.simpleName}")
 
     var copyCounter = 0
     open fun getCopy(index: Int): TermNode {
@@ -355,7 +367,6 @@ abstract class TermNode : Node() {
     }
 
     override fun deepCopy(): TermNode {
-        if (DEBUG) println("deepcopying ${this::class.simpleName}")
         if (!isReducible()) return this
         val constructor = primaryCtor
         val args = params.map { param ->
