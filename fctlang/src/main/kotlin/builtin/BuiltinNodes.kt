@@ -214,3 +214,22 @@ class AtomicNode(override val p0: TermNode) : TermNode(), AtomicInterface {
         }
     }
 }
+
+class DebugNode(@Child var p0: TermNode) : TermNode() {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        return when {
+            p0.isInValues() -> p0
+
+            p0.isReducible() -> {
+                p0.printTree()
+                p0.printEntities(frame)
+                println("reducing: ${p0::class.simpleName} with params ${p0.params.map { it::class.simpleName }}")
+                val s0 = p0.reduce(frame)
+                println("replacing: ${p0::class.simpleName} for ${s0::class.simpleName}")
+                DebugNode(s0)
+            }
+
+            else -> abort("debug")
+        }
+    }
+}

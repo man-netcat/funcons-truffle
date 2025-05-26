@@ -3,7 +3,6 @@ package language
 import builtin.SequenceNode
 import builtin.TermNode
 import generated.aliasMap
-import language.Util.DEBUG
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
@@ -26,11 +25,6 @@ object NodeFactory {
             .firstOrNull() ?: throw ClassNotFoundException("No class found for $funconName")
 
         val constructor = clazz.constructors.first()
-
-        if (DEBUG) {
-            println("creating node: ${toNodeName(funconName)} with children ${args.map { it::class.simpleName }}")
-            println("Constructor for ${clazz.simpleName}: ${constructor.parameters.map { it.type.toString() }}")
-        }
 
         val argsMap = prepareArguments(constructor, args)
         return constructor.callBy(argsMap) as TermNode

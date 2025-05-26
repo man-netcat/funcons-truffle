@@ -3,9 +3,7 @@ package builtin
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
 import generated.*
-import language.FCTLanguage
 import language.StuckException
-import language.Util.DEBUG
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
@@ -42,10 +40,6 @@ abstract class TermNode : Node() {
             }.joinToString("")
         }
 
-    private fun getLanguage(): FCTLanguage {
-        return FCTLanguage.Companion.get(this)
-    }
-
     private fun getEntities(frame: VirtualFrame): MutableMap<String, TermNode> {
         return frame.getObject(FrameSlots.ENTITIES.ordinal) as? MutableMap<String, TermNode>
             ?: mutableMapOf<String, TermNode>().also {
@@ -67,9 +61,7 @@ abstract class TermNode : Node() {
     }
 
     open fun putEntity(frame: VirtualFrame, key: String, value: TermNode) {
-        if (DEBUG) println("putting ${value::class.simpleName} ($value) in $key")
         getEntities(frame)[key] = value
-        if (DEBUG) printEntities(frame)
     }
 
     open fun appendEntity(frame: VirtualFrame, key: String, entity: TermNode) {
@@ -93,15 +85,9 @@ abstract class TermNode : Node() {
     }
 
     fun rewrite(frame: VirtualFrame): TermNode {
-        if (DEBUG) println("rewriting: $this")
         var term = this
         var iterationCount = 0
         while (term.isReducible()) {
-            if (DEBUG) {
-                println("------------------")
-                println("Iteration $iterationCount: Current result is ${term::class.simpleName}")
-                term.printTree()
-            }
             term = term.reduce(frame)
             iterationCount++
         }
@@ -109,7 +95,6 @@ abstract class TermNode : Node() {
     }
 
     internal fun reduce(frame: VirtualFrame): TermNode {
-        if (DEBUG) println("reducing: ${this::class.simpleName} with params ${params.map { it::class.simpleName }}")
         // Reduce the parameters of a funcon first where possible
         if (this !is DirectionalNode) reduceComputations(frame)?.let { new -> return replace(new) }
         // Reduce according to CBS semantic rules
@@ -145,7 +130,7 @@ abstract class TermNode : Node() {
                 return primaryCtor.call(*newParams.toTypedArray())
 
             } catch (e: StuckException) {
-                if (DEBUG) println("Stuck with exception $e in class ${this::class.simpleName}")
+                println("Stuck with exception $e in class ${this::class.simpleName}")
                 // Rollback entities
                 restoreEntities(frame, entitySnapshot)
             }
@@ -160,7 +145,6 @@ abstract class TermNode : Node() {
         paramList: MutableList<TermNode>
     ): MutableList<TermNode> {
         val tupleElements = (tupleElementsNode.p0 as ValueTupleNode).get(0).elements.toList()
-        if (DEBUG) println("unpacking tuple-elements with elements: ${tupleElements.map { it::class.simpleName }}")
 
         // Replace the tuple-elements node for its contents in-place in the parameter list
         paramList.removeAt(index)
@@ -330,14 +314,6 @@ abstract class TermNode : Node() {
         if (thisParams.size != otherParams.size) return false
 
         return thisParams.zip(otherParams).all { (a, b) -> a == b }
-    }
-
-    override fun onReplace(newNode: Node?, reason: CharSequence?) {
-        newNode as TermNode
-        if (DEBUG) {
-            val reasonStr = if (!reason.isNullOrEmpty()) " with reason: $reason" else ""
-            println("replacing: ${this::class.simpleName} for ${newNode::class.simpleName}$reasonStr")
-        }
     }
 
     open operator fun get(index: Int): TermNode = params.getOrNull(index) ?: FailNode()

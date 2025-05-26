@@ -32,7 +32,7 @@ class InterpreterFilesTest {
         )
 
         val fctTests = collectAndCreateTests(
-            rootDir = Paths.get("../examples"),
+            rootDir = Paths.get("../fctfiles"),
             extension = "fct"
         )
 
