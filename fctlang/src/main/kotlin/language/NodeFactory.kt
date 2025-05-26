@@ -2,8 +2,8 @@ package language
 
 import builtin.SequenceNode
 import builtin.TermNode
+import builtin.TermNode.Companion.DEBUG
 import generated.aliasMap
-import language.Util.DEBUG
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter

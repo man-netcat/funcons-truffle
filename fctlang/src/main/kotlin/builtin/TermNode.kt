@@ -3,15 +3,18 @@ package builtin
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
 import generated.*
-import language.FCTLanguage
 import language.StuckException
-import language.Util.DEBUG
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
 
 @Suppress("UNCHECKED_CAST")
 abstract class TermNode : Node() {
+    companion object {
+        @JvmStatic
+        var DEBUG: Boolean = false
+    }
+
     @Retention(AnnotationRetention.RUNTIME)
     annotation class Eager
 
@@ -41,10 +44,6 @@ abstract class TermNode : Node() {
                 } else ch
             }.joinToString("")
         }
-
-    private fun getLanguage(): FCTLanguage {
-        return FCTLanguage.Companion.get(this)
-    }
 
     private fun getEntities(frame: VirtualFrame): MutableMap<String, TermNode> {
         return frame.getObject(FrameSlots.ENTITIES.ordinal) as? MutableMap<String, TermNode>

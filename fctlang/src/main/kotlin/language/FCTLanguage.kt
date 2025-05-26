@@ -27,15 +27,6 @@ import org.antlr.v4.runtime.tree.ParseTree
     characterMimeTypes = ["application/x-fctlang"]
 )
 class FCTLanguage : TruffleLanguage<FCTContext>() {
-    companion object {
-        private val REFERENCE: LanguageReference<FCTLanguage> =
-            LanguageReference.create(FCTLanguage::class.java)
-
-        fun get(node: Node): FCTLanguage {
-            return REFERENCE.get(node)
-        }
-    }
-
     override fun parse(request: ParsingRequest): CallTarget {
         val code = request.source.characters.toString()
         val parser = FCTParser(CommonTokenStream(FCTLexer(CharStreams.fromString(code))))

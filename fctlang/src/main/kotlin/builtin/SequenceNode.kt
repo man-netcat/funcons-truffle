@@ -3,7 +3,6 @@ package builtin
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.FailNode
 import language.StuckException
-import language.Util.DEBUG
 
 class SequenceNode(@Children override vararg var elements: TermNode) : TermNode() {
     init {

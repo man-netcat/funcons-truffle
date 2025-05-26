@@ -214,3 +214,20 @@ class AtomicNode(override val p0: TermNode) : TermNode(), AtomicInterface {
         }
     }
 }
+
+class DebugNode(@Child var p0: TermNode) : TermNode() {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        return when {
+            p0.isInValues() -> p0
+
+            p0.isReducible() -> {
+                DEBUG = true
+                val s0 = p0.reduce(frame)
+                DEBUG = false
+                DebugNode(s0)
+            }
+
+            else -> abort("debug")
+        }
+    }
+}
