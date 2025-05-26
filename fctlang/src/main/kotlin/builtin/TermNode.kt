@@ -10,11 +10,6 @@ import kotlin.reflect.full.primaryConstructor
 
 @Suppress("UNCHECKED_CAST")
 abstract class TermNode : Node() {
-    companion object {
-        @JvmStatic
-        var DEBUG: Boolean = false
-    }
-
     @Retention(AnnotationRetention.RUNTIME)
     annotation class Eager
 
