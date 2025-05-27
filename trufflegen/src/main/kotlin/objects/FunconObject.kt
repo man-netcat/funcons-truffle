@@ -464,7 +464,7 @@ class FunconObject(
                                 if (conditions.isEmpty()) "true" to bodyStr
                                 else conditions to bodyStr
                             }
-                            makeWhenStatement(innerPairs, elseBranch = "abort(${strStr(name)})")
+                            makeWhenStatement(innerPairs, elseBranch = "abort()")
                         }
 
 
@@ -488,7 +488,7 @@ class FunconObject(
                         if (conditions.isEmpty()) "true" to rule.bodyStr
                         else conditions to rule.bodyStr
                     }
-                    makeWhenStatement(withoutPairs + stepPairs, elseBranch = "abort(${strStr(name)})")
+                    makeWhenStatement(withoutPairs + stepPairs, elseBranch = "abort()")
                 }
 
                 else -> throw DetailedException("Funcon $name does not have any associated rules.")

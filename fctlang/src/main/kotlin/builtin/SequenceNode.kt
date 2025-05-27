@@ -64,7 +64,7 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         return null
     }
 
-    override fun reduceRules(frame: VirtualFrame): TermNode = abort("sequence")
+    override fun reduceRules(frame: VirtualFrame): TermNode = abort()
 
     override fun toString(): String = if (elements.isNotEmpty()) {
         elements.joinToString(",") { it.toString() }

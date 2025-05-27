@@ -4,14 +4,14 @@ import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
 
 open class ValueTypesNode : ValuesNode(), ValueTypesInterface {
-    override fun reduceRules(frame: VirtualFrame): TermNode = abort("value-types")
+    override fun reduceRules(frame: VirtualFrame): TermNode = abort()
 }
 
 fun TermNode.isInValueTypes(): Boolean =
     this is ValueTypesNode || this::class == ValuesNode::class
 
 open class ValuesNode : TermNode(), ValuesInterface {
-    override fun reduceRules(frame: VirtualFrame): TermNode = abort("values")
+    override fun reduceRules(frame: VirtualFrame): TermNode = abort()
 }
 
 fun TermNode.isInValues(): Boolean = this is ValuesNode
@@ -36,7 +36,7 @@ class AbstractionNode(@Child override var p0: TermNode) : AbstractionsNode(Compu
 fun TermNode.isInAbstractions(): Boolean = this is AbstractionNode
 
 class StuckNode() : TermNode(), StuckInterface {
-    override fun reduceRules(frame: VirtualFrame): TermNode = abort("stuck")
+    override fun reduceRules(frame: VirtualFrame): TermNode = abort()
 }
 
 abstract class DirectionalNode(@Children open vararg var p0: SequenceNode) : TermNode() {
@@ -83,7 +83,7 @@ class SequentialNode(
 
             get(0).head is ValueNullValueNode -> SequentialNode(get(0).tail, get(1))
 
-            else -> abort("sequential")
+            else -> abort()
         }
     }
 }
@@ -187,7 +187,7 @@ class AtomicNode(override val p0: TermNode) : TermNode(), AtomicInterface {
                                         s1
                                     }
 
-                                    else -> abort("atomic")
+                                    else -> abort()
                                 }
                             }
 
@@ -196,7 +196,7 @@ class AtomicNode(override val p0: TermNode) : TermNode(), AtomicInterface {
                                 s0
                             }
 
-                            else -> abort("atomic")
+                            else -> abort()
                         }
                     }
 
@@ -205,12 +205,12 @@ class AtomicNode(override val p0: TermNode) : TermNode(), AtomicInterface {
                         AtomicNode(s0)
                     }
 
-                    else -> abort("atomic")
+                    else -> abort()
                 }
             }
 
             get(0).isInValues() -> getCopy(0)
-            else -> abort("atomic")
+            else -> abort()
         }
     }
 }
@@ -229,7 +229,7 @@ class DebugNode(@Child var p0: TermNode) : TermNode() {
                 DebugNode(s0)
             }
 
-            else -> abort("debug")
+            else -> abort()
         }
     }
 }

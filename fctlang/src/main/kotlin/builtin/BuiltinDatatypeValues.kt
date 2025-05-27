@@ -72,8 +72,8 @@ class DatatypeValueNode(
     @Eager @Child var p1: SequenceNode
 ) : TermNode() {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        if (!p0.isInIdentifiers()) abort("datatype-value")
-        if (p1.elements.any { it !is ValuesNode }) abort("datatype-value")
+        if (!p0.isInIdentifiers()) abort()
+        if (p1.elements.any { it !is ValuesNode }) abort()
         val identifier = p0.toString()
         return createNode(identifier, listOf(*p1.elements))
     }

@@ -138,7 +138,7 @@ class ElementNotInNode(
                 SequenceNode()
             }
 
-            else -> abort("element-not-in")
+            else -> abort()
         }
     }
 }

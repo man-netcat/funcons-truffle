@@ -136,7 +136,7 @@ abstract class TermNode : Node() {
             }
         }
 
-        return if (attemptedReduction) abort("stuck!") else null
+        return if (attemptedReduction) abort("no execution possible") else null
     }
 
     private fun unpackTupleElements(
@@ -167,7 +167,7 @@ abstract class TermNode : Node() {
             newParams.drop(primaryCtor.parameters.size)
         )
 
-        if (!dropped.all { it == SequenceNode() }) abort("unpacking")
+        if (!dropped.all { it == SequenceNode() }) abort()
 
         return truncated.toMutableList()
     }
@@ -271,7 +271,10 @@ abstract class TermNode : Node() {
 
     fun toSequence(): SequenceNode = this as? SequenceNode ?: SequenceNode(this)
 
-    fun abort(reason: String = ""): Nothing = throw StuckException(reason)
+    fun abort(reason: String = ""): Nothing {
+        val str = if (reason.isNotBlank()) "$name: $reason" else name
+        throw StuckException(str)
+    }
 
     fun printTree(indent: String = "", prefix: String = "", hasMoreSiblings: Boolean = false) {
         println("$indent$prefix${this::class.simpleName}" + if (value == null) "" else " ($this)")
@@ -354,27 +357,27 @@ abstract class TermNode : Node() {
 
     open val id: TermNode get() = FailNode()
     open val args: TermNode get() = FailNode()
-    open val head: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
-    open val second: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
-    open val third: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
-    open val fourth: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
-    open val last: TermNode get() = abort("not a sequence: ${this::class.simpleName}")
-    open val tail: SequenceNode get() = abort("not a sequence: ${this::class.simpleName}")
-    open val init: SequenceNode get() = abort("not a sequence: ${this::class.simpleName}")
-    open val size: Int get() = abort("not a sequence: ${this::class.simpleName}")
-    open val elements: Array<out TermNode> get() = abort("not a sequence: ${this::class.simpleName}")
+    open val head: TermNode get() = abort("not a sequence")
+    open val second: TermNode get() = abort("not a sequence")
+    open val third: TermNode get() = abort("not a sequence")
+    open val fourth: TermNode get() = abort("not a sequence")
+    open val last: TermNode get() = abort("not a sequence")
+    open val tail: SequenceNode get() = abort("not a sequence")
+    open val init: SequenceNode get() = abort("not a sequence")
+    open val size: Int get() = abort("not a sequence")
+    open val elements: Array<out TermNode> get() = abort("not a sequence")
     open fun isEmpty(): Boolean = false
     open fun isNotEmpty(): Boolean = true
-    open fun unpack(): Array<out TermNode> = abort("not a sequence: ${this::class.simpleName}")
-    open fun slice(startIndex: Int, endIndex: Int): SequenceNode = abort("not a sequence: ${this::class.simpleName}")
+    open fun unpack(): Array<out TermNode> = abort("not a sequence")
+    open fun slice(startIndex: Int, endIndex: Int): SequenceNode = abort("not a sequence")
     open fun sliceFrom(startIndex: Int, endIndexOffset: Int = 0): SequenceNode =
-        abort("not a sequence: ${this::class.simpleName}")
+        abort("not a sequence")
 
     open fun sliceUntil(endIndexOffset: Int, startIndexOffset: Int = 0): SequenceNode =
-        abort("not a sequence: ${this::class.simpleName}")
+        abort("not a sequence")
 
-    open fun random(): TermNode = abort("not a sequence: ${this::class.simpleName}")
-    open fun shuffled(): List<TermNode> = abort("not a sequence: ${this::class.simpleName}")
-    open fun append(other: SequenceNode): SequenceNode = abort("not a sequence: ${this::class.simpleName}")
-    open fun popFirst(): TermNode = abort("not a sequence: ${this::class.simpleName}")
+    open fun random(): TermNode = abort("not a sequence")
+    open fun shuffled(): List<TermNode> = abort("not a sequence")
+    open fun append(other: SequenceNode): SequenceNode = abort("not a sequence")
+    open fun popFirst(): TermNode = abort("not a sequence")
 }
