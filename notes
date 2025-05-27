@@ -1,3 +1,0 @@
-somehow identify when dealing with datatype-value
-then instead of get(0), invoke name, for get(1), invoke params
-could cause issues with sequences though
