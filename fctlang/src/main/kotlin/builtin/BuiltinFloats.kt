@@ -20,24 +20,24 @@ data class FloatNode(
 
 class QuietNotANumberNode(override val p0: TermNode) : TermNode(), QuietNotANumberInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        TODO("Not yet implemented: $name")
+        return FloatNode(p0, IntegerNode(0), IntegerNode(0), IntegerNode(0))
     }
 }
 
 class SignalingNotANumberNode(override val p0: TermNode) : TermNode(), SignalingNotANumberInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        TODO("Not yet implemented: $name")
+        return FloatNode(p0, IntegerNode(0), IntegerNode(1), IntegerNode(0))
     }
 }
 
 class PositiveInfinityNode(override val p0: TermNode) : TermNode(), PositiveInfinityInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        TODO("Not yet implemented: $name")
+        return FloatNode(p0, IntegerNode(0), IntegerNode(0), IntegerNode(1))
     }
 }
 
 class NegativeInfinityNode(override val p0: TermNode) : TermNode(), NegativeInfinityInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        TODO("Not yet implemented: $name")
+        return FloatNode(p0, IntegerNode(1), IntegerNode(0), IntegerNode(1))
     }
 }
