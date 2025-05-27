@@ -111,7 +111,7 @@ class ElementNotInNode(
             }
 
             is IntegersNode -> {
-                var i = 0
+                var i = 0L
                 while (true) {
                     if (i !in elementsInSet) return NaturalNumberNode(i)
                     i++

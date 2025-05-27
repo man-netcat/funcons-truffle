@@ -8,7 +8,7 @@ import language.NodeFactory.createNode
 object ValueNodeFactory {
     private val strCache = mutableMapOf<String, ValueListNode>()
     private val charCache = mutableMapOf<Char, CharacterNode>()
-    private val intCache = mutableMapOf<Int, TermNode>()
+    private val intCache = mutableMapOf<Long, TermNode>()
     private val valueCache = mutableMapOf<Pair<String, SequenceNode>, AbstractDatatypeValueNode>()
     private val atomCache = mutableMapOf<String, AtomNode>()
     private val strLiteralCache = mutableMapOf<String, StringLiteralNode>()
@@ -21,7 +21,8 @@ object ValueNodeFactory {
         return valueCache.getOrPut(name to args, constructor)
     }
 
-    fun intNode(int: Int): TermNode = intCache.getOrPut(int) { IntegerNode(int) }
+    fun intNode(int: Int): TermNode = intNode(int.toLong())
+    fun intNode(long: Long): TermNode = intCache.getOrPut(long) { IntegerNode(long) }
     fun charNode(char: Char): CharacterNode = charCache.getOrPut(char) { CharacterNode(char) }
     fun strNode(str: String): ValueListNode = strCache.getOrPut(str) {
         val sequence = SequenceNode(*str.map { char -> charNode(char) }.toTypedArray())
