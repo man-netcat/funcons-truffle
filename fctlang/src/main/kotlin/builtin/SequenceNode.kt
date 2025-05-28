@@ -38,6 +38,7 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
     override val tail: SequenceNode by lazy { sliceFrom(1) }
     override fun isEmpty(): Boolean = elements.isEmpty()
     override fun isNotEmpty(): Boolean = elements.isNotEmpty()
+    override fun isReducible(): Boolean = elements.any { it !is ValuesNode }
 
     override fun random(): TermNode {
         require(elements.isNotEmpty())

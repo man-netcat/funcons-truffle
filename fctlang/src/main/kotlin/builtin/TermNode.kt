@@ -76,13 +76,7 @@ abstract class TermNode : Node() {
         entities.putAll(snapshot)
     }
 
-    open fun isReducible(): Boolean = when (this) {
-        is SequenceNode -> if (elements.isNotEmpty()) {
-            elements.any { it !is ValuesNode }
-        } else false
-
-        else -> this !is ValuesNode
-    }
+    open fun isReducible(): Boolean = this !is ValuesNode
 
     fun rewrite(frame: VirtualFrame): TermNode {
         var term = this
@@ -130,7 +124,7 @@ abstract class TermNode : Node() {
                 return primaryCtor.call(*newParams.toTypedArray())
 
             } catch (e: StuckException) {
-                println("Stuck with exception $e in class ${this::class.simpleName}")
+                println("Stuck with exception $e in node ${this::class.simpleName}")
                 // Rollback entities
                 restoreEntities(frame, entitySnapshot)
             }
@@ -167,7 +161,7 @@ abstract class TermNode : Node() {
             newParams.drop(primaryCtor.parameters.size)
         )
 
-        if (!dropped.all { it == SequenceNode() }) abort()
+        if (!dropped.all { it == SequenceNode() }) abort("somehow dropped parameters: $dropped")
 
         return truncated.toMutableList()
     }
