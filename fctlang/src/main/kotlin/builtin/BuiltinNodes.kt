@@ -92,21 +92,23 @@ class ChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNo
     override fun reduceRules(frame: VirtualFrame): TermNode {
         return when {
             get(0).size >= 1 -> get(0).random()
-            else -> FailNode()
+            else -> abort()
         }
     }
 }
 
 class ElseChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), ElseChoiceInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val shuffled = get(0).shuffled()
-
-        return when (shuffled.size) {
-            0 -> FailNode()
-            1 -> shuffled[0]
-            else -> shuffled.drop(1).fold(shuffled[0]) { acc, term ->
-                ElseNode(term, SequenceNode(acc))
+        val terms = get(0)
+        return when {
+            terms.isEmpty() -> abort()
+            terms.size == 1 -> get(0).get(0)
+            terms.size >= 2 -> {
+                terms.elements.shuffle()
+                ElseNode(terms.head, SequenceNode(ElseChoiceNode(terms.tail)))
             }
+
+            else -> abort()
         }
     }
 }
@@ -148,7 +150,7 @@ class HoleNode() : TermNode(), HoleInterface {
         val plugSignal = getEntity(frame, "plug-signal")
         return when {
             plugSignal.isNotEmpty() -> plugSignal
-            else -> FailNode()
+            else -> abort()
         }
     }
 }

@@ -318,7 +318,7 @@ abstract class TermNode : Node() {
     open val value: Any? get() = null
 
     override fun toString(): String {
-        return name + if (params.isNotEmpty()) "(" + params.joinToString(",") { it.toString() } + ")" else ""
+        return name + if (params.isNotEmpty()) "(" + params.joinToString { it.toString() } + ")" else ""
     }
 
     override fun hashCode(): Int {

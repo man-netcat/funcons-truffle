@@ -25,19 +25,11 @@ class InterpreterFilesTest {
     }
 
     @TestFactory
-    fun testFiles(): List<DynamicTest> {
-        val configTests = collectAndCreateTests(
-            rootDir = Paths.get("../CBS-beta/Funcons-beta"),
-            extension = "config"
-        )
-
-        val fctTests = collectAndCreateTests(
-            rootDir = Paths.get("../fctfiles"),
-            extension = "fct"
-        )
-
-        return configTests + fctTests
-    }
+    fun testFiles(): List<DynamicTest> =
+        listOf(
+            Paths.get("../CBS-beta/Funcons-beta") to "config",
+            Paths.get("../fctfiles") to "fct"
+        ).flatMap { (dir, ext) -> collectAndCreateTests(dir, ext) }
 
     private fun collectAndCreateTests(rootDir: Path, extension: String): List<DynamicTest> {
         val absoluteRoot = rootDir.normalize().toAbsolutePath()
@@ -54,9 +46,11 @@ class InterpreterFilesTest {
     }
 
     private fun runTestFile(path: Path, displayName: String) {
+        val line = "-".repeat(displayName.length)
+        println(line)
         println(displayName)
+        println(line)
         val result = FCTInterpreter.evalFile(context, path)
-        FCTInterpreter.processResult(result)
-        println("----------------------------------------")
+        FCTInterpreter.processResult(result, path)
     }
 }

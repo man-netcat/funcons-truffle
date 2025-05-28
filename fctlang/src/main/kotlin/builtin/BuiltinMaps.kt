@@ -37,15 +37,17 @@ data class ValueMapNode(@Child var vp0: SequenceNode = SequenceNode()) : MapsNod
     }
 
     override fun toString(): String {
-        val str = get(0).elements.joinToString(",") { tuple ->
+        val elements = get(0).elements
+        val str = elements.joinToString { tuple ->
             tuple as ValueTupleNode
-            when (tuple.get(0).size) {
-                1 -> "${tuple.get(0).elements[0]}|->()"
-                2 -> "${tuple.get(0).elements[0]}|->${tuple.get(0).elements[1]}"
+            val tupleElements = tuple.get(0).elements
+            when (tupleElements.size) {
+                1 -> "${tupleElements[0]} |-> ()"
+                2 -> "${tupleElements[0]} |-> ${tupleElements[1]}"
                 else -> abort()
             }
         }
-        return if (get(0).isNotEmpty()) "{${str}}" else "map()"
+        return if (elements.isNotEmpty()) "{${str}}" else "map()"
     }
 }
 

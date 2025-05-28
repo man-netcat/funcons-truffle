@@ -68,7 +68,7 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
     override fun reduceRules(frame: VirtualFrame): TermNode = abort()
 
     override fun toString(): String = if (elements.isNotEmpty()) {
-        elements.joinToString(",") { it.toString() }
+        elements.joinToString { it.toString() }
     } else "()"
 
     override fun append(other: SequenceNode): SequenceNode {

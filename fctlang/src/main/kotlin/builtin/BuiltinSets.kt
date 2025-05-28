@@ -37,7 +37,7 @@ class SetDifferenceNode(
         val set1 = get(0)
         val set2 = get(1)
 
-        if (!set1.isInSets() || !set2.isInSets()) return FailNode()
+        if (!set1.isInSets() || !set2.isInSets()) abort()
 
         val elements1 = set1.get(0).elements
         val elements2 = set2.get(0).elements.toSet()
@@ -52,7 +52,7 @@ class SetElementsNode(@Eager @Child override var p0: TermNode) : TermNode(), Set
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val set = get(0)
 
-        if (!set.isInSets()) return FailNode()
+        if (!set.isInSets()) abort()
 
         return set.get(0)
     }
@@ -63,7 +63,7 @@ class SetUniteNode(@Eager @Child override var p0: SequenceNode) : TermNode(), Se
         val resultSet = LinkedHashSet<TermNode>()
 
         for (set in get(0).elements) {
-            if (set !is ValueSetNode) return FailNode()
+            if (set !is ValueSetNode) abort()
             resultSet.addAll(set.get(0).elements)
         }
 
@@ -96,8 +96,8 @@ class ElementNotInNode(
         val type = get(0)
         val set = get(1)
 
-        if (!type.isInValueTypes()) return FailNode()
-        if (!set.isInSets()) return FailNode()
+        if (!type.isInValueTypes()) abort()
+        if (!set.isInSets()) abort()
 
         val elementsInSet = set.get(0).elements.map { it.value }.toSet()
 
@@ -113,7 +113,7 @@ class ElementNotInNode(
             is IntegersNode -> {
                 var i = 0L
                 while (true) {
-                    if (i !in elementsInSet) return NaturalNumberNode(i)
+                    if (i !in elementsInSet) return IntegerNode(i)
                     i++
                     if (i < 0) break
                 }
@@ -133,7 +133,7 @@ class ElementNotInNode(
                     val value = "\"@$i\""
                     if (value !in elementsInSet) return AtomNode(value)
                     i++
-                    if (i < 0) break
+                    if (i < 1) break
                 }
                 SequenceNode()
             }
