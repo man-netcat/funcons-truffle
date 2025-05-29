@@ -107,19 +107,6 @@ class FunconObject(
             }
         }
 
-        fun makeRewriteDataObject(expr: ExprContext, str: String): RewriteData {
-            return if (expr is TypeExpressionContext) {
-                RewriteData(expr.value, expr.type, str)
-            } else if (expr is NestedExpressionContext && expr.expr() is TypeExpressionContext) {
-                val typeExpr = expr.expr() as TypeExpressionContext
-                RewriteData(typeExpr.value, typeExpr.type, str)
-            } else if (expr is SequenceExpressionContext) {
-                RewriteData(null, null, str, "$str.isEmpty()" to 0)
-            } else {
-                RewriteData(expr, null, str)
-            }
-        }
-
         private fun getControlEntityLabels(premiseExpr: TransitionPremiseWithControlEntityContext): List<Pair<LabelContext, EntityObject>> {
             val steps = premiseExpr.steps().step().sortedBy { it.sequenceNumber.text.toInt() }
             return steps.flatMap { step ->
@@ -135,14 +122,7 @@ class FunconObject(
                     is RewritePremiseContext -> {
                         val rewriteLhs = rewrite(pattern, lhs, rewriteData)
                         val newRewriteData = if (rhs is FunconExpressionContext && rhs.name.text == "datatype-value") {
-                            val (i, v) = (rhs.args() as MultipleArgsContext).exprs().expr()
-                            i as TypeExpressionContext
-                            v as TypeExpressionContext
-                            listOf(
-                                RewriteData(null, rhs, rewriteLhs),
-                                RewriteData(i.value, i.type, "$rewriteLhs.id"),
-                                RewriteData(v.value, v.type, "$rewriteLhs.args")
-                            )
+                            makeDatatypeValueRewriteData(rhs, rewriteLhs)
                         } else if (rhs is FunconExpressionContext) {
                             val rewriteRhs = makeGetter(variables.getVar(rewriteLhs, "r"), frame = true)
                             getParamStrs(rhs, rewriteRhs) + listOf(makeRewriteDataObject(rhs, rewriteRhs))
@@ -318,7 +298,7 @@ class FunconObject(
                     steps.forEach { step ->
                         step.labels().label().forEach { label ->
                             val labelObj = labelToObject(label)
-                            val valueStr = if (label.value != null && label.value.text != "_?") {
+                            val valueStr = if (label.value != null) {
                                 rewrite(pattern, label.value, rewriteData)
                             } else "SequenceNode()"
                             val controlWrite = labelObj.putStr(valueStr)
@@ -426,9 +406,8 @@ class FunconObject(
                         Rule(premises, rule.conclusion, metavariableMap)
                     }
 
-                    if (ruleObjs.map { it.conditions }.toSet().size != ruleObjs.size) {
+                    if (ruleObjs.map { it.conditions }.toSet().size != ruleObjs.size)
                         throw DetailedException("rules for $name are not distinct.")
-                    }
 
                     if (ctxConclusionRead.isNotEmpty()) stringBuilder.appendLine(ctxConclusionRead)
                     if (mutableRead.isNotEmpty()) stringBuilder.appendLine(mutableRead)
@@ -441,8 +420,11 @@ class FunconObject(
                         }
                     }
 
-                    val stepVariableSet =
-                        variables.variables.entries.filter { it.value[0] == 's' }.map { it.toPair() }.toMutableSet()
+                    val stepVariableSet = variables.variables.entries
+                        .filter { it.value[0] == 's' }
+                        .map { it.toPair() }
+                        .toMutableSet()
+
                     val stepPairs = stepVariableSet.map { stepVar ->
                         val (rewriteLhs, rewriteRhs) = stepVar
                         val condition = "$rewriteLhs.isReducible()"
@@ -468,15 +450,14 @@ class FunconObject(
                         }
 
 
-                        val body =
-                            listOf(
-                                contextualWrite,
-                                step,
-                                controlReads.joinToString("\n"),
-                                ruleBody
-                            )
-                                .filter { it.isNotEmpty() }
-                                .joinToString("\n")
+                        val body = listOf(
+                            contextualWrite,
+                            step,
+                            controlReads.joinToString("\n"),
+                            ruleBody
+                        )
+                            .filter { it.isNotEmpty() }
+                            .joinToString("\n")
                         condition to body
                     }
 

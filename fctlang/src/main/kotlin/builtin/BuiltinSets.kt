@@ -159,12 +159,28 @@ class SetInsertNode(
 class IsInSetNode(
     @Eager @Child override var p0: TermNode,
     @Eager @Child override var p1: TermNode,
-) : TermNode(),
-    IsInSetInterface {
+) : TermNode(), IsInSetInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         return when {
             get(1).get(0).elements.any { element -> element == p0 } -> TrueNode()
             else -> FalseNode()
         }
+    }
+}
+
+class IsSubsetNode(
+    @Eager @Child override var p0: TermNode,
+    @Eager @Child override var p1: TermNode
+) : TermNode(), IsSubsetInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        val set1 = get(0)
+        val set2 = get(1)
+
+        if (!set1.isInSets() || !set2.isInSets()) abort()
+
+        val elements1 = set1.get(0).elements.toSet()
+        val elements2 = set2.get(0).elements.toSet()
+
+        return if (elements1.all { it in elements2 }) TrueNode() else FalseNode()
     }
 }

@@ -2,6 +2,7 @@ package main
 
 import cbs.CBSParser.*
 import main.dataclasses.Param
+import main.dataclasses.RewriteData
 import main.exceptions.DetailedException
 import main.objects.AlgebraicDatatypeObject
 import main.objects.Object
@@ -608,4 +609,28 @@ fun getterName(varName: String): String = "get" + varName.replaceFirstChar { it.
 
 fun makeGetter(varName: String, frame: Boolean = false): String {
     return getterName(varName) + "(" + (if (frame) "frame" else "") + ")"
+}
+
+fun makeRewriteDataObject(pattern: ExprContext, str: String): RewriteData {
+    return if (pattern is TypeExpressionContext) {
+        RewriteData(pattern.value, pattern.type, str)
+    } else if (pattern is NestedExpressionContext && pattern.expr() is TypeExpressionContext) {
+        val typeExpr = pattern.expr() as TypeExpressionContext
+        RewriteData(typeExpr.value, typeExpr.type, str)
+    } else if (pattern is SequenceExpressionContext) {
+        RewriteData(null, null, str, "$str.isEmpty()" to 0)
+    } else {
+        RewriteData(pattern, null, str)
+    }
+}
+
+fun makeDatatypeValueRewriteData(pattern: FunconExpressionContext, newStr: String): List<RewriteData> {
+    val (i, v) = (pattern.args() as MultipleArgsContext).exprs().expr()
+    i as TypeExpressionContext
+    v as TypeExpressionContext
+    return listOf(
+        RewriteData(null, pattern, newStr),
+        RewriteData(i.value, i.type, "$newStr.id"),
+        RewriteData(v.value, v.type, "$newStr.args")
+    )
 }
