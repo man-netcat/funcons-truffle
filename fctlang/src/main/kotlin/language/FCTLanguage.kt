@@ -11,7 +11,6 @@ import com.oracle.truffle.api.CallTarget
 import com.oracle.truffle.api.TruffleLanguage
 import com.oracle.truffle.api.frame.FrameDescriptor
 import com.oracle.truffle.api.frame.FrameSlotKind
-import com.oracle.truffle.api.nodes.Node
 import fct.FCTLexer
 import fct.FCTParser
 import fct.FCTParser.*
@@ -27,7 +26,12 @@ import org.antlr.v4.runtime.tree.ParseTree
     characterMimeTypes = ["application/x-fctlang"]
 )
 class FCTLanguage : TruffleLanguage<FCTContext>() {
+    companion object {
+        var entityFrameSlot = -1
+    }
+
     override fun parse(request: ParsingRequest): CallTarget {
+
         val code = request.source.characters.toString()
         val parser = FCTParser(CommonTokenStream(FCTLexer(CharStreams.fromString(code))))
         val root = parser.root()
@@ -48,7 +52,7 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
         }
 
         val frameDescriptorBuilder = FrameDescriptor.newBuilder()
-        frameDescriptorBuilder.addSlots(1, FrameSlotKind.Object)
+        entityFrameSlot = frameDescriptorBuilder.addSlot(FrameSlotKind.Object, null, null)
         val frameDescriptor = frameDescriptorBuilder.build()
 
         return FCTRootNode(this, frameDescriptor, buildTree(funconTerm), inputs).callTarget
