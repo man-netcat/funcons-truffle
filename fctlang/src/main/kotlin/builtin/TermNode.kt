@@ -3,6 +3,7 @@ package builtin
 import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
 import generated.*
+import language.FCTLanguage.Companion.entityFrameSlot
 import language.StuckException
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
@@ -13,8 +14,19 @@ abstract class TermNode : Node() {
     @Retention(AnnotationRetention.RUNTIME)
     annotation class Eager
 
-    enum class FrameSlots {
-        ENTITIES,
+    companion object {
+        val name: String
+            get() {
+                val nodeName = this::class.simpleName!!
+                val base = nodeName.substring(0, nodeName.length - "Node".length)
+
+                return base.mapIndexed { i, ch ->
+                    if (ch.isUpperCase()) {
+                        val dash = if (i != 0) '-' else ""
+                        "$dash${ch.lowercaseChar()}"
+                    } else ch
+                }.joinToString("")
+            }
     }
 
     val primaryCtor = this::class.primaryConstructor!!
@@ -27,23 +39,10 @@ abstract class TermNode : Node() {
         }
     }
 
-    val name: String
-        get() {
-            val nodeName = this::class.simpleName!!
-            val base = nodeName.substring(0, nodeName.length - "Node".length)
-
-            return base.mapIndexed { i, ch ->
-                if (ch.isUpperCase()) {
-                    val dash = if (i != 0) '-' else ""
-                    "$dash${ch.lowercaseChar()}"
-                } else ch
-            }.joinToString("")
-        }
-
     private fun getEntities(frame: VirtualFrame): MutableMap<String, TermNode> {
-        return frame.getObject(FrameSlots.ENTITIES.ordinal) as? MutableMap<String, TermNode>
+        return frame.getObject(entityFrameSlot) as? MutableMap<String, TermNode>
             ?: mutableMapOf<String, TermNode>().also {
-                frame.setObject(FrameSlots.ENTITIES.ordinal, it)
+                frame.setObject(entityFrameSlot, it)
             }
     }
 
