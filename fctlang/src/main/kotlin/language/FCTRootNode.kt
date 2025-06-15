@@ -14,11 +14,11 @@ class FCTRootNode(
 ) : RootNode(language, frameDescriptor) {
     override fun execute(frame: VirtualFrame): ResultArray {
         val standardInNode = SequenceNode(*inputNodes)
-        rootTerm.appendEntity(frame, "standard-in", standardInNode)
+        appendEntity(frame, "standard-in", standardInNode)
         val resultTerm = rootTerm.rewrite(frame)
         val resultValue = listOf(resultTerm.toString())
-        val standardOutNode = resultTerm.getEntity(frame, "standard-out")
-        val storeNode = resultTerm.getEntity(frame, "store")
+        val standardOutNode = getEntity(frame, "standard-out")
+        val storeNode = getEntity(frame, "store")
         val storeValue = listOf(storeNode.toString())
         val elements = standardOutNode.elements
         val standardOutValues = elements.map { it.toString() }

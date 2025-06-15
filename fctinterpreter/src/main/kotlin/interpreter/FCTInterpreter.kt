@@ -57,8 +57,8 @@ object FCTInterpreter {
         } else {
             println("results:")
             println("result-term: $resultTerm")
-            println("store: $store")
-            println("standard-out: $standardOut")
+            if (store.asString() != "()") println("store: $store")
+            if (standardOut.isNotEmpty()) println("standard-out: $standardOut")
         }
     }
 }

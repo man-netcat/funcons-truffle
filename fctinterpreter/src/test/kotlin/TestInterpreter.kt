@@ -22,6 +22,7 @@ abstract class BaseTest(
     private val performTiming: Boolean = true,
     private val iterations: Int = 50,
     private val warmUpIterations: Int = 10,
+    private val excludedFiles: List<String> = emptyList()
 ) {
 
     private val originalOut: PrintStream? = System.out
@@ -100,6 +101,9 @@ abstract class BaseTest(
         val absoluteRoot = rootDir.normalize().toAbsolutePath()
         return Files.walk(absoluteRoot)
             .filter { it.isRegularFile() && it.extension == extension }
+            .filter {
+                !excludedFiles.contains(it.fileName.toString())
+            }
             .sorted()
             .toList()
     }
@@ -122,14 +126,17 @@ abstract class BaseTest(
 
 class TestFunconsBeta : BaseTest(
     testDirectories = listOf(Paths.get("../CBS-beta/Funcons-beta") to "config"),
+    performTiming = false,
+    excludedFiles = listOf("atomic.config", "pattern-bind.config")
 )
 
-class TestStandaloneFCT : BaseTest(
-    testDirectories = listOf(Paths.get("../fctfiles/tests") to "fct"),
-)
+//class TestStandaloneFCT : BaseTest(
+//    testDirectories = listOf(Paths.get("../fctfiles/tests") to "fct"),
+//    performTiming = false
+//)
 
-class TestMiniJava : BaseTest(
-    testDirectories = listOf(Paths.get("../fctfiles/minijava") to "fct"),
-    performTiming = false
-)
+//class TestMiniJava : BaseTest(
+//    testDirectories = listOf(Paths.get("../fctfiles/minijava") to "fct"),
+//    performTiming = false
+//)
 

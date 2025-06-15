@@ -2,6 +2,10 @@ package builtin
 
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
+import language.appendEntity
+import language.getEntity
+import language.printEntities
+import language.putEntity
 
 open class ValueTypesNode : ValuesNode(), ValueTypesInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = abort()
@@ -53,7 +57,7 @@ abstract class DirectionalNode(@Children open vararg var p0: SequenceNode) : Ter
         }
 
         newTerms[reducibleIndex] = newTerms[reducibleIndex].reduce(frame) as SequenceNode
-        return createNewNode(*newTerms.toTypedArray())
+        return replace(createNewNode(*newTerms.toTypedArray()))
     }
 }
 
@@ -224,7 +228,7 @@ class DebugNode(@Child var p0: TermNode) : TermNode() {
 
             p0.isReducible() -> {
                 p0.printTree()
-                p0.printEntities(frame)
+                printEntities(frame)
                 println("reducing: ${p0::class.simpleName} with params ${p0.params.map { it::class.simpleName }}")
                 val s0 = p0.reduce(frame)
                 println("replacing: ${p0::class.simpleName} for ${s0::class.simpleName}")
