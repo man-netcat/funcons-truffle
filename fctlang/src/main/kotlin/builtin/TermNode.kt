@@ -73,8 +73,8 @@ abstract class TermNode : Node() {
         get() = primaryCtor.parameters.mapIndexed { index, kParam ->
             index to params[index]
         }.filter { (index, param) ->
-            primaryCtor.parameters[index].findAnnotation<Eager>() != null &&
-                    param.isReducible()
+            (param is TupleElementsNode || primaryCtor.parameters[index].findAnnotation<Eager>() != null)
+                    && param.isReducible()
         }
 
     open fun reduceComputations(frame: VirtualFrame): TermNode? {
@@ -85,16 +85,18 @@ abstract class TermNode : Node() {
 
         for ((index, param) in reducibleParams) {
             try {
-                if (param is TupleElementsNode && param.p0 is ValueTupleNode) {
+                val reduced = param.reduce(frame)
+                if (reduced is UnpackableTupleNode) {
                     // In the case this is a fully reduced tuple-elements node, we must unpack it
-                    newParams = unpackTupleElements(index, param)
+                    newParams = unpackTupleElements(index, reduced)
                 } else {
-                    newParams[index] = param.reduce(frame)
+                    newParams[index] = reduced
                 }
 
                 return replace(primaryCtor.call(*newParams.toTypedArray()))
 
             } catch (e: StuckException) {
+                println("Stuck while reducing: $this with exception: ${e.message}")
                 // Rollback entities
                 restoreEntities(frame, entitySnapshot)
             }
@@ -107,10 +109,10 @@ abstract class TermNode : Node() {
 
     open fun unpackTupleElements(
         index: Int,
-        tupleElementsNode: TupleElementsNode,
+        tupleElementsNode: UnpackableTupleNode,
     ): MutableList<TermNode> {
         val paramList = if (this is SequenceNode) elements.toMutableList() else params.toMutableList()
-        val tupleElements = (tupleElementsNode.p0 as ValueTupleNode).get(0).elements.toList()
+        val tupleElements = tupleElementsNode.vp0.elements.toList()
 
         // Replace the tuple-elements node for its contents in-place in the parameter list
         paramList.removeAt(index)

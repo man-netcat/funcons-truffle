@@ -2,7 +2,6 @@ package builtin
 
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.FailNode
-import generated.TupleElementsNode
 import language.StuckException
 import language.getEntities
 import language.restoreEntities
@@ -64,14 +63,15 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
 
         for ((index, element) in reducibleElements) {
             try {
-                if (element is TupleElementsNode && element.p0 is ValueTupleNode) {
+                val reduced = element.reduce(frame)
+                if (reduced is UnpackableTupleNode) {
                     // In the case this is a fully reduced tuple-elements node, we must unpack it
-                    newElements = unpackTupleElements(index, element)
+                    newElements = unpackTupleElements(index, reduced)
                 } else {
-                    newElements[index] = element.reduce(frame)
+                    newElements[index] = reduced
                 }
 
-                return replace(SequenceNode(*newElements.toTypedArray()))
+                return SequenceNode(*newElements.toTypedArray())
 
             } catch (e: StuckException) {
                 // Rollback entities
@@ -84,10 +84,10 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
 
     override fun unpackTupleElements(
         index: Int,
-        tupleElementsNode: TupleElementsNode,
+        tupleElementsNode: UnpackableTupleNode,
     ): MutableList<TermNode> {
         val paramList = elements.toMutableList()
-        val tupleElements = (tupleElementsNode.p0 as ValueTupleNode).get(0).elements.toList()
+        val tupleElements = tupleElementsNode.vp0.elements.toList()
 
         paramList.removeAt(index)
         paramList.addAll(index, tupleElements)

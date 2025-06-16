@@ -26,6 +26,7 @@ val builtinOverride: MutableSet<String> = mutableSetOf(
     "hole", "resume-continuation",             // Read-only control entity
     "atomic",                                  // Atomic
     "strings",                                 // Also using literal strings for datatype ids
+    "tuple-elements",                          // Must be unpacked manually
 )
 
 class TruffleGen(private val cbsDir: File) {

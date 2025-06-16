@@ -1,5 +1,6 @@
 package builtin
 
+import builtin.ValueNodeFactory.strLiteralNode
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
 import language.appendEntity
@@ -53,11 +54,11 @@ abstract class DirectionalNode(@Children open vararg var p0: SequenceNode) : Ter
 
         if (reducibleIndex == -1) {
             val flattenedElements = p0.flatMap { it.elements.asList() }.toTypedArray()
-            return replace(SequenceNode(*flattenedElements))
+            return SequenceNode(*flattenedElements)
         }
 
         newTerms[reducibleIndex] = newTerms[reducibleIndex].reduce(frame) as SequenceNode
-        return replace(createNewNode(*newTerms.toTypedArray()))
+        return createNewNode(*newTerms.toTypedArray())
     }
 }
 
@@ -70,6 +71,18 @@ class RightToLeftNode(@Children override vararg var p0: SequenceNode) : Directio
     override fun findReducibleIndex(vararg terms: SequenceNode) = terms.indexOfLast { it.isReducible() }
     override fun createNewNode(vararg newTerms: SequenceNode) = RightToLeftNode(*newTerms)
 }
+
+
+class TupleElementsNode(@Eager @Child override var p0: TermNode = SequenceNode()) : TermNode(), TupleElementsInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode = when (p0) {
+        is ValueTupleNode -> UnpackableTupleNode((p0 as ValueTupleNode).vp0)
+        else -> abort()
+    }
+}
+
+class UnpackableTupleNode(@Child var vp0: SequenceNode = SequenceNode()) :
+    AbstractDatatypeValueNode(strLiteralNode("unpackable-tuple"), SequenceNode(vp0))
+
 
 class SequentialNode(
     @Child override var p0: SequenceNode = SequenceNode(),
