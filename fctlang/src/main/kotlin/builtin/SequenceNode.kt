@@ -3,6 +3,8 @@ package builtin
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.FailNode
 import language.StuckException
+import language.getEntities
+import language.restoreEntities
 
 class SequenceNode(@Children override vararg var elements: TermNode) : TermNode() {
     init {
@@ -49,20 +51,49 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         return elements.toList().shuffled()
     }
 
-    override fun reduceComputations(frame: VirtualFrame): TermNode? {
-        val newElements = elements.toMutableList()
+    private val reducibleElements
+        get() = elements.mapIndexed { index, param -> index to param }
+            .filter { it.second.isReducible() }
 
-        for (index in elements.indices) {
-            if (newElements[index].isReducible()) {
-                try {
-                    newElements[index] = newElements[index].reduce(frame)
-                    return SequenceNode(*newElements.toTypedArray())
-                } catch (e: StuckException) {
-                    println("Stuck with exception $e in node ${this::class.simpleName}")
+    override fun reduceComputations(frame: VirtualFrame): TermNode? {
+        var newElements = elements.toMutableList()
+        val entitySnapshot = getEntities(frame).toMap()
+
+        if (reducibleElements.isEmpty()) return null
+
+        for ((index, element) in reducibleElements) {
+            try {
+                val reduced = element.reduce(frame)
+                if (reduced is UnpackableTupleNode) {
+                    // In the case this is a fully reduced tuple-elements node, we must unpack it
+                    newElements = unpackTupleElements(index, reduced)
+                } else {
+                    newElements[index] = reduced
                 }
+
+                return SequenceNode(*newElements.toTypedArray())
+
+            } catch (e: StuckException) {
+                // Rollback entities
+                restoreEntities(frame, entitySnapshot)
             }
         }
-        return null
+
+        abort("no execution possible")
+    }
+
+    override fun unpackTupleElements(
+        index: Int,
+        tupleElementsNode: UnpackableTupleNode,
+    ): MutableList<TermNode> {
+        val paramList = elements.toMutableList()
+        val tupleElements = tupleElementsNode.vp0.elements.toList()
+
+        paramList.removeAt(index)
+        paramList.addAll(index, tupleElements)
+
+        val truncated = paramList.dropLastWhile { it is SequenceNode && it.elements.isEmpty() }.toMutableList()
+        return truncated
     }
 
     override fun reduceRules(frame: VirtualFrame): TermNode = abort()
@@ -120,13 +151,4 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
             elements.joinToString("") { (it as CharacterNode).value.toString() }
         } else null
     }
-
-    override fun getEntity(frame: VirtualFrame, key: String): TermNode =
-        abort("Invalid invocation on a sequence: getEntity")
-
-    override fun putEntity(frame: VirtualFrame, key: String, value: TermNode) =
-        abort("Invalid invocation on a sequence: putEntity")
-
-    override fun appendEntity(frame: VirtualFrame, key: String, entity: TermNode) =
-        abort("Invalid invocation on a sequence: appendEntity")
 }

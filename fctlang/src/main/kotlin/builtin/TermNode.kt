@@ -4,6 +4,9 @@ import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
 import generated.*
 import language.StuckException
+import language.checkEntitySnapshot
+import language.getEntities
+import language.restoreEntities
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
@@ -12,10 +15,6 @@ import kotlin.reflect.full.primaryConstructor
 abstract class TermNode : Node() {
     @Retention(AnnotationRetention.RUNTIME)
     annotation class Eager
-
-    enum class FrameSlots {
-        ENTITIES,
-    }
 
     val primaryCtor = this::class.primaryConstructor!!
     val props = this::class.memberProperties
@@ -40,115 +39,90 @@ abstract class TermNode : Node() {
             }.joinToString("")
         }
 
-    private fun getEntities(frame: VirtualFrame): MutableMap<String, TermNode> {
-        return frame.getObject(FrameSlots.ENTITIES.ordinal) as? MutableMap<String, TermNode>
-            ?: mutableMapOf<String, TermNode>().also {
-                frame.setObject(FrameSlots.ENTITIES.ordinal, it)
-            }
-    }
-
-    internal fun printEntities(frame: VirtualFrame) {
-        val entities = getEntities(frame)
-        if (entities.isNotEmpty()) {
-            val str = "Entities: {\n" + entities.map { (name, entity) -> "    $name: $entity" }
-                .joinToString("\n") + "\n}"
-            println(str)
-        } else println("Entities: {}")
-    }
-
-    open fun getEntity(frame: VirtualFrame, key: String): TermNode {
-        return getEntities(frame)[key] ?: SequenceNode()
-    }
-
-    open fun putEntity(frame: VirtualFrame, key: String, value: TermNode) {
-        getEntities(frame)[key] = value
-    }
-
-    open fun appendEntity(frame: VirtualFrame, key: String, entity: TermNode) {
-        val existing = getEntity(frame, key) as? SequenceNode ?: SequenceNode()
-        val newSequence = existing.append(entity.toSequence())
-        putEntity(frame, key, newSequence)
-    }
-
-    fun restoreEntities(frame: VirtualFrame, snapshot: Map<String, TermNode>) {
-        val entities = getEntities(frame)
-        entities.clear()
-        entities.putAll(snapshot)
-    }
-
     open fun isReducible(): Boolean = this !is ValuesNode
 
-    fun rewrite(frame: VirtualFrame): TermNode {
+    internal fun rewrite(frame: VirtualFrame): TermNode {
         var term = this
-        var iterationCount = 0
         while (term.isReducible()) {
-            term = term.reduce(frame)
-            iterationCount++
+            term = term.reduceStep(frame)
         }
         return term
     }
 
     internal fun reduce(frame: VirtualFrame): TermNode {
-        // Reduce the parameters of a funcon first where possible
-        if (this !is DirectionalNode) reduceComputations(frame)?.let { new -> return replace(new) }
-        // Reduce according to CBS semantic rules
-        reduceRules(frame).let { new -> return replace(new) }
+        val bigStep = false
+
+        var term = this
+        return if (bigStep) {
+            var snapshot: Map<String, TermNode>
+            while (term.isReducible()) {
+                snapshot = getEntities(frame).toMap()
+                term = term.reduceStep(frame)
+                if (!checkEntitySnapshot(frame, snapshot)) break
+            }
+            term
+        } else term.reduceStep(frame)
     }
 
-    abstract fun reduceRules(frame: VirtualFrame): TermNode
+    private fun reduceStep(frame: VirtualFrame): TermNode {
+        if (this !is DirectionalNode) reduceComputations(frame)?.let { return replace(it) }
+        reduceRules(frame).let { return replace(it) }
+    }
+
+    private val reducibleParams
+        get() = primaryCtor.parameters.mapIndexed { index, kParam ->
+            index to params[index]
+        }.filter { (index, param) ->
+            (param is TupleElementsNode || primaryCtor.parameters[index].findAnnotation<Eager>() != null)
+                    && param.isReducible()
+        }
 
     open fun reduceComputations(frame: VirtualFrame): TermNode? {
         var newParams = params.toMutableList()
-        var attemptedReduction = false
-
         val entitySnapshot = getEntities(frame).toMap()
 
-        for ((index, kParam) in primaryCtor.parameters.withIndex()) {
+        if (reducibleParams.isEmpty()) return null
+
+        for ((index, param) in reducibleParams) {
             try {
-                val currentParam = newParams[index]
-
-                // We assume tuple-elements is always reducible.
-                if (
-                    currentParam !is TupleElementsNode &&
-                    (kParam.findAnnotation<Eager>() == null || !currentParam.isReducible())
-                ) continue
-
-                if (currentParam is TupleElementsNode && currentParam.p0 is ValueTupleNode) {
+                val reduced = param.reduce(frame)
+                if (reduced is UnpackableTupleNode) {
                     // In the case this is a fully reduced tuple-elements node, we must unpack it
-                    newParams = unpackTupleElements(index, currentParam, newParams)
+                    newParams = unpackTupleElements(index, reduced)
                 } else {
-                    attemptedReduction = true
-                    newParams[index] = currentParam.reduce(frame)
+                    newParams[index] = reduced
                 }
 
-                return primaryCtor.call(*newParams.toTypedArray())
+                return replace(primaryCtor.call(*newParams.toTypedArray()))
 
             } catch (e: StuckException) {
-                println("Stuck with exception $e in node ${this::class.simpleName}")
+                println("Stuck while reducing: $this with exception: ${e.message}")
                 // Rollback entities
                 restoreEntities(frame, entitySnapshot)
             }
         }
 
-        return if (attemptedReduction) abort("no execution possible") else null
+        abort("no execution possible")
     }
 
-    private fun unpackTupleElements(
+    abstract fun reduceRules(frame: VirtualFrame): TermNode
+
+    open fun unpackTupleElements(
         index: Int,
-        tupleElementsNode: TupleElementsNode,
-        paramList: MutableList<TermNode>
+        tupleElementsNode: UnpackableTupleNode,
     ): MutableList<TermNode> {
-        val tupleElements = (tupleElementsNode.p0 as ValueTupleNode).get(0).elements.toList()
+        val paramList = if (this is SequenceNode) elements.toMutableList() else params.toMutableList()
+        val tupleElements = tupleElementsNode.vp0.elements.toList()
 
         // Replace the tuple-elements node for its contents in-place in the parameter list
         paramList.removeAt(index)
         paramList.addAll(index, tupleElements)
 
+        // If the original node expects a sequence, rebuild the parameter sequence to accommodate for this
         val sequenceIndex = primaryCtor.parameters.indexOfFirst {
             it.type.classifier == SequenceNode::class
         }
 
-        // If the original node expects a sequence, rebuild the parameter sequence to accommodate for this
         val newParams = if (sequenceIndex != -1) {
             val beforeSequence = paramList.take(sequenceIndex)
             val afterSequence = paramList.drop(sequenceIndex).toTypedArray()
@@ -156,13 +130,7 @@ abstract class TermNode : Node() {
         } else paramList
 
         // Return truncated param list
-        val (truncated, dropped) = Pair(
-            newParams.take(primaryCtor.parameters.size),
-            newParams.drop(primaryCtor.parameters.size)
-        )
-
-        if (!dropped.all { it == SequenceNode() }) abort("somehow dropped parameters: $dropped")
-
+        val truncated = newParams.take(primaryCtor.parameters.size).toMutableList()
         return truncated.toMutableList()
     }
 

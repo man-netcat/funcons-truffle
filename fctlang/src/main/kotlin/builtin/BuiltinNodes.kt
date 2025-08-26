@@ -1,7 +1,12 @@
 package builtin
 
+import builtin.ValueNodeFactory.strLiteralNode
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
+import language.appendEntity
+import language.getEntity
+import language.printEntities
+import language.putEntity
 
 open class ValueTypesNode : ValuesNode(), ValueTypesInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode = abort()
@@ -49,7 +54,7 @@ abstract class DirectionalNode(@Children open vararg var p0: SequenceNode) : Ter
 
         if (reducibleIndex == -1) {
             val flattenedElements = p0.flatMap { it.elements.asList() }.toTypedArray()
-            return replace(SequenceNode(*flattenedElements))
+            return SequenceNode(*flattenedElements)
         }
 
         newTerms[reducibleIndex] = newTerms[reducibleIndex].reduce(frame) as SequenceNode
@@ -66,6 +71,18 @@ class RightToLeftNode(@Children override vararg var p0: SequenceNode) : Directio
     override fun findReducibleIndex(vararg terms: SequenceNode) = terms.indexOfLast { it.isReducible() }
     override fun createNewNode(vararg newTerms: SequenceNode) = RightToLeftNode(*newTerms)
 }
+
+
+class TupleElementsNode(@Eager @Child override var p0: TermNode = SequenceNode()) : TermNode(), TupleElementsInterface {
+    override fun reduceRules(frame: VirtualFrame): TermNode = when (p0) {
+        is ValueTupleNode -> UnpackableTupleNode((p0 as ValueTupleNode).vp0)
+        else -> abort()
+    }
+}
+
+class UnpackableTupleNode(@Child var vp0: SequenceNode = SequenceNode()) :
+    AbstractDatatypeValueNode(strLiteralNode("unpackable-tuple"), SequenceNode(vp0))
+
 
 class SequentialNode(
     @Child override var p0: SequenceNode = SequenceNode(),
@@ -224,7 +241,7 @@ class DebugNode(@Child var p0: TermNode) : TermNode() {
 
             p0.isReducible() -> {
                 p0.printTree()
-                p0.printEntities(frame)
+                printEntities(frame)
                 println("reducing: ${p0::class.simpleName} with params ${p0.params.map { it::class.simpleName }}")
                 val s0 = p0.reduce(frame)
                 println("replacing: ${p0::class.simpleName} for ${s0::class.simpleName}")

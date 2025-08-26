@@ -11,7 +11,6 @@ import com.oracle.truffle.api.CallTarget
 import com.oracle.truffle.api.TruffleLanguage
 import com.oracle.truffle.api.frame.FrameDescriptor
 import com.oracle.truffle.api.frame.FrameSlotKind
-import com.oracle.truffle.api.nodes.Node
 import fct.FCTLexer
 import fct.FCTParser
 import fct.FCTParser.*
@@ -21,12 +20,18 @@ import org.antlr.v4.runtime.CommonTokenStream
 import org.antlr.v4.runtime.tree.ParseTree
 
 @TruffleLanguage.Registration(
-    id = "fctlang",
+    id = FCTLanguage.LANGUAGE_ID,
     name = "FCT Language",
-    defaultMimeType = "application/x-fctlang",
-    characterMimeTypes = ["application/x-fctlang"]
+    defaultMimeType = FCTLanguage.MIME_TYPE,
+    characterMimeTypes = [FCTLanguage.MIME_TYPE]
 )
 class FCTLanguage : TruffleLanguage<FCTContext>() {
+    companion object {
+        const val LANGUAGE_ID = "fctlang"
+        const val MIME_TYPE = "application/x-fctlang"
+        var entitiesFrameslot: Int = -1
+    }
+
     override fun parse(request: ParsingRequest): CallTarget {
         val code = request.source.characters.toString()
         val parser = FCTParser(CommonTokenStream(FCTLexer(CharStreams.fromString(code))))
@@ -48,7 +53,13 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
         }
 
         val frameDescriptorBuilder = FrameDescriptor.newBuilder()
-        frameDescriptorBuilder.addSlots(1, FrameSlotKind.Object)
+
+        entitiesFrameslot = frameDescriptorBuilder.addSlot(FrameSlotKind.Object, null, null)
+
+        if (entitiesFrameslot == -1) {
+            throw IllegalStateException("Failed to create frame slot")
+        }
+
         val frameDescriptor = frameDescriptorBuilder.build()
 
         return FCTRootNode(this, frameDescriptor, buildTree(funconTerm), inputs).callTarget
