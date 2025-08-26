@@ -1,6 +1,5 @@
 # General Gradle files
 .gradle/
-gradle*
 !gradle/libs.versions.toml
 build
 
