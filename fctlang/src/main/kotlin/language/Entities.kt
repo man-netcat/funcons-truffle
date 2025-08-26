@@ -4,6 +4,7 @@ import builtin.SequenceNode
 import builtin.TermNode
 import com.oracle.truffle.api.frame.VirtualFrame
 
+@Suppress("UNCHECKED_CAST")
 fun getEntities(frame: VirtualFrame): MutableMap<String, TermNode> {
     return frame.getObject(FCTLanguage.entitiesFrameslot) as? MutableMap<String, TermNode>
         ?: mutableMapOf<String, TermNode>().also {
