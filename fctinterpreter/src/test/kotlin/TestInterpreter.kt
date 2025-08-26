@@ -85,15 +85,18 @@ abstract class BaseTest(
         val max = times.last()
         val median = times[times.size / 2]
         val average = times.average()
+        val stddev = kotlin.math.sqrt(times.map { (it - average).let { d -> d * d } }.average())
         val p90 = times[(times.size * 0.9).toInt()]
 
         fun formatNs(ns: Double) = "${(ns / 1_000_000).format(3)} ms"
+
         println()
         println("Min:             ${formatNs(min.toDouble())}")
         println("Median:          ${formatNs(median.toDouble())}")
+        println("Average:         ${formatNs(average)}")
         println("90th percentile: ${formatNs(p90.toDouble())}")
         println("Max:             ${formatNs(max.toDouble())}")
-        println("Average:         ${formatNs(average)}")
+        println("Std deviation:   ${formatNs(stddev)}")
     }
 
     protected fun collectTestFiles(rootDir: Path, extension: String): List<Path> {

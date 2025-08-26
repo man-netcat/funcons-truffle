@@ -1,1 +1,1 @@
-print integer-add integer-sequence(0, 100)
+print integer-add integer-sequence(0, 1000)

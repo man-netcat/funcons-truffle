@@ -57,11 +57,3 @@ tasks.withType<Test> {
     timeout.set(Duration.ofMinutes(5))
     jvmArgs = listOf("-Xmx2g")
 }
-
-tasks.register<Test>("runTests") {
-    useJUnitPlatform()
-    filter {
-        includeTestsMatching("interpreter.InterpreterFilesTest.testFiles")
-    }
-    outputs.upToDateWhen { false }
-}

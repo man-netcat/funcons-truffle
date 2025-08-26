@@ -1,1 +1,1 @@
-print is-in-set(100, set(integer-sequence(0, 100)))
+print is-in-set(1000, set(integer-sequence(0, 1000)))
