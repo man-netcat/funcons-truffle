@@ -1,5 +1,3 @@
-// build.gradle.kts (:trufflegen)
-
 plugins {
     kotlin("jvm") version "2.1.0"
     java
@@ -15,7 +13,9 @@ dependencies {
 }
 
 tasks.compileKotlin {
-    dependsOn(":antlr:generateGrammarSource")
+    dependsOn(":antlr:generateFCTGrammar")
+    dependsOn(":antlr:generateCBSGrammar")
+    dependsOn(":antlr:compileJava")
 }
 
 tasks.test {

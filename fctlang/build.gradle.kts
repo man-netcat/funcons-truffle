@@ -1,9 +1,8 @@
-// build.gradle.kts (:fctlang)
-
 plugins {
     kotlin("jvm") version "2.1.0"
     id("org.jetbrains.kotlin.kapt")
     java
+    application
 }
 
 repositories {
@@ -28,18 +27,25 @@ sourceSets["main"].kotlin {
     )
 }
 
+tasks.withType<org.jetbrains.kotlin.gradle.internal.KaptWithoutKotlincTask>().configureEach {
+    dependsOn(
+        ":antlr:generateFCTGrammar",
+        ":antlr:generateCBSGrammar",
+        ":antlr:compileJava"
+    )
+}
+
 tasks.test {
     useJUnitPlatform()
 }
 
-tasks.compileKotlin {
-    dependsOn(":antlr:generateGrammarSource")
+tasks.named("compileKotlin") {
+    dependsOn(":antlr:generateCBSGrammar")
+    dependsOn(":antlr:generateFCTGrammar")
     dependsOn(":trufflegen:run")
 }
 
-
 tasks.jar {
-    // Add resources/META-INF to JAR
     from(sourceSets.main.get().output)
     from(sourceSets.main.get().resources) {
         include("META-INF/services/**")
