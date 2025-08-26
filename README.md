@@ -1,28 +1,26 @@
-### Requirements
-
-- Java 21.0.6
-- Gradle 8.7
-
 ### Setup
 
 Clone this repository:
 
-`git clone --recurse-submodules https://github.com/man-netcat/funcons-truffle.git`
+```bash
+git clone --recurse-submodules https://github.com/man-netcat/funcons-truffle.git
+cd funcons-truffle
+```
 
-### Running the code generator
+Then just run:
 
-For the code generator, run the following:
+```bash
+./setup.sh
+```
 
-`gradle :trufflegen:run`
+You'll end up in a shell within the container. From here, you can run the tests as follows:
 
-### Test Cases
+```bash
+gradle cleanTest test
+```
 
-For the test cases, you can run the following:
+To run the interpreter on a single file, use the following:
 
-`gradle :fctinterpreter:runTests`
-
-### Interpreting a config file
-
-Just pass a path to the interpreter like this
-
-`gradle :fctinterpreter:run --args path/to/file.config`
+```bash
+gradle run --args "../CBS-beta/Funcons-beta/Computations/Normal/Flowing/tests/if-true-else.config"
+```
