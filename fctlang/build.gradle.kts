@@ -31,7 +31,8 @@ tasks.withType<org.jetbrains.kotlin.gradle.internal.KaptWithoutKotlincTask>().co
     dependsOn(
         ":antlr:generateFCTGrammar",
         ":antlr:generateCBSGrammar",
-        ":antlr:compileJava"
+        ":antlr:compileJava",
+        ":trufflegen:run"
     )
 }
 

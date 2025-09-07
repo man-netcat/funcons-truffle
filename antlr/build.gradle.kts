@@ -20,14 +20,16 @@ tasks.test {
     useJUnitPlatform()
 }
 
-fun registerAntlrGrammarTask(name: String, grammarFileName: String, outputDirName: String) {
-    val outputDir = layout.buildDirectory.dir("generated-src/antlr/$outputDirName")
+val generatedSrcDir = file("/home/rick/workspace/thesis/funcons-truffle/antlr/src/main/java")
+
+fun registerAntlrGrammarTask(name: String, grammarFileName: String) {
+    val grammarFile = projectDir.resolve("src/main/antlr/$grammarFileName")
+    val grammarBaseName = grammarFile.nameWithoutExtension.lowercase()
+    val outputDir = generatedSrcDir.resolve(grammarBaseName)
 
     tasks.register<JavaExec>(name) {
         group = "antlr"
         description = "Generates ANTLR sources for $grammarFileName"
-
-        val grammarFile = projectDir.resolve("src/main/antlr/$grammarFileName")
 
         inputs.file(grammarFile)
         outputs.dir(outputDir)
@@ -38,7 +40,7 @@ fun registerAntlrGrammarTask(name: String, grammarFileName: String, outputDirNam
             grammarFile.absolutePath,
             "-visitor",
             "-long-messages",
-            "-o", outputDir.get().asFile.absolutePath
+            "-o", outputDir.absolutePath
         )
     }
 
@@ -46,8 +48,8 @@ fun registerAntlrGrammarTask(name: String, grammarFileName: String, outputDirNam
     sourceSets["main"].kotlin.srcDir(outputDir)
 }
 
-registerAntlrGrammarTask("generateFCTGrammar", "FCT.g4", "fct")
-registerAntlrGrammarTask("generateCBSGrammar", "CBS.g4", "cbs")
+registerAntlrGrammarTask("generateFCTGrammar", "FCT.g4")
+registerAntlrGrammarTask("generateCBSGrammar", "CBS.g4")
 
 tasks.register("generateAllGrammars") {
     dependsOn("generateFCTGrammar", "generateCBSGrammar")
@@ -65,11 +67,8 @@ tasks.compileJava {
 
 tasks.named("generateGrammarSource").configure { enabled = false }
 
-sourceSets["main"].java.srcDir(layout.buildDirectory.dir("generated-src/antlr/fct"))
-sourceSets["main"].java.srcDir(layout.buildDirectory.dir("generated-src/antlr/cbs"))
-
-sourceSets["main"].kotlin.srcDir(layout.buildDirectory.dir("generated-src/antlr/fct"))
-sourceSets["main"].kotlin.srcDir(layout.buildDirectory.dir("generated-src/antlr/cbs"))
+sourceSets["main"].java.srcDir(generatedSrcDir)
+sourceSets["main"].kotlin.srcDir(generatedSrcDir)
 
 tasks.named("compileTestKotlin") {
     dependsOn(tasks.named("generateTestGrammarSource"))

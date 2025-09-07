@@ -130,7 +130,7 @@ abstract class BaseTest(
 class TestFunconsBeta : BaseTest(
     testDirectories = listOf(Paths.get("../CBS-beta/Funcons-beta") to "config"),
     performTiming = false,
-    excludedFiles = listOf("atomic.config", "pattern-bind.config")
+//    excludedFiles = listOf("atomic.config", "pattern-bind.config")
 )
 
 //class TestStandaloneFCT : BaseTest(
