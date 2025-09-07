@@ -13,14 +13,14 @@ Then just run:
 ./setup.sh
 ```
 
-You'll end up in a shell within the container. From here, you can run the tests as follows:
+From here, you can run the tests as follows:
 
 ```bash
-gradle cleanTest test
+./gradlew cleanTest test
 ```
 
 To run the interpreter on a single file, use the following:
 
 ```bash
-gradle run --args "../CBS-beta/Funcons-beta/Computations/Normal/Flowing/tests/if-true-else.config"
+./gradlew run --args "../CBS-beta/Funcons-beta/Computations/Normal/Flowing/tests/if-true-else.config"
 ```
