@@ -27,7 +27,32 @@ fun TermNode.isInEmptyType(): Boolean = false
 
 open class GroundValuesNode : ValueTypesNode(), GroundValuesInterface
 
-fun TermNode.isInGroundValues(): Boolean = this is GroundValuesNode || this.isInDatatypeValues()
+/*
+  Groundness is structural, not a property of the node class. funcons-tools agrees with
+  the reference on:
+
+    is-equal(thunk(12), thunk(12))                                    -> true
+    is-equal(abstraction 12, abstraction(12))                        -> true
+    is-equal(thunk(abstraction(pattern-bind "it")),
+             thunk(abstraction(pattern-bind "it")))                   -> false
+    is-equal(abstraction(pattern-bind "it"),
+             abstraction(pattern-bind "it"))                          -> false
+    is-equal(closure(12), closure(12))                               -> false
+
+  So a thunk or an abstraction is ground exactly when the term it wraps is ground, and
+  the last case shows it is not "compare non-ground values structurally": two identical
+  non-ground thunks are unequal, because neither is ground and the is-equal rules only
+  compare ground values. A closure is never ground, since it closes over an environment
+  even when its body is ground, which is why it stays unequal above.
+
+  ThunkNode reduces to ValueThunkNode unconditionally, so both spellings are handled.
+*/
+fun TermNode.isInGroundValues(): Boolean = when (this) {
+    is ThunkNode -> p0.isInGroundValues()
+    is ValueThunkNode -> vp0.isInGroundValues()
+    is AbstractionNode -> p0.isInGroundValues()
+    else -> this is GroundValuesNode
+}
 
 class ComputationTypesNode() : ValueTypesNode(), ComputationTypesInterface
 

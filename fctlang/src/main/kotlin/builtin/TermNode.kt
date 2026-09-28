@@ -284,6 +284,16 @@ abstract class TermNode : Node() {
 
     override fun toString(): String {
         if (params.isEmpty()) return name
+        /*
+          funcons hides environments when printing: `scope` renders its map-valued
+          environment as "..." rather than in map notation, unless --full-environments is
+          given. The reference prints `closure(12)` as
+          `abstraction(closed(scope("...",12)))`, so mirror that here to keep printed terms
+          identical.
+        */
+        if (name == "scope" && (get(0) is MapInterface || get(0) is MapsInterface)) {
+            return "scope(\"...\",${get(1)})"
+        }
         val printed = params.filterNot { it is SequenceNode && it.elements.isEmpty() }
         return name + "(" + printed.joinToString(",") { it.toString() } + ")"
     }

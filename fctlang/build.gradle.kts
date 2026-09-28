@@ -46,6 +46,10 @@ tasks.named("compileKotlin") {
     dependsOn(":trufflegen:run")
 }
 
+tasks.matching { it.name == "kaptGenerateStubsKotlin" }.configureEach {
+    dependsOn(":trufflegen:run")
+}
+
 tasks.jar {
     from(sourceSets.main.get().output)
     from(sourceSets.main.get().resources) {

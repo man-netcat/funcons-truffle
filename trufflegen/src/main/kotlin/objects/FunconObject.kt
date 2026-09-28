@@ -272,6 +272,19 @@ class FunconObject(
 
         private fun processEntityCondition(label: LabelContext) {
             val labelObj = labelToObject(label)
+            /*
+              The environment is a scope, not an optional control entity: it always exists and
+              is often legitimately empty, so a rule reading it must still apply when nothing is
+              in scope. funcons-tools relies on this, since `closure(12)` evaluates to
+              `abstraction(closed(scope("...",12)))` with an empty scope rather than getting
+              stuck. Guarding on isNotEmpty() left `closure` unusable whenever no identifier was
+              bound, and left an empty scope unable to be re-entered.
+
+              Every other entity keeps its presence check: `abrupted`, `given`, `control-signal`
+              and `tail` are only present when something put them there, and their rules must not
+              fire otherwise.
+            */
+            if (label.name.text == "environment") return
             if (label.value == null) {
                 val emptyCondition = "${labelObj.asVarName}.isEmpty()"
                 rulePriority = 0
@@ -481,7 +494,17 @@ class FunconObject(
                         withoutPairs =
                             withoutPairs.subList(0, last) + refocusPairs + withoutPairs.subList(last, withoutPairs.size)
                     }
-                    makeWhenStatement(withoutPairs + stepPairs, elseBranch = "abort()")
+                    /*
+                      is-equal is total in the reference: `true` exactly when both arguments are
+                      ground values and equal, `false` otherwise, never stuck. Closures are the
+                      case that needs this, since a closure is not a value at all, so neither the
+                      `~ground-values` rules nor the `isInValues` guards can match and Fun v2
+                      would otherwise abort. The reference answers false for every closure:
+                      closure(12) vs closure(12), closure(12) vs 1, and closure(abstraction 12)
+                      vs itself.
+                    */
+                    val elseBranch = if (name == "is-equal") "FalseNode()" else "abort()"
+                    makeWhenStatement(withoutPairs + stepPairs, elseBranch = elseBranch)
                 }
 
                 else -> throw DetailedException("Funcon $name does not have any associated rules.")
