@@ -173,14 +173,7 @@ class TestFunconsBeta : BaseTest(
 
 private val KNOWN_V1_CRASHES = mapOf(
     "Computations/Normal/Flowing/tests/atomic.config" to
-        "StuckException: sequential - atomic/interleave scheduling is not implemented",
-    "Values/Abstraction/Patterns/tests/pattern-bind.config" to
-        "StuckException: check-true - clause 4 expects match(abstraction 12, abstraction(pattern-bind \"it\")) " +
-            "to yield {\"it\" |-> 12}. The reference implementation (funcons-tools 0.2.0.18) PASSES this test: " +
-            "match decomposes the unevaluated abstraction body and retries, and is-equal on abstractions is " +
-            "structural. funcons-intgen promotes the body-less abstractions Type to a DataTypeDecl, making " +
-            "abstraction a constructor, so match must be able to decompose abstraction values into their " +
-            "unevaluated fields. This is an implementation gap, not a corpus bug.",
+        "StuckException: sequential - atomic/interleave scheduling is not implemented"
 )
 
 private val KNOWN_V1_DIVERGENCES = mapOf(

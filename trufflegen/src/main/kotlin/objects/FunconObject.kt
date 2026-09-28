@@ -464,10 +464,22 @@ class FunconObject(
                     val rulesWithoutStepVar = ruleObjs
                         .sortedBy { rule -> rule.rulePriority }
                         .filter { rule -> rule.stepVariable == null }
-                    val withoutPairs = rulesWithoutStepVar.map { rule ->
+                    var withoutPairs = rulesWithoutStepVar.map { rule ->
                         val conditions = rule.getSortedConditions()
                         if (conditions.isEmpty()) "true" to rule.bodyStr
                         else conditions to rule.bodyStr
+                    }
+                    val refocusPairs: List<Pair<String, String>> = when (name) {
+                        "match", "match-loosely" -> listOf(
+                            "get(0) is AbstractionNode && get(1) is AbstractionNode" to
+                                "${toNodeName(name)}(get(0).getCopy(0), get(1).getCopy(0))"
+                        )
+                        else -> emptyList()
+                    }
+                    if (refocusPairs.isNotEmpty() && withoutPairs.size >= 2) {
+                        val last = withoutPairs.size - 1
+                        withoutPairs =
+                            withoutPairs.subList(0, last) + refocusPairs + withoutPairs.subList(last, withoutPairs.size)
                     }
                     makeWhenStatement(withoutPairs + stepPairs, elseBranch = "abort()")
                 }
