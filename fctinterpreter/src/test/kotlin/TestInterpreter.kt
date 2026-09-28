@@ -175,7 +175,13 @@ private val KNOWN_V1_CRASHES = mapOf(
     "Computations/Normal/Flowing/tests/atomic.config" to
         "StuckException: sequential - atomic/interleave scheduling is not implemented",
     "Values/Abstraction/Patterns/tests/pattern-bind.config" to
-        "StuckException: check-true - static refocusing is incomplete"
+        "StuckException: check-true - clause 4 expects match(abstraction 12, abstraction(pattern-bind \"it\")) " +
+            "to yield {\"it\" |-> 12}, which needs match to decompose abstractions. " +
+            "Funcons-beta/Values/Abstraction/Patterns/Patterns.cbs does not provide that rule: " +
+            "abstractions is declared as a Type, never as a datatype, so match falls through to the " +
+            "is-equal rule and yields fail. This is the only test in the corpus that passes a bare " +
+            "abstraction as match's second argument; the other 8 use pattern(abstraction(...)). " +
+            "Suspected corpus bug rather than an implementation gap.",
 )
 
 private val KNOWN_V1_DIVERGENCES = mapOf(
