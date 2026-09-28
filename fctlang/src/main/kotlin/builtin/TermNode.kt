@@ -7,37 +7,35 @@ import language.StuckException
 import language.checkEntitySnapshot
 import language.getEntities
 import language.restoreEntities
-import kotlin.reflect.full.findAnnotation
-import kotlin.reflect.full.memberProperties
-import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.KFunction
+import kotlin.reflect.KCallable
 
 @Suppress("UNCHECKED_CAST")
 abstract class TermNode : Node() {
     @Retention(AnnotationRetention.RUNTIME)
     annotation class Eager
 
-    val primaryCtor = this::class.primaryConstructor!!
-    val props = this::class.memberProperties
-    val members = this::class.members
+    /** Class-level reflection metadata, computed once per node class rather than per node. */
+    private val meta: NodeMeta = NodeMetas.of(this)
 
-    val params: List<TermNode> by lazy {
-        primaryCtor.parameters.mapNotNull { param ->
-            props.first { it.name == param.name }.getter.call(this) as? TermNode
-        }
+    val primaryCtor: KFunction<TermNode> get() = meta.primaryCtor
+
+    /** Only needed by [printTree], which is debug-only: keep the hierarchy walk off the hot path. */
+    private val members: Collection<KCallable<*>> by lazy { this::class.members }
+
+    val params: List<TermNode> by lazy { meta.childrenOf(this) }
+
+    val name: String by lazy {
+        val nodeName = this::class.simpleName!!
+        val base = nodeName.substring(0, nodeName.length - "Node".length)
+
+        base.mapIndexed { i, ch ->
+            if (ch.isUpperCase()) {
+                val dash = if (i != 0) '-' else ""
+                "$dash${ch.lowercaseChar()}"
+            } else ch
+        }.joinToString("")
     }
-
-    val name: String
-        get() {
-            val nodeName = this::class.simpleName!!
-            val base = nodeName.substring(0, nodeName.length - "Node".length)
-
-            return base.mapIndexed { i, ch ->
-                if (ch.isUpperCase()) {
-                    val dash = if (i != 0) '-' else ""
-                    "$dash${ch.lowercaseChar()}"
-                } else ch
-            }.joinToString("")
-        }
 
     open fun isReducible(): Boolean = this !is ValuesNode
 
@@ -69,21 +67,24 @@ abstract class TermNode : Node() {
         reduceRules(frame).let { return replace(it) }
     }
 
-    private val reducibleParams
-        get() = primaryCtor.parameters.mapIndexed { index, kParam ->
-            index to params[index]
-        }.filter { (index, param) ->
-            (param is TupleElementsNode || primaryCtor.parameters[index].findAnnotation<Eager>() != null)
-                    && param.isReducible()
-        }
+    private val reducibleParams: List<Pair<Int, TermNode>> by lazy {
+        val ps = params
+        // Iterates constructor parameters, not ps: params drops non-TermNode arguments, so the two
+        // can differ in length and the resulting index must stay aligned with the constructor.
+        (0 until meta.paramCount).map { index -> index to ps[index] }
+            .filter { (index, param) ->
+                (param is TupleElementsNode || meta.isEager(index)) && param.isReducible()
+            }
+    }
 
     open fun reduceComputations(frame: VirtualFrame): TermNode? {
-        var newParams = params.toMutableList()
-        val entitySnapshot = getEntities(frame).toMap()
-
         if (reducibleParams.isEmpty()) return null
 
-        for ((index, param) in reducibleParams) {
+        val reducible = reducibleParams
+        val entitySnapshot = getEntities(frame).toMap()
+        var newParams = params.toMutableList()
+
+        for ((index, param) in reducible) {
             try {
                 val reduced = param.reduce(frame)
                 if (reduced is UnpackableTupleNode) {
@@ -93,10 +94,10 @@ abstract class TermNode : Node() {
                     newParams[index] = reduced
                 }
 
-                return replace(primaryCtor.call(*newParams.toTypedArray()))
+                return replace(meta.newInstance(newParams.toTypedArray()))
 
             } catch (e: StuckException) {
-                println("Stuck while reducing: $this with exception: ${e.message}")
+                if (DEBUG_STUCK) println("Stuck while reducing: $this with exception: ${e.message}")
                 // Rollback entities
                 restoreEntities(frame, entitySnapshot)
             }
@@ -119,9 +120,7 @@ abstract class TermNode : Node() {
         paramList.addAll(index, tupleElements)
 
         // If the original node expects a sequence, rebuild the parameter sequence to accommodate for this
-        val sequenceIndex = primaryCtor.parameters.indexOfFirst {
-            it.type.classifier == SequenceNode::class
-        }
+        val sequenceIndex = meta.sequenceParamIndex
 
         val newParams = if (sequenceIndex != -1) {
             val beforeSequence = paramList.take(sequenceIndex)
@@ -130,7 +129,7 @@ abstract class TermNode : Node() {
         } else paramList
 
         // Return truncated param list
-        val truncated = newParams.take(primaryCtor.parameters.size).toMutableList()
+        val truncated = newParams.take(meta.paramCount).toMutableList()
         return truncated.toMutableList()
     }
 
@@ -241,9 +240,7 @@ abstract class TermNode : Node() {
     fun printTree(indent: String = "", prefix: String = "", hasMoreSiblings: Boolean = false) {
         println("$indent$prefix${this::class.simpleName}" + if (value == null) "" else " ($this)")
 
-        val children = primaryCtor.parameters.mapNotNull { param ->
-            members.firstOrNull { it.name == param.name }?.call(this)
-        }.flatMap {
+        val children = meta.argValuesOf(this).flatMap {
             when (it) {
                 is Array<*> -> it.toList()
                 is SequenceNode -> it.children
@@ -309,12 +306,11 @@ abstract class TermNode : Node() {
 
     override fun deepCopy(): TermNode {
         if (!isReducible()) return this
-        val constructor = primaryCtor
         val args = params.map { param ->
             if (param.isReducible()) param.deepCopy() else param
         }.toTypedArray()
 
-        return constructor.call(*args)
+        return meta.newInstance(args)
     }
 
     open val id: TermNode get() = FailNode()
@@ -342,4 +338,9 @@ abstract class TermNode : Node() {
     open fun shuffled(): List<TermNode> = abort("not a sequence")
     open fun append(other: SequenceNode): SequenceNode = abort("not a sequence")
     open fun popFirst(): TermNode = abort("not a sequence")
+
+    companion object {
+        /** Set from the system property `fctlang.debugStuck` to trace StuckException rollbacks. */
+        val DEBUG_STUCK: Boolean = java.lang.Boolean.getBoolean("fctlang.debugStuck")
+    }
 }

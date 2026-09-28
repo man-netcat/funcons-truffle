@@ -13,7 +13,7 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         }.toTypedArray()
     }
 
-    override val size: Int by lazy { elements.size }
+    override val size: Int get() = elements.size
 
     override fun slice(startIndex: Int, endIndex: Int): SequenceNode {
         val sliced = elements.sliceArray(startIndex until endIndex)
@@ -31,11 +31,11 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         return slice(startIndex, adjustedEndIndex)
     }
 
-    override val head: TermNode by lazy { get(0) }
-    override val second: TermNode by lazy { get(1) }
-    override val third: TermNode by lazy { get(2) }
-    override val fourth: TermNode by lazy { get(3) }
-    override val last: TermNode by lazy { get(elements.size - 1) }
+    override val head: TermNode get() = get(0)
+    override val second: TermNode get() = get(1)
+    override val third: TermNode get() = get(2)
+    override val fourth: TermNode get() = get(3)
+    override val last: TermNode get() = get(elements.size - 1)
     override val init: SequenceNode by lazy { sliceUntil(1) }
     override val tail: SequenceNode by lazy { sliceFrom(1) }
     override fun isEmpty(): Boolean = elements.isEmpty()
@@ -51,17 +51,19 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         return elements.toList().shuffled()
     }
 
-    private val reducibleElements
-        get() = elements.mapIndexed { index, param -> index to param }
+    private val reducibleElements: List<Pair<Int, TermNode>> by lazy {
+        elements.mapIndexed { index, param -> index to param }
             .filter { it.second.isReducible() }
+    }
 
     override fun reduceComputations(frame: VirtualFrame): TermNode? {
-        var newElements = elements.toMutableList()
+        val reducible = reducibleElements
+        if (reducible.isEmpty()) return null
+
         val entitySnapshot = getEntities(frame).toMap()
+        var newElements = elements.toMutableList()
 
-        if (reducibleElements.isEmpty()) return null
-
-        for ((index, element) in reducibleElements) {
+        for ((index, element) in reducible) {
             try {
                 val reduced = element.reduce(frame)
                 if (reduced is UnpackableTupleNode) {
