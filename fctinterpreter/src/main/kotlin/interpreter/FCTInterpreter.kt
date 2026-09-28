@@ -42,8 +42,7 @@ object FCTInterpreter {
         return context.eval(source)
     }
 
-    fun processResult(result: Value, filePath: Path) {
-        val isFct = filePath.extension == "fct"
+    fun processResult(result: Value, filePath: Path) {        val isFct = filePath.extension == "fct"
         val resultTerm = result.getArrayElement(0)
         val store = result.getArrayElement(1)
 
@@ -61,4 +60,21 @@ object FCTInterpreter {
             if (standardOut.isNotEmpty()) println("standard-out: $standardOut")
         }
     }
+
+    fun checkExpectations(result: Value): ExpectationOutcome {
+        if (!result.hasMembers()) return ExpectationOutcome.NotChecked
+
+        val checked = result.getMember("checked").asBoolean()
+        if (!checked) return ExpectationOutcome.NotChecked
+
+        if (result.getMember("passing").asBoolean()) return ExpectationOutcome.Passed
+
+        return ExpectationOutcome.Failed(result.getMember("failureReport").asString())
+    }
+}
+
+sealed interface ExpectationOutcome {
+    data object NotChecked : ExpectationOutcome
+    data object Passed : ExpectationOutcome
+    data class Failed(val report: String) : ExpectationOutcome
 }

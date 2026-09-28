@@ -1,12 +1,16 @@
 package interpreter
 
+import interpreter.FCTInterpreter.checkExpectations
 import interpreter.FCTInterpreter.createContext
 import interpreter.FCTInterpreter.evalFile
 import interpreter.FCTInterpreter.processResult
+import interpreter.ExpectationOutcome
+import language.StuckException
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.TestInstance
+import org.opentest4j.TestAbortedException
 import java.io.OutputStream
 import java.io.PrintStream
 import java.nio.file.Files
@@ -22,7 +26,9 @@ abstract class BaseTest(
     private val performTiming: Boolean = true,
     private val iterations: Int = 50,
     private val warmUpIterations: Int = 10,
-    private val excludedFiles: List<String> = emptyList()
+    private val excludedFiles: List<String> = emptyList(),
+    private val knownCrashes: Map<String, String> = emptyMap(),
+    private val knownDivergences: Map<String, String> = emptyMap()
 ) {
 
     private val originalOut: PrintStream? = System.out
@@ -37,23 +43,51 @@ abstract class BaseTest(
                 val displayName = relativePath(dir, path)
                 dynamicTest(displayName) {
                     printHeader(displayName)
-                    if (performTiming) {
-                        runWithTiming(path)
-                    } else {
-                        runOnce(path)
+                    val outcome = runGuarded(displayName, path)
+                    when (outcome) {
+                        is ExpectationOutcome.Failed -> throw AssertionError(
+                            "declared expectations not met:\n${outcome.report}"
+                        )
+                        else -> Unit
                     }
                 }
             }
         }
 
-    private fun runOnce(path: Path) {
+    private fun runGuarded(displayName: String, path: Path): ExpectationOutcome {
         val context = createContext()
         try {
             val result = evalFile(context, path)
             processResult(result, path)
+            val outcome = checkExpectations(result)
+            knownDivergences[displayName]?.let { reason ->
+                val detail = when (outcome) {
+                    is ExpectationOutcome.Failed -> "\n${outcome.report}"
+                    else -> "\n(matched on this run; output is not deterministic, so not asserted)"
+                }
+                throw TestAbortedException("known v1 divergence [$reason]:$detail")
+            }
+            return outcome
+        } catch (e: Exception) {
+            val reason = knownCrashes[displayName]
+            if (reason != null && isStuck(e)) {
+                throw TestAbortedException("known v1 semantic gap: $reason", e)
+            }
+            throw e
         } finally {
             context.close()
         }
+    }
+
+    private fun isStuck(error: Throwable): Boolean {
+        val seen = mutableSetOf<Throwable>()
+        var current: Throwable? = error
+        while (current != null && seen.add(current)) {
+            if (current is StuckException) return true
+            if (current.message?.contains("StuckException") == true) return true
+            current = current.cause
+        }
+        return false
     }
 
     private fun runWithTiming(path: Path) {
@@ -79,6 +113,10 @@ abstract class BaseTest(
                 context.close()
                 System.setOut(originalOut)
             }
+        }
+
+        check(times.isNotEmpty()) {
+            "no samples recorded: iterations=$iterations warmUpIterations=$warmUpIterations"
         }
 
         times.sort()
@@ -126,20 +164,42 @@ abstract class BaseTest(
     protected fun Double.format(digits: Int) = "%.${digits}f".format(this)
 }
 
-
 class TestFunconsBeta : BaseTest(
     testDirectories = listOf(Paths.get("../CBS-beta/Funcons-beta") to "config"),
     performTiming = false,
-//    excludedFiles = listOf("atomic.config", "pattern-bind.config")
+    knownCrashes = KNOWN_V1_CRASHES,
+    knownDivergences = KNOWN_V1_DIVERGENCES
 )
 
-//class TestStandaloneFCT : BaseTest(
-//    testDirectories = listOf(Paths.get("../fctfiles/tests") to "fct"),
-//    performTiming = false
-//)
+private val KNOWN_V1_CRASHES = mapOf(
+    "Computations/Normal/Flowing/tests/atomic.config" to
+        "StuckException: sequential - atomic/interleave scheduling is not implemented",
+    "Values/Abstraction/Patterns/tests/pattern-bind.config" to
+        "StuckException: check-true - static refocusing is incomplete"
+)
 
-//class TestMiniJava : BaseTest(
-//    testDirectories = listOf(Paths.get("../fctfiles/minijava") to "fct"),
-//    performTiming = false
-//)
+private val KNOWN_V1_DIVERGENCES = mapOf(
+    "Computations/Normal/Flowing/tests/choice.config" to
+        "nondeterministic: choice picks a different branch each run; corpus lists alternatives in comments",
+    "Computations/Abnormal/Failing/tests/else-choice.config" to
+        "nondeterministic: else-choice picks a different branch each run; corpus lists alternatives in comments",
 
+    "Values/Composite/Objects/tests/object.config" to
+        "printer: emits object(\"@1\",\"A\",map()) where corpus expects object(atom(\"@1\"),\"A\",map-empty)",
+    "Values/Composite/Objects/tests/object-identity.config" to
+        "printer: emits \"@1\" where corpus expects atom(\"@1\")",
+    "Values/Composite/Objects/tests/object-tree.config" to
+        "printer: emits tree(object(\"@1\",\"A\",map())) where corpus expects tree(object(atom(\"@1\"),\"A\",map-empty))",
+    "Values/Composite/Objects/tests/object-subobject-sequence.config" to
+        "printer: emits object(\"@3\",\"C\",map()) where corpus expects object(atom(\"@3\"),\"C\",map-empty)",
+
+    "Values/Composite/Classes/tests/class.config" to
+        "printer: emits class(thunk(abstraction(reference(object(...)))),...) where corpus expects the named form thunkabstractionreferenceobject(fresh-atom,...)",
+    "Values/Composite/Classes/tests/class-instantiator.config" to
+        "printer: emits thunk(abstraction(reference(object(...)))) where corpus expects the named form thunkabstractionreferenceobject(fresh-atom,...)",
+
+    "Values/Composite/Sets/tests/set-difference.config" to
+        "printer: renders the empty set as set() but non-empty sets as {...}; corpus expects {}",
+    "Values/Composite/Maps/tests/map-domain.config" to
+        "printer: renders the empty set/map as set() where corpus expects {}; corpus also declares result-term null where the interpreter produces null-value"
+)

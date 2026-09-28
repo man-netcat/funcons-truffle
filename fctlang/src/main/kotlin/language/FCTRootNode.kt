@@ -11,19 +11,24 @@ class FCTRootNode(
     frameDescriptor: FrameDescriptor,
     @Child private var rootTerm: TermNode,
     val inputNodes: Array<TermNode>,
+    private val expectations: TestExpectations
 ) : RootNode(language, frameDescriptor) {
     override fun execute(frame: VirtualFrame): ResultArray {
         val standardInNode = SequenceNode(*inputNodes)
         appendEntity(frame, "standard-in", standardInNode)
         val resultTerm = rootTerm.rewrite(frame)
-        val resultValue = listOf(resultTerm.toString())
-        val standardOutNode = getEntity(frame, "standard-out")
-        val storeNode = getEntity(frame, "store")
-        val storeValue = listOf(storeNode.toString())
-        val elements = standardOutNode.elements
-        val standardOutValues = elements.map { it.toString() }
+        val resultValue = resultTerm.toString()
+        val storeValue = getEntity(frame, "store").toString()
+        val standardOutValues = getEntity(frame, "standard-out").elements.map { it.toString() }
 
-        val res = (resultValue + storeValue + standardOutValues).toTypedArray()
-        return ResultArray(res)
+        val comparison = ExpectationCheck.compare(
+            expectations = expectations,
+            actualResultTerm = resultValue,
+            actualStore = storeValue,
+            actualStandardOut = standardOutValues
+        )
+
+        val res = (listOf(resultValue) + listOf(storeValue) + standardOutValues).toTypedArray()
+        return ResultArray(res, expectations, comparison)
     }
 }

@@ -37,17 +37,13 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
         val parser = FCTParser(CommonTokenStream(FCTLexer(CharStreams.fromString(code))))
         val root = parser.root()
 
+        val expectations = (root as? ConfigFileContext)?.testsBlock()
+            ?.let { extractExpectations(it) }
+            ?: TestExpectations.NONE
+
         val (funconTerm, inputs) = when (root) {
-            is FCTFileContext -> root.expr() to emptyArray()
-            is ConfigFileContext -> {
-                val tests = root.testsBlock()
-                println("expected:")
-                println("result-term: ${tests.resultTerm()?.expr()?.text}")
-                tests.store()?.expr()?.text?.let { println("store: $it") }
-                tests.standardOut()?.expr()?.text?.let { println("standard-out: $it") }
-                println()
-                root.generalBlock().funconTerm() to processInput(root.inputsBlock())
-            }
+            is FCTFileContext -> root.expr() to emptyArray<TermNode>()
+            is ConfigFileContext -> root.generalBlock().funconTerm() to processInput(root.inputsBlock())
 
             else -> throw IllegalStateException("Unexpected file type")
         }
@@ -62,8 +58,20 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
 
         val frameDescriptor = frameDescriptorBuilder.build()
 
-        return FCTRootNode(this, frameDescriptor, buildTree(funconTerm), inputs).callTarget
+        return FCTRootNode(this, frameDescriptor, buildTree(funconTerm), inputs, expectations).callTarget
     }
+
+    private fun extractExpectations(tests: TestsBlockContext): TestExpectations = TestExpectations(
+        resultTerm = tests.resultTerm()?.expr()?.text,
+        store = tests.store()?.expr()?.text,
+        standardOut = tests.standardOut()?.expr()?.let { expr ->
+            if (expr is ListExpressionContext) {
+                expr.listExpr().sequenceExpr()?.expr()?.map { it.text } ?: emptyList()
+            } else {
+                null
+            }
+        }
+    )
 
     private fun processInput(inputs: InputsBlockContext?): Array<TermNode> {
         if (inputs == null) return emptyArray()
