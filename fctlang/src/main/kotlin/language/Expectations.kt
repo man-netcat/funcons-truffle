@@ -30,13 +30,24 @@ class ComparisonReport(
 }
 
 object ValueCanonicalizer {
+    private val arrowSpacing = Regex("""\s*\|->\s*""")
+    private val structuralSpacing = Regex("""\s*([()\[\]{},])\s*""")
+
     fun canonical(value: String?): String? {
         if (value == null) return null
+        val collapsed = collapseWhitespace(value)
+        return structuralSpacing.replace(arrowSpacing.replace(collapsed, "|->"), "$1")
+    }
+
+    private fun collapseWhitespace(value: String): String {
         val out = StringBuilder(value.length)
+        var pendingSpace = false
         var i = 0
         while (i < value.length) {
             val c = value[i]
             if (c == '"' || c == '\'') {
+                if (pendingSpace && out.isNotEmpty()) out.append(' ')
+                pendingSpace = false
                 val quote = c
                 out.append(c)
                 i++
@@ -51,10 +62,13 @@ object ValueCanonicalizer {
                         break
                     }
                 }
-            } else if (!c.isWhitespace()) {
-                out.append(c)
+            } else if (c.isWhitespace()) {
+                pendingSpace = true
                 i++
             } else {
+                if (pendingSpace && out.isNotEmpty()) out.append(' ')
+                pendingSpace = false
+                out.append(c)
                 i++
             }
         }
@@ -67,6 +81,7 @@ sealed interface CbsValue {
     data class Seq(val elements: List<CbsValue>) : CbsValue
     data class Set(val elements: List<CbsValue>) : CbsValue
     data class Map(val entries: List<Pair<CbsValue, CbsValue>>) : CbsValue
+    data class Apply(val name: String, val args: List<CbsValue>) : CbsValue
 }
 
 object CbsStructure {
@@ -84,6 +99,9 @@ object CbsStructure {
                 a.elements.zip(b.elements).all { (x, y) -> structurallyEqual(x, y) }
         a is CbsValue.Set && b is CbsValue.Set -> unorderedEqual(a.elements, b.elements)
         a is CbsValue.Map && b is CbsValue.Map -> mapsEqual(a.entries, b.entries)
+        a is CbsValue.Apply && b is CbsValue.Apply ->
+            a.name == b.name && a.args.size == b.args.size &&
+                a.args.zip(b.args).all { (x, y) -> structurallyEqual(x, y) }
         else -> false
     }
 
@@ -110,7 +128,50 @@ object CbsStructure {
             }
             return CbsValue.Set(parts.map { parseValue(it) })
         }
+        if (text.length >= 2 && text.startsWith("(") && text.endsWith(")")) {
+            return CbsValue.Seq(splitTopLevel(text.substring(1, text.length - 1)).map { parseValue(it) })
+        }
+        if (text == "set()") return CbsValue.Set(emptyList())
+        if (text == "map-empty") return CbsValue.Apply("map", emptyList())
+        applicationOf(text)?.let { (name, args) -> return CbsValue.Apply(name, args) }
         return CbsValue.Atom(text)
+    }
+
+    private fun applicationOf(text: String): Pair<String, List<CbsValue>>? {
+        val open = text.indexOf('(')
+        if (open <= 0 || !text.endsWith(")")) return null
+        val name = text.substring(0, open)
+        if (name.any { it.isWhitespace() || it in "()[]{}\"'" }) return null
+        val body = text.substring(open + 1, text.length - 1)
+        if (!isBalanced(body)) return null
+        return name to splitTopLevel(body).map { parseValue(it) }
+    }
+
+    private fun isBalanced(body: String): Boolean {
+        var depth = 0
+        var i = 0
+        while (i < body.length) {
+            val c = body[i]
+            if (c == '"' || c == '\'') {
+                val quote = c
+                i++
+                while (i < body.length) {
+                    val d = body[i]
+                    i++
+                    if (d == '\\' && i < body.length) i++ else if (d == quote) break
+                }
+                continue
+            }
+            when (c) {
+                '(', '[', '{' -> depth++
+                ')', ']', '}' -> {
+                    depth--
+                    if (depth < 0) return false
+                }
+            }
+            i++
+        }
+        return depth == 0
     }
 
     private fun unorderedEqual(a: List<CbsValue>, b: List<CbsValue>): Boolean {

@@ -62,7 +62,7 @@ class AtomNode(override val value: String) : AtomsNode() {
         else -> false
     }
 
-    override fun toString(): String = value
+    override fun toString(): String = "atom($value)"
     override fun hashCode(): Int = value.hashCode()
 }
 

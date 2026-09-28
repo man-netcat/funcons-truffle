@@ -180,26 +180,15 @@ private val KNOWN_V1_CRASHES = mapOf(
 
 private val KNOWN_V1_DIVERGENCES = mapOf(
     "Computations/Normal/Flowing/tests/choice.config" to
-        "nondeterministic: choice picks a different branch each run; corpus lists alternatives in comments",
+        "nondeterministic: choice selects a different branch each run; the corpus lists the alternatives in comments",
     "Computations/Abnormal/Failing/tests/else-choice.config" to
-        "nondeterministic: else-choice picks a different branch each run; corpus lists alternatives in comments",
-
-    "Values/Composite/Objects/tests/object.config" to
-        "printer: emits object(\"@1\",\"A\",map()) where corpus expects object(atom(\"@1\"),\"A\",map-empty)",
-    "Values/Composite/Objects/tests/object-identity.config" to
-        "printer: emits \"@1\" where corpus expects atom(\"@1\")",
-    "Values/Composite/Objects/tests/object-tree.config" to
-        "printer: emits tree(object(\"@1\",\"A\",map())) where corpus expects tree(object(atom(\"@1\"),\"A\",map-empty))",
-    "Values/Composite/Objects/tests/object-subobject-sequence.config" to
-        "printer: emits object(\"@3\",\"C\",map()) where corpus expects object(atom(\"@3\"),\"C\",map-empty)",
+        "nondeterministic: else-choice selects a different branch each run; the corpus lists the alternatives in comments",
 
     "Values/Composite/Classes/tests/class.config" to
-        "printer: emits class(thunk(abstraction(reference(object(...)))),...) where corpus expects the named form thunkabstractionreferenceobject(fresh-atom,...)",
+        "expectation is written in the reference implementation's own output syntax (class(thunk abstraction reference object(fresh-atom,...))) with fresh-atom placeholders, which is not comparable to any concrete printed value",
     "Values/Composite/Classes/tests/class-instantiator.config" to
-        "printer: emits thunk(abstraction(reference(object(...)))) where corpus expects the named form thunkabstractionreferenceobject(fresh-atom,...)",
+        "expectation is written in the reference implementation's own output syntax (thunk abstraction reference object(fresh-atom,...)) with fresh-atom placeholders, which is not comparable to any concrete printed value",
 
-    "Values/Composite/Sets/tests/set-difference.config" to
-        "printer: renders the empty set as set() but non-empty sets as {...}; corpus expects {}",
     "Values/Composite/Maps/tests/map-domain.config" to
-        "printer: renders the empty set/map as set() where corpus expects {}; corpus also declares result-term null where the interpreter produces null-value"
+        "corpus declares result-term null where the interpreter produces null-value; 160 of the other 161 files declare null-value, so this is most likely a corpus typo"
 )
