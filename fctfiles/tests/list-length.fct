@@ -1,1 +1,1 @@
-print list-length [integer-sequence(0, 100)]
+print list-length [integer-sequence(0, 1000)]
