@@ -283,7 +283,9 @@ abstract class TermNode : Node() {
     open val value: Any? get() = null
 
     override fun toString(): String {
-        return name + if (params.isNotEmpty()) "(" + params.joinToString { it.toString() } + ")" else ""
+        if (params.isEmpty()) return name
+        val printed = params.filterNot { it is SequenceNode && it.elements.isEmpty() }
+        return name + "(" + printed.joinToString(",") { it.toString() } + ")"
     }
 
     override fun hashCode(): Int {

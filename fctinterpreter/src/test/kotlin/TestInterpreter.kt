@@ -176,25 +176,16 @@ private val KNOWN_V1_CRASHES = mapOf(
         "StuckException: sequential - atomic/interleave scheduling is not implemented",
     "Values/Abstraction/Patterns/tests/pattern-bind.config" to
         "StuckException: check-true - clause 4 expects match(abstraction 12, abstraction(pattern-bind \"it\")) " +
-            "to yield {\"it\" |-> 12}, which needs match to decompose abstractions. " +
-            "Funcons-beta/Values/Abstraction/Patterns/Patterns.cbs does not provide that rule: " +
-            "abstractions is declared as a Type, never as a datatype, so match falls through to the " +
-            "is-equal rule and yields fail. This is the only test in the corpus that passes a bare " +
-            "abstraction as match's second argument; the other 8 use pattern(abstraction(...)). " +
-            "Suspected corpus bug rather than an implementation gap.",
+            "to yield {\"it\" |-> 12}. The reference implementation (funcons-tools 0.2.0.18) PASSES this test: " +
+            "match decomposes the unevaluated abstraction body and retries, and is-equal on abstractions is " +
+            "structural. funcons-intgen promotes the body-less abstractions Type to a DataTypeDecl, making " +
+            "abstraction a constructor, so match must be able to decompose abstraction values into their " +
+            "unevaluated fields. This is an implementation gap, not a corpus bug.",
 )
 
 private val KNOWN_V1_DIVERGENCES = mapOf(
     "Computations/Normal/Flowing/tests/choice.config" to
         "nondeterministic: choice selects a different branch each run; the corpus lists the alternatives in comments",
     "Computations/Abnormal/Failing/tests/else-choice.config" to
-        "nondeterministic: else-choice selects a different branch each run; the corpus lists the alternatives in comments",
-
-    "Values/Composite/Classes/tests/class.config" to
-        "expectation is written in the reference implementation's own output syntax (class(thunk abstraction reference object(fresh-atom,...))) with fresh-atom placeholders, which is not comparable to any concrete printed value",
-    "Values/Composite/Classes/tests/class-instantiator.config" to
-        "expectation is written in the reference implementation's own output syntax (thunk abstraction reference object(fresh-atom,...)) with fresh-atom placeholders, which is not comparable to any concrete printed value",
-
-    "Values/Composite/Maps/tests/map-domain.config" to
-        "corpus declares result-term null where the interpreter produces null-value; 160 of the other 161 files declare null-value, so this is most likely a corpus typo"
+        "nondeterministic: else-choice selects a different branch each run; the corpus lists the alternatives in comments"
 )

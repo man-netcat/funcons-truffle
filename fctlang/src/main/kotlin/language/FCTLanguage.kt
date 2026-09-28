@@ -17,6 +17,8 @@ import fct.FCTParser.*
 import language.NodeFactory.createNode
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
+import org.antlr.v4.runtime.ParserRuleContext
+import org.antlr.v4.runtime.misc.Interval
 import org.antlr.v4.runtime.tree.ParseTree
 
 @TruffleLanguage.Registration(
@@ -61,12 +63,20 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
         return FCTRootNode(this, frameDescriptor, buildTree(funconTerm), inputs, expectations).callTarget
     }
 
+    private fun sourceText(ctx: ParserRuleContext?): String? {
+        if (ctx == null) return null
+        val start = ctx.start
+        val stop = ctx.stop ?: return ctx.text
+        val stream = start.inputStream ?: return ctx.text
+        return stream.getText(Interval.of(start.startIndex, stop.stopIndex))
+    }
+
     private fun extractExpectations(tests: TestsBlockContext): TestExpectations = TestExpectations(
-        resultTerm = tests.resultTerm()?.expr()?.text,
-        store = tests.store()?.expr()?.text,
+        resultTerm = sourceText(tests.resultTerm()?.expr()),
+        store = sourceText(tests.store()?.expr()),
         standardOut = tests.standardOut()?.expr()?.let { expr ->
             if (expr is ListExpressionContext) {
-                expr.listExpr().sequenceExpr()?.expr()?.map { it.text } ?: emptyList()
+                expr.listExpr().sequenceExpr()?.expr()?.mapNotNull { sourceText(it) } ?: emptyList()
             } else {
                 null
             }

@@ -133,7 +133,9 @@ object CbsStructure {
         }
         if (text == "set()") return CbsValue.Set(emptyList())
         if (text == "map-empty") return CbsValue.Apply("map", emptyList())
+        if (text == "null") return CbsValue.Atom("null-value")
         applicationOf(text)?.let { (name, args) -> return CbsValue.Apply(name, args) }
+        juxtaposedApplication(text)?.let { return it }
         return CbsValue.Atom(text)
     }
 
@@ -145,6 +147,70 @@ object CbsStructure {
         val body = text.substring(open + 1, text.length - 1)
         if (!isBalanced(body)) return null
         return name to splitTopLevel(body).map { parseValue(it) }
+    }
+
+    private fun juxtaposedApplication(text: String): CbsValue? {
+        val parts = splitTopLevelWhitespace(text)
+        if (parts.size < 2 || parts.any { it.isEmpty() }) return null
+        if (parts.first().any { it in "()[]{}\"'" }) return null
+        var acc = parseValue(parts.last())
+        for (i in parts.size - 2 downTo 0) {
+            val head = parts[i]
+            if (head.any { it in "()[]{}\"'" || it.isWhitespace() }) return null
+            acc = CbsValue.Apply(head, listOf(acc))
+        }
+        return acc
+    }
+
+    private fun splitTopLevelWhitespace(body: String): List<String> {
+        val parts = mutableListOf<String>()
+        val current = StringBuilder()
+        var depth = 0
+        var i = 0
+        var sawSpace = false
+        while (i < body.length) {
+            val c = body[i]
+            if (c == '"' || c == '\'') {
+                if (sawSpace && current.isNotEmpty()) {
+                    parts.add(current.toString())
+                    current.setLength(0)
+                    sawSpace = false
+                }
+                val quote = c
+                current.append(c)
+                i++
+                while (i < body.length) {
+                    val d = body[i]
+                    current.append(d)
+                    i++
+                    if (d == '\\' && i < body.length) {
+                        current.append(body[i])
+                        i++
+                    } else if (d == quote) {
+                        break
+                    }
+                }
+                continue
+            }
+            when (c) {
+                '(', '[', '{' -> depth++
+                ')', ']', '}' -> depth--
+            }
+            if (c.isWhitespace() && depth == 0) {
+                if (current.isNotEmpty()) {
+                    parts.add(current.toString())
+                    current.setLength(0)
+                }
+                sawSpace = true
+                i++
+                continue
+            }
+            sawSpace = false
+            current.append(c)
+            i++
+        }
+        if (current.isNotEmpty()) parts.add(current.toString())
+        return parts
     }
 
     private fun isBalanced(body: String): Boolean {
