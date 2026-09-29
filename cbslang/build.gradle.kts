@@ -12,7 +12,12 @@ repositories {
 }
 
 dependencies {
+    // The generator has to be checked against the real ANTLR tool, not only against
+    // the text it produces: a grammar that compiles as a file can still be rejected
+    // for a name that collides with the generated code, and only the tool sees that.
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.antlr.tool)
+    testImplementation(libs.antlr.runtime)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 

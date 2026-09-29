@@ -12,6 +12,9 @@ data class FileRead(
     val index: List<IndexItem> = emptyList(),
     val imports: List<String> = emptyList(),
     val problems: List<Problem> = emptyList(),
+    /** Read from the SDF3 blocks in this file's comments, if it has any. */
+    val disambiguation: Disambiguation? = null,
+    val disambiguationProblems: List<Problem> = emptyList(),
 )
 
 /**
@@ -111,11 +114,9 @@ class Reader(private val source: String, private val file: String) {
     private fun readDeclarations(into: MutableList<Declaration>, keyword: String) {
         next() // the keyword
         if (peek().kind == Token.Kind.IDENT && peek().text == "SDF") {
-            // The commented-out SDF priority declarations. In the vendored
-            // languages these sit inside a block comment, so reaching one here
-            // means a file declares disambiguation the CBS language has no
-            // construct for.
-            note("disambiguation", "$keyword SDF ...")
+            // `Syntax SDF` and `Lexis SDF` introduce the disambiguation blocks,
+            // which live in this file's comments. SdfReader reads them, so the
+            // item is skipped here rather than read as a declaration.
             readFreeText("disambiguation")
             return
         }
@@ -142,7 +143,7 @@ class Reader(private val source: String, private val file: String) {
         }
         expect("::=", "'::=' after $name")
         val body = readEbnf()
-        return Declaration(category, name, body, file, start.line)
+        return Declaration(keyword, category, name, body, file, start.line)
     }
 
     private fun declarationStartsHere(): Boolean {

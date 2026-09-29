@@ -12,7 +12,9 @@ class TokenizerTest {
     private fun texts(source: String): List<String> = lex(source).map { it.text }
 
     @Test
-    fun `lexes a quoted terminal and a character range`() {
+    fun terminalAndRangeTest() {
+        // A range's bounds are string tokens and the `-` between them is
+        // punctuation, so neither bound swallows the dash.
         val tokens = lex("Z : int ::= ('0'-'9')+")
         assertEquals(
             listOf("Z", ":", "int", "::=", "(", "0", "-", "9", ")", "+"),
@@ -23,7 +25,7 @@ class TokenizerTest {
     }
 
     @Test
-    fun `lexes the longest punctuation first`() {
+    fun longestMatchTest() {
         // `::=` must not lex as `:` then `=`, and `~>` not as `~` then `>`.
         assertEquals(
             listOf("a", "::=", "b", "~>", "c", "|->", "d", "<:", "e", "=", "f"),
@@ -32,25 +34,30 @@ class TokenizerTest {
     }
 
     @Test
-    fun `allows hyphens inside an identifier but not at the end`() {
+    fun identifierHyphenTest() {
+        // A hyphen is part of a name but may not end one, so `aexp-1` is a single
+        // token.
         assertEquals(listOf("aexp-1", "-", ">", "b"), texts("aexp-1 -> b"))
         assertEquals(listOf("n", "*"), texts("n *"))
     }
 
     @Test
-    fun `lexes heading numbers including sections and levels`() {
+    fun headingNumberTest() {
+        // Sections are numbered `#1`, subsections `#1.1`, and levels written `##`.
         assertEquals(listOf("#1", "Programs"), texts("#1 Programs"))
         assertEquals(listOf("#1.1", "Booleans"), texts("#1.1 Booleans"))
         assertEquals(listOf("##", "Classes"), texts("## Classes"))
     }
 
     @Test
-    fun `lexes a language name in bare double quotes`() {
+    fun languageNameTest() {
+        // The language name is in bare double quotes, which is how files are grouped
+        // into one language.
         assertEquals(listOf("Language", "IMP"), texts("""Language "IMP" """))
     }
 
     @Test
-    fun `lexes an escaped funcon string on a rule right-hand side`() {
+    fun escapedStringTest() {
         // IMP writes these as \"I\" in the rule body.
         val tokens = lex("""  id[[ I ]] = \"I\"""")
         val strings = tokens.filter { it.kind == Token.Kind.DQUOTED }
@@ -58,7 +65,7 @@ class TokenizerTest {
     }
 
     @Test
-    fun `distinguishes a backslash terminal from an escaped quote`() {
+    fun backslashEscapeTest() {
         // The vendored OCaml-Light file writes the backslash terminal as '\' and
         // the quote terminal as '\''. They start the same way, so the only
         // discriminator is whether a further quote follows.
@@ -71,7 +78,9 @@ class TokenizerTest {
     }
 
     @Test
-    fun `takes a trailing backslash as a literal and says so`() {
+    fun trailingBackslashTest() {
+        // A trailing backslash would escape the closing quote, so the terminal is
+        // taken literally and a problem is recorded.
         val backslash = "'" + "\\" + "'"
         val tokenizer = Tokenizer(backslash, "test")
         val tokens = tokenizer.tokenize()
@@ -86,7 +95,9 @@ class TokenizerTest {
     }
 
     @Test
-    fun `keeps a backslash in a terminal that is not a quote escape`() {
+    fun literalBackslashTest() {
+        // A backslash that does not begin a quote escape is itself, so the terminal is
+        // two characters.
         val terminal = "'" + "\\" + "n" + "'"
         assertEquals(
             listOf("\\n"),
@@ -95,13 +106,16 @@ class TokenizerTest {
     }
 
     @Test
-    fun `skips nested block comments and line comments`() {
+    fun commentTest() {
+        // Block comments nest in CBS, and a `//` comment runs to the end of its line.
         val tokens = lex("a /* one /* two */ still */ b // gone\nc")
         assertEquals(listOf("a", "b", "c"), tokens.map { it.text })
     }
 
     @Test
-    fun `records a problem rather than failing on an inconsistent terminal`() {
+    fun inconsistentTerminalTest() {
+        // A terminal whose backslash escapes its own closing quote is reported rather
+        // than throwing.
         val tokenizer = Tokenizer("""capture[[ '\' ]]""", "test")
         tokenizer.tokenize()
         assertEquals(
@@ -111,7 +125,9 @@ class TokenizerTest {
     }
 
     @Test
-    fun `carries the line of every token so items can be delimited by line`() {
+    fun tokenLineTest() {
+        // Every token carries its line, which is what lets a file be split into items by
+        // line.
         val tokens = lex("Syntax\n  a ::= 'x'\nRule\n  a[[ 'x' ]] = a")
         assertEquals(listOf(1, 2, 2, 2, 3, 4, 4, 4, 4, 4, 4), tokens.map { it.line })
     }

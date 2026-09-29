@@ -48,7 +48,8 @@ class ReaderTest {
     """.trimIndent()
 
     @Test
-    fun `reads the language name and the sections`() {
+    fun languageAndSectionsTest() {
+        // One pass over a whole file: every section keyword is recognised and counted.
         val read = read(toy)
         assertEquals("Toy", read.language)
         assertEquals(4, read.declarations.size)
@@ -61,7 +62,9 @@ class ReaderTest {
     }
 
     @Test
-    fun `reads a category, a nonterminal and an EBNF body`() {
+    fun declarationTest() {
+        // Alternatives and sequences are different shapes: `aexp '+' aexp` is a
+        // sequence inside an alternative, not an alternative of one.
         val read = read(toy)
         val aexp = read.declarations.single { it.category == "A" }
         assertEquals("aexp", aexp.nonterminal)
@@ -91,7 +94,7 @@ class ReaderTest {
     }
 
     @Test
-    fun `reads a character range`() {
+    fun charRangeTest() {
         val read = read(toy)
         val int = read.declarations.single { it.nonterminal == "int" }
         // Parentheses group, they do not sequence, so `('0'-'9')` is the range
@@ -103,7 +106,9 @@ class ReaderTest {
     }
 
     @Test
-    fun `reads a negated character set with and without parentheses`() {
+    fun negatedCharSetTest() {
+        // Both spellings occur in the corpus: `~( 'a' | 'b' )` with a group, and
+        // `~'a'` bare.
         for (source in listOf("~( 'a' | 'b' )", "~'a'")) {
             val read = read("Language \"X\"\nSyntax\n  c ::= $source\n")
             assertEquals(1, read.declarations.size, "failed on $source")
@@ -117,7 +122,9 @@ class ReaderTest {
     }
 
     @Test
-    fun `reads a semantic function argument and return type`() {
+    fun semanticSignatureTest() {
+        // A signature's argument, its category and its return type are kept apart;
+        // the argument is a variable name, the category the nonterminal it ranges over.
         val read = read(toy)
         val run = read.semantics.single { it.function == "run" }
         assertEquals("P", run.patternVariable)
@@ -126,7 +133,9 @@ class ReaderTest {
     }
 
     @Test
-    fun `reads a type declaration and its members`() {
+    fun typeDeclarationTest() {
+        // Members are kept as raw tokens, `|` included, because a type declaration
+        // lists subtypes rather than a parsed type expression.
         val read = read(toy)
         val ints = read.types.single()
         assertEquals("ints", ints.name)
@@ -134,7 +143,7 @@ class ReaderTest {
     }
 
     @Test
-    fun `reads a rule pattern and body, keeping the body as text`() {
+    fun ruleTest() {
         val read = read(toy)
         val add = read.rules.single { it.function == "eval" && it.pattern.contains("'+'") }
         assertEquals(listOf("A1", "'+'", "A2"), add.patternTokens)
@@ -148,13 +157,16 @@ class ReaderTest {
     }
 
     @Test
-    fun `reads a rule that spans several lines`() {
+    fun multiLineRuleTest() {
         val add = read(toy).rules.single { it.pattern.contains("'+'") }
         assertTrue("\n" in add.body, "expected a multi-line body, got ${add.body}")
     }
 
     @Test
-    fun `recognises the disambiguation rule form, which has no function`() {
+    fun disambiguationRuleTest() {
+        // The disambiguation Rule form has no function name: a pattern, `:` and a
+        // category. It is read as a rule so the file keeps one shape, but it
+        // defines no semantics.
         val read = read(toy)
         val disambiguation = read.rules.single { it.isDisambiguation }
         assertEquals("pattern", disambiguation.category)
@@ -162,7 +174,9 @@ class ReaderTest {
     }
 
     @Test
-    fun `treats a funcon equation listed under Funcon as documentation`() {
+    fun funconEquationTest() {
+        // A funcon library lists equations under a `Funcon` heading. They document the
+        // funcon rather than define this language, so they are not read as rules.
         val read = read(
             "Language \"X\"\nFuncon\n  f(V:values) : => strings\nRule\n  f(null-value) ~> \"null\"\n",
         )
@@ -174,16 +188,25 @@ class ReaderTest {
     }
 
     @Test
-    fun `records SDF disambiguation rather than parsing it as a grammar`() {
-        val read = read(
-            "Language \"X\"\nLexis SDF\n  context-free\nSyntax SDF\n  left-recursive\n",
-        )
+    fun sdfCommentTest() {
+        // The disambiguation is not part of the CBS language-definition
+        // notation: SL's disambiguation file says outright that CBS does not
+        // support it. It is kept in the comments, so SdfReader reads it and this
+        // reader neither turns it into declarations nor reports it as a problem.
+        val read = read("Language \"X\"\nLexis SDF\n  context-free\nSyntax SDF\n  left-recursive\n")
         assertEquals(0, read.declarations.size)
-        assertEquals(listOf("disambiguation", "disambiguation"), read.problems.map { it.kind })
+        assertEquals(emptyList<Problem>(), read.problems)
+
+        val sdf = SdfReader("X.cbs")
+        val disambiguation = sdf.read("X", "Syntax SDF\n/*\ncontext-free syntax\n``aexp ::= aexp '+' aexp`` {assoc}\n*/\n")
+        assertEquals(1, disambiguation.annotated.size)
+        assertEquals(Associativity.ASSOC, disambiguation.annotated[0].associativity)
     }
 
     @Test
-    fun `reports a file position when the notation is wrong`() {
+    fun problemPositionTest() {
+        // A notation error carries its file and line, so a failure in a real language
+        // definition can be found in the source.
         val error = runCatching {
             read("Language \"X\"\nSemantics\n  f[[ P ]] : => integers\nRule\n  g[[ Q ]]\n")
         }.exceptionOrNull()
@@ -196,7 +219,7 @@ class ReaderTest {
     }
 
     @Test
-    fun `reads a semantic function defined inline rather than by a Rule`() {
+    fun inlineSemanticsTest() {
         val read = read(
             "Language \"X\"\nSemantics\n  id[[ID:identifier]] : => ids\n    = \\\"ID\\\"\n",
         )
@@ -210,7 +233,9 @@ class ReaderTest {
     }
 
     @Test
-    fun `records prose that is not part of the language definition`() {
+    fun proseTest() {
+        // Prose under a bare heading is recorded rather than parsed, so it stays visible
+        // without being mistaken for part of the language definition.
         val read = read("Language \"X\"\nMeta-variables\n  R, S <: values\n")
         assertEquals(emptyList<Declaration>(), read.declarations)
         assertEquals(listOf("prose"), read.problems.map { it.kind })

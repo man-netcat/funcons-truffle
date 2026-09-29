@@ -1,0 +1,120 @@
+# Working in this repository
+
+Notes for AI agents and new contributors. Everything here was learned by getting
+it wrong; please don't repeat the mistakes.
+
+## Read the surrounding code before writing any
+
+This is the single most important rule, and the one most often skipped.
+
+Before adding a file, function or test, look at the two or three nearest
+neighbours and match what they do. A 30-second `ls` or `rg` of the directory
+prevents a rename-and-rewrite of ninety files.
+
+Concretely, in this repo:
+
+- **Test function names** follow the convention in
+  `antlr/src/test/kotlin/GrammarTest.kt` and
+  `kt_source/.../parsetests/BooleansTest.kt` (the latter is now `trufflegen`):
+  a short noun phrase naming the thing under test, plus a `Test` suffix —
+  `cbsGrammarTest`, `notNodeTest`, `andNodeTest`. Plain identifiers.
+- **Do not use Kotlin backtick function names** (`` fun `does a thing`() ``).
+  Every one of the 93 that existed in `cbslang` and `fctinterpreter` was written
+  by an agent, not by the repository's author, and all of them have been
+  renamed. Long names also truncate in IDE completion, make
+  `--tests '...'` awkward to pass, and do not survive `rg`.
+- **Test names stay short; the reasoning goes in a comment** above the test or
+  on the first line of its body. A test that encodes a surprising fact needs the
+  explanation next to the assertion, because that is where a future reader
+  looks — and because a name cannot be renamed without losing it. A comment
+  that merely restates the name is noise; don't add one.
+
+## Verify provenance before claiming something is a convention
+
+Before telling the user "that matches the existing style" or "that breaks the
+convention", check the history:
+
+```bash
+git log --oneline --reverse --format='%H %an %s' | head -30
+git log --diff-filter=A --format='%an' -- <file>   # who added it
+git show <commit>:<path>                            # what it looked like then
+```
+
+Almost all recent commits in this repository were written by an agent using the
+repository owner's git identity, so `--author` tells you nothing about who wrote
+which line. `git log --oneline -- <path>` and reading the content at a given
+commit is the only reliable signal. An agent once cited its own 93 backtick
+test names back at the owner as "the existing repo convention"; every one of
+them turned out to be the agent's own.
+
+## When you are wrong, say so and move on
+
+If the user corrects something, the useful response is a short acknowledgement
+and a fix, not a fresh justification of the original choice. Do not re-argue a
+decision that has already been overturned, and do not apologise at length.
+
+## Ground claims in a command
+
+Every status claim in this repository should be backed by something runnable.
+Prefer reporting "478 tests, 0 failures, 1 skipped" over "the suite passes", and
+name the command. If a number is unknown, say it is unknown rather than
+estimating.
+
+Note that a green suite can hide known breakage, because some tests *pin* a bug
+in order to document it. `fctinterpreter`'s `TestMinijava` asserts the exact
+truncated output of eight programs that are still wrong. Read a test's KDoc
+before quoting its result as a success.
+
+## Commands
+
+```bash
+./gradlew test                                        # whole suite
+./gradlew :cbslang:test                               # CBS language front-end
+./gradlew :fctinterpreter:test                         # interpreter
+./gradlew :cbslang:run --args="../CBS-beta/Languages-beta"   # survey the corpus
+./gradlew :cbslang:run --args="--write-disambiguation out ../CBS-beta/Languages-beta"
+```
+
+Per-test results are in `<module>/build/test-results/test/*.xml`; the console
+output of the interpreter is noisy enough that reading the XML is faster.
+
+## Layout
+
+| Module | What it does |
+| --- | --- |
+| `antlr` | Hand-written ANTLR grammars: `CBS.g4` (funcon libraries only), `FCT.g4` (funcon terms) |
+| `trufflegen` | Generates `fctlang`'s funcon node classes from `CBS-beta/Funcons-beta` at build time |
+| `fctlang` | The funcon library and Truffle runtime. `src/main/kotlin/generated/` is generated, do not edit |
+| `fctinterpreter` | Evaluates funcon terms; owns the regression suites |
+| `cbslang` | Reads the CBS *language definitions* and their SDF3 disambiguation, writes an ANTLR grammar |
+| `fctfiles`, `CBS-beta` | Vendored corpora (submodules) |
+
+Gradle runs tests with the module directory as the working directory, which is
+why tests reach the vendored tree through `../`.
+
+## What `cbslang` produces
+
+`cbslang` reads a CBS language definition and its SDF3 disambiguation, and writes an
+ANTLR 4 grammar for it. All five languages in the vendored corpus
+(IMP, MiniJava, OCaml Light, SIMPLE, SL) generate a grammar the real ANTLR tool
+accepts, the generated Java compiles, and programs of the language parse.
+`GeneratedParserTest` runs the tool and the Java compiler rather than reading the
+text, because a fault like a rule named after a target-language keyword only shows
+up there.
+
+The disambiguation is applied, not just recorded. An SDF3 `context-free priorities`
+step becomes the position of the alternatives it names, because ANTLR gives a
+left-recursive alternative the precedence of its position in the rule; `left` and
+`right` become `<assoc=left>` and `<assoc=right>`. `miniJavaPrecedenceTest` checks
+the resulting trees, since a grammar that keeps the declared order still parses
+every program and gets `&&` binding tightest instead of loosest.
+
+Two parts of a disambiguation have no equivalent in ANTLR and are written as
+comments rather than guessed at: `non-assoc` (there is no option for it) and the
+`avoid` and `prefer` flags, which are for a concrete syntax tree rather than a
+parser. They show up in the generated file so the gap is visible.
+
+Not implemented: layout is excluded by skipping a global `LAYOUT` token, so
+adjacency and compound tokens are not modelled; there is no concrete syntax tree
+and no AST, so `cbslang` output is not yet consumable by an interpreter.
+

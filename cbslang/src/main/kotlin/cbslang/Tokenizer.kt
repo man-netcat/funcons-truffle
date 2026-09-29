@@ -163,16 +163,28 @@ class Tokenizer(private val source: String, private val file: String) {
                     tokens += Token(Token.Kind.PUNCT, source.substring(start, i), start, i, startLine, startCol, file)
                 }
 
-                c.isLetter() || c == '_' -> {
+                // CBS-beta says nonterminals start with lowercase letters, so a
+                // leading `_` is the gap marker rather than the start of a name.
+                // The corpus writes it attached, as in `num ::= '-'?_decimal`, and
+                // lexing it as one identifier would silently name a nonterminal
+                // `_decimal` that does not exist.
+                c.isLetter() -> {
                     val start = i
                     val startLine = line
                     val startCol = col(i)
-                    while (i < source.length && (source[i].isLetterOrDigit() || source[i] == '_' || source[i] == '-')) {
+                    while (i < source.length && (source[i].isLetterOrDigit() || source[i] == '-' || source[i] == '_')) {
                         // A trailing `-` belongs to a following operator, not the
                         // identifier, so do not swallow it.
                         if (source[i] == '-' &&
                             !(i + 1 < source.length && (source[i + 1].isLetterOrDigit() || source[i + 1] == '_'))
                         ) {
+                            break
+                        }
+                        // A trailing `_` is the gap marker, not part of the name. The
+                        // corpus writes it attached on both sides, as in
+                        // `string ::= '"'_string-chars_'"'`, and swallowing it would
+                        // name a nonterminal `string-chars_` that does not exist.
+                        if (source[i] == '_' && (i + 1 >= source.length || !source[i + 1].isLetterOrDigit())) {
                             break
                         }
                         i++
