@@ -10,6 +10,8 @@ repositories {
 
 dependencies {
     implementation(project(":antlr"))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.compileKotlin {

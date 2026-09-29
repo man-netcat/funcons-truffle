@@ -16,8 +16,14 @@ import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import java.io.File
 
-val globalObjects: MutableMap<String, Object> = mutableMapOf()
-val builtinOverride: MutableSet<String> = mutableSetOf(
+/**
+ * Names the corpus declares but Truffle implements differently, so no node class
+ * is generated for them.
+ *
+ * They stay in the registry: a rule that names one still resolves, it is only the
+ * generated class that is skipped.
+ */
+private val builtinOverride = setOf(
     "left-to-right", "right-to-left",          // Ambiguous semantics
     "some-element", "choice", "else-choice",   // Implemented leftmost, not randomly
     "sequential",                              // Param after sequence
@@ -30,6 +36,7 @@ val builtinOverride: MutableSet<String> = mutableSetOf(
 )
 
 class TruffleGen(private val cbsDir: File) {
+    private val registry = Registry(builtinOverride)
     private val cbsFiles: MutableMap<String, CBSFile> = mutableMapOf()
     private var cbsParseTrees = mutableMapOf<String, CBSParser.RootContext>()
     private val fctParseTrees = mutableMapOf<String, FCTParser.RootContext>()
@@ -70,12 +77,10 @@ class TruffleGen(private val cbsDir: File) {
     private fun generateObjects() {
         cbsParseTrees.forEach { (name, root) ->
             println("Generating objects for file $name...")
-            val cbsFile = CBSFile(name)
+            val cbsFile = CBSFile(name, registry)
             cbsFile.visit(root)
-            val fileObjects = cbsFile.objects
-            if (fileObjects.isNotEmpty()) {
+            if (cbsFile.objects.isNotEmpty()) {
                 cbsFiles[name] = cbsFile
-                globalObjects.putAll(fileObjects)
             }
         }
     }
@@ -86,7 +91,7 @@ class TruffleGen(private val cbsDir: File) {
             val visitor = IndexVisitor()
             visitor.visit(root)
             visitor.names.forEach {
-                if (it !in globalObjects.keys) {
+                if (registry[it] == null) {
                     throw DetailedException("$it does not have an object")
                 }
             }
@@ -107,13 +112,13 @@ class TruffleGen(private val cbsDir: File) {
         }
 
         cbsFiles.values.forEach { file ->
-            file.objects.values.distinct().forEach { obj ->
+            file.objects.forEach { obj ->
                 println("Generating object dependencies for object ${obj.name}...")
                 fun visitDependencies(obj: Object) {
                     val visitor = CBSDependencyVisitor()
                     visitor.visit(obj.ctx)
                     val objDependencies = visitor.dependencies
-                        .map { objName -> globalObjects[objName]!! }
+                        .map { objName -> registry.require(objName) }
                         .filter { dep -> dep.name != obj.name }
                         .distinct()
                     obj.dependencies.addAll(objDependencies)
@@ -121,12 +126,12 @@ class TruffleGen(private val cbsDir: File) {
 
                 when (obj) {
                     is TypeObject -> {
-                        obj.dependencies.add(globalObjects["value-types"]!!)
+                        obj.dependencies.add(registry.require("value-types"))
                         visitDependencies(obj)
                     }
 
                     is AlgebraicDatatypeObject -> {
-                        obj.dependencies.add(globalObjects["datatype-values"]!!)
+                        obj.dependencies.add(registry.require("datatype-values"))
                         obj.definitions.forEach { dep -> obj.dependencies.add(dep) }
                     }
 
@@ -148,7 +153,7 @@ class TruffleGen(private val cbsDir: File) {
         }
 
         usedFuncons.forEach { name ->
-            globalObjects[name]?.let { visitObject(it) }
+            registry[name]?.let { visitObject(it) }
         }
     }
 
@@ -183,10 +188,8 @@ class TruffleGen(private val cbsDir: File) {
 
         stringBuilder.appendLine("val aliasMap: Map<String, String> = mapOf(")
         val objectsToProcess = if (generatedDependencies.isNotEmpty()) {
-            globalObjects
-                .values.distinct()
-                .filter { obj -> obj in generatedDependencies && obj !is EntityObject }
-        } else globalObjects.values.toSet().filter { obj -> obj !is EntityObject }
+            registry.objects.filter { obj -> obj in generatedDependencies && obj !is EntityObject }
+        } else registry.objects.filter { obj -> obj !is EntityObject }
 
         objectsToProcess.flatMap { obj ->
             obj.aliases

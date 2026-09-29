@@ -2,19 +2,29 @@ package main
 
 import cbs.CBSBaseVisitor
 import cbs.CBSParser.*
-import main.exceptions.DetailedException
 import main.objects.*
 import objects.DatatypeFunconObject
 import objects.FunconObject
 import org.antlr.v4.runtime.ParserRuleContext
 
-class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
-    val objects = mutableMapOf<String, Object>()
+/**
+ * One `.cbs` file of the corpus, and the objects it declares.
+ *
+ * @param registry every object in the corpus, which this file's objects are added
+ * to and resolved against. A file does not own the corpus: a rule in one file may
+ * name a funcon declared in another, and the order the files are read in is the
+ * order the directory walk happens to produce.
+ */
+class CBSFile(private val fileName: String, private val registry: Registry) : CBSBaseVisitor<Unit>() {
+
+    /** The objects this file declared, under their own names and their aliases. */
+    val objects: MutableSet<Object> = mutableSetOf()
+
     private var fileMetavariables: Set<Pair<ExprContext, ExprContext>> = emptySet()
 
     private fun addObjectReference(obj: Object) {
-        objects[obj.name] = obj
-        obj.aliases.forEach { alias -> objects[alias] = obj }
+        objects.add(obj)
+        registry.add(obj)
     }
 
     override fun visitMetavariablesDefinition(ctx: MetavariablesDefinitionContext) {
@@ -28,7 +38,8 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
             ctx,
             rules = ctx.ruleDefinition(),
             term = ctx.rewritesTo,
-            fileMetavariables
+            fileMetavariables,
+            registry,
         )
 
         addObjectReference(dataContainer)
@@ -39,14 +50,14 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
 
         when (operator) {
             "<:" -> {
-                val datatypeDataContainer = SupertypeDatatypeObject(ctx, fileMetavariables)
+                val datatypeDataContainer = SupertypeDatatypeObject(ctx, fileMetavariables, registry)
                 addObjectReference(datatypeDataContainer)
 
             }
 
             "::=" -> {
                 val definitions = extractAndOrExprs(ctx.definition)
-                val datatypeDataContainer = AlgebraicDatatypeObject(ctx, fileMetavariables)
+                val datatypeDataContainer = AlgebraicDatatypeObject(ctx, fileMetavariables, registry)
                 addObjectReference(datatypeDataContainer)
 
 
@@ -57,7 +68,8 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
                             DatatypeFunconObject(
                                 funcon,
                                 datatypeDataContainer,
-                                fileMetavariables
+                                fileMetavariables,
+                                registry,
                             )
                         addObjectReference(dataContainer)
                         datatypeDataContainer.definitions.add(dataContainer)
@@ -67,38 +79,34 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
     }
 
     override fun visitTypeDefinition(ctx: TypeDefinitionContext) {
-        val dataContainer = TypeObject(ctx, fileMetavariables)
+        val dataContainer = TypeObject(ctx, fileMetavariables, registry)
         addObjectReference(dataContainer)
     }
 
-    private fun processEntityDefinition(ctx: ParserRuleContext, entityType: EntityType) {
-        val dataContainer = EntityObject(ctx, fileMetavariables)
-        addObjectReference(dataContainer)
+    /**
+     * Every kind of entity definition produces the same object.
+     *
+     * The four rules differ only in their keyword and, for a control entity, in a
+     * polarity the generator does not act on: an entity is read and written by name
+     * (`getEntity` and `putEntity`), so `contextual`, `mutable`, `control?` and
+     * `control!` are one case here rather than four.
+     */
+    private fun processEntityDefinition(ctx: ParserRuleContext) {
+        addObjectReference(EntityObject(ctx, fileMetavariables, registry))
     }
 
-    override fun visitControlEntityDefinition(ctx: ControlEntityDefinitionContext) {
-        val entityType = if (ctx.polarity != null) {
-            when (ctx.polarity.text) {
-                "?" -> EntityType.INPUT
-                "!" -> EntityType.OUTPUT
-                else -> throw DetailedException("Unexpected polarity encountered: ${ctx.polarity.text}")
-            }
-        } else EntityType.CONTROL
-        processEntityDefinition(ctx, entityType)
-    }
+    override fun visitControlEntityDefinition(ctx: ControlEntityDefinitionContext) =
+        processEntityDefinition(ctx)
 
-    override fun visitMutableEntityDefinition(ctx: MutableEntityDefinitionContext) {
-        processEntityDefinition(ctx, EntityType.MUTABLE)
-    }
+    override fun visitMutableEntityDefinition(ctx: MutableEntityDefinitionContext) =
+        processEntityDefinition(ctx)
 
-    override fun visitContextualEntityDefinition(ctx: ContextualEntityDefinitionContext) {
-        processEntityDefinition(ctx, EntityType.CONTEXTUAL)
-    }
+    override fun visitContextualEntityDefinition(ctx: ContextualEntityDefinitionContext) =
+        processEntityDefinition(ctx)
 
-    fun generateCode(generatedDependencies: MutableSet<Object>): String? {
-        val included = generatedDependencies.ifEmpty { globalObjects.values.toSet() }
-        val toProcess =
-            objects.values.distinct().filter { obj -> obj in included }
+    fun generateCode(generatedDependencies: Set<Object>): String? {
+        val included = generatedDependencies.ifEmpty { registry.objects }
+        val toProcess = objects.filter { it in included }
 
         if (toProcess.isEmpty()) return null
 
@@ -121,10 +129,7 @@ class CBSFile(private val fileName: String) : CBSBaseVisitor<Unit>() {
             val code = obj.makeCode()
             stringBuilder.appendLine()
             stringBuilder.appendLine(code)
-            if (obj is AlgebraicDatatypeObject && obj.elementInBody.isNotEmpty()) {
-                stringBuilder.appendLine()
-                stringBuilder.appendLine(obj.elementInBody)
-            } else if (obj is TypeObject && obj.elementInBody.isNotEmpty()) {
+            if (obj.elementInBody.isNotEmpty()) {
                 stringBuilder.appendLine()
                 stringBuilder.appendLine(obj.elementInBody)
             }

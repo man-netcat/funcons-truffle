@@ -7,11 +7,16 @@ import main.exceptions.DetailedException
 class TypeObject(
     ctx: TypeDefinitionContext,
     metaVariables: Set<Pair<ExprContext, ExprContext>>,
-) : Object(ctx, metaVariables) {
+    registry: Registry,
+) : Object(ctx, metaVariables, registry) {
     val operator = ctx.op?.text
     /**
      * The type this one is declared a subtype of, for `Type N ~> T`. CBS treats
      * that as "N is a T", so `isIn<T>()` has to accept N's values too.
+     *
+     * The grammar also allows `<:` as a type's `op`, and that spelling is not
+     * read here: every type in the corpus declares membership with `~>`, as
+     * Strings.cbs does with `strings ~> lists(characters)`.
      */
     val supertypeName: String? =
         if (operator == "~>") (ctx.definition as? FunconExpressionContext)?.name?.text else null
@@ -22,7 +27,7 @@ class TypeObject(
         get() {
             fun makeTypeDef(definition: ExprContext): String {
                 return if (definition is FunconExpressionContext) {
-                    val defType = getObject(definition)
+                    val defType = getObject(registry, definition)
                     val args = extractArgs(definition)
                     fun rewriteArg(arg: ExprContext): String {
                         return when (arg) {
@@ -40,7 +45,7 @@ class TypeObject(
                                     val tpIndex = params.indexOfFirst { param -> param.value == arg.text }
                                     "${asVarName}Tp${tpIndex}"
                                 } else if (arg.text in metavariableMap.keys) {
-                                    rewrite(definition, metavariableMap[arg.text]!!)
+                                    rewrite(registry, definition, metavariableMap[arg.text]!!)
                                 } else throw DetailedException("Unexpected arg with type ${arg::class.simpleName} ${arg.text}")
                             }
 
@@ -72,9 +77,9 @@ class TypeObject(
             }
         }
 
-    val elementInBody: String
-        get() = if (definitionExpr != null && name !in builtinOverride) {
-            val conditionStr = makeTypeCondition("this", definitionExpr)
-            makeIsInTypeFunction(camelCaseName, "return ${withSubtypesOf(name, conditionStr)}")
+    override val elementInBody: String
+        get() = if (definitionExpr != null && !registry.isBuiltin(name)) {
+            val conditionStr = makeTypeCondition(registry, "this", definitionExpr)
+            makeIsInTypeFunction(camelCaseName, "return ${withSubtypesOf(registry, name, conditionStr)}")
         } else ""
 }

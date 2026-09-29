@@ -8,6 +8,7 @@ import main.objects.Object
 import org.antlr.v4.runtime.tree.ParseTree
 
 fun rewrite(
+    registry: Registry,
     pattern: ParseTree,
     term: ParseTree,
     rewriteData: List<RewriteData> = emptyList(),
@@ -15,13 +16,13 @@ fun rewrite(
 ): String {
     fun rewriteRecursive(term: ParseTree): String {
         fun mapParamString(str: String): String {
-            val paramStrs = getParamStrs(pattern, copy = copy)
+            val paramStrs = getParamStrs(registry, pattern, copy = copy)
             val exprMap = (paramStrs + rewriteData).associate { (arg, _, paramStr) -> Pair(arg?.text, paramStr) }
             return exprMap[str] ?: throw StringNotFoundException(str, exprMap.keys.toList())
         }
 
         fun rewriteFunconExpr(ctx: ParseTree): String {
-            val obj = getObject(ctx)
+            val obj = getObject(registry, ctx)
             val args = extractArgs(ctx)
 
             val argStrs = args.map { rewriteRecursive(it) }
@@ -91,6 +92,7 @@ fun rewrite(
 }
 
 fun getParamStrs(
+    registry: Registry,
     pattern: ParseTree,
     prefix: String = "",
     copy: Boolean = false,
@@ -104,7 +106,6 @@ fun getParamStrs(
     ): String {
         // Calculate the number of arguments passed to the sequence
         val nSequenceArgs = argsSize - (obj.params.size - 1)
-        if (obj.sequenceIndex >= 0) argsSize - (obj.sequenceIndex + nSequenceArgs) else 0
 
         fun getSuffix(sequenceRelativeIndex: Int, nSequenceArgs: Int): String {
             return if (argIsSequence) {
@@ -159,8 +160,8 @@ fun getParamStrs(
         pattern: ParseTree,
         parentStr: String = prefix,
     ): List<RewriteData> {
-        val obj = getObject(pattern)
-        val args = getParams(pattern)
+        val obj = getObject(registry, pattern)
+        val args = funconOf(pattern).params
 
         return args.flatMapIndexed { argIndex, (arg, type) ->
             when (arg) {
@@ -174,7 +175,7 @@ fun getParamStrs(
                     if (arg is FunconExpressionContext && arg.name.text == "datatype-value") {
                         makeDatatypeValueRewriteData(arg, newStr)
                     } else {
-                        val sizeCondition = makeSizeCondition(arg, newStr)
+                        val sizeCondition = makeSizeCondition(registry, arg, newStr)
                         val funconArgs = extractArgsRecursive(arg, newStr)
                         listOf(RewriteData(null, arg, newStr, sizeCondition = sizeCondition)) + funconArgs
                     }

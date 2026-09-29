@@ -118,3 +118,27 @@ Not implemented: layout is excluded by skipping a global `LAYOUT` token, so
 adjacency and compound tokens are not modelled; there is no concrete syntax tree
 and no AST, so `cbslang` output is not yet consumable by an interpreter.
 
+## How `trufflegen` is checked
+
+`fctlang/src/main/kotlin/generated/` is gitignored, so a change to `trufflegen`
+that alters the output is invisible to `git status` and to review. `verify.sh`
+regenerates the corpus and diffs it against a snapshot:
+
+```bash
+./trufflegen/verify.sh /path/to/baseline
+```
+
+The baseline is 43 files. Any refactor of `trufflegen` has to leave that diff
+empty — running the generator and seeing it succeed is not evidence of anything,
+because a generator that emits different code still emits compiling code.
+
+The unit tests cover the two things a refactor can quietly break: `FunconTest`
+checks that every way of naming a funcon in the grammar resolves to the same
+name, aliases and parameters, and `RegistryTest` checks alias lookup and the
+subtype index. They are not a substitute for the diff.
+
+The generated `reduce` bodies are assembled in `FunconObject.reduction()`, in the
+order the pieces have to be evaluated: the rules are built first, because building
+them is what binds the variables the prologue reads. Reordering those steps
+produces valid Kotlin that is wrong.
+

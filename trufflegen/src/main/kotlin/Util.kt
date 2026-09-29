@@ -101,33 +101,6 @@ fun makeReduceFunction(content: String, returns: String): String =
         modifiers = listOf("override")
     )
 
-fun todoReduce(name: String, returnStr: String) = makeReduceFunction("TODO(\"Implement me: $name\")", returnStr)
-
-fun makeIfStatement(conditions: List<Pair<String, String>>, elseBranch: String? = null): String {
-    val result = StringBuilder()
-
-    conditions.forEachIndexed { index, (condition, block) ->
-        if (index > 0) result.append("else ")
-        result.append("if ($condition) {\n")
-        result.append(makeBody(block))
-        result.append("\n} ")
-    }
-
-    if (elseBranch != null) {
-        result.append("else {\n")
-        result.append(makeBody(elseBranch))
-        result.append("\n}")
-    }
-
-    return result.toString()
-}
-
-fun makeForLoop(variable: String, range: String, body: String): String {
-    val loopHeader = "for ($variable in $range) {"
-    val content = makeBody(body)
-    return "$loopHeader\n$content\n}"
-}
-
 fun makeVariable(
     name: String,
     value: String = "",
@@ -250,33 +223,6 @@ fun makeClass(
     }.trimEnd()
 }
 
-fun makeValueTypesCompanionObject(funBody: String): String {
-    return makeCompanionObject(listOf(makeElementInFunction(funBody)))
-}
-
-fun makeCompanionObject(
-    functions: List<String>,
-): String {
-    val result = StringBuilder()
-
-    result.append("companion object")
-
-    result.append(" {\n")
-    functions.forEach { func ->
-        result.append("    $func")
-    }
-    result.append("\n}")
-
-    return result.toString()
-}
-
-fun makeElementInFunction(body: String): String = makeFunction(
-    "hasElement", returnType = "Boolean", parameters = listOf(
-        makeParam(name = "value", type = "TermNode")
-    ),
-    body = body, indent = 1
-)
-
 fun makeWhenStatement(cases: List<Pair<String, String>>, elseBranch: String? = null): String =
     buildString {
         appendLine("when {")
@@ -290,33 +236,54 @@ fun makeWhenStatement(cases: List<Pair<String, String>>, elseBranch: String? = n
         append("\n}")
     }
 
+/**
+ * What a parse tree node denotes: the funcon, type, datatype or entity it names.
+ *
+ * The CBS grammar has two ways to name one. A `*DefinitionContext` declares it and
+ * carries its aliases and its parameters; a `FunconExpressionContext` mentions an
+ * already-declared one and carries its arguments instead, and a `list`, `set` or
+ * `label` expression mentions a name the grammar does not write out. A datatype's
+ * constructor is the second kind: `Datatype :: F(...)` declares the datatype but
+ * each `F` is only mentioned.
+ *
+ * Answering this in one place rather than once per question is what lets the name,
+ * the aliases and the parameters of an object be read from a single dispatch. The
+ * five `when` blocks it replaced did not cover the same contexts: `getObjectName`,
+ * `getObjectAliases`, `extractParams`, `getParams` and `getObject` knew seven,
+ * seven, six, ten and seven of them respectively, so `getObject` threw on the three
+ * entity forms and `extractParams` on any mention. Keeping them in step was left
+ * to the reader.
+ */
+data class Funcon(
+    val name: String,
+    val aliases: List<String>,
+    val params: List<Param>,
+)
 
-fun getObjectName(ctx: ParseTree): String {
-    return when (ctx) {
-        is FunconExpressionContext -> ctx.name.text
-        is FunconDefinitionContext -> ctx.name.text
-        is TypeDefinitionContext -> ctx.name.text
-        is DatatypeDefinitionContext -> ctx.name.text
-        is ControlEntityDefinitionContext -> ctx.name.text
-        is MutableEntityDefinitionContext -> ctx.name.text
-        is ContextualEntityDefinitionContext -> ctx.name.text
-        else -> throw DetailedException("Unexpected context type: ${ctx::class.simpleName}, ${ctx.text}")
-    }
-}
+private fun paramsOf(params: ParamsContext?): List<Param> =
+    params?.param()?.mapIndexed { i, param -> Param(i, param.value, param.type) } ?: emptyList()
 
-fun getObjectAliases(ctx: ParseTree): List<String> {
-    val aliases = when (ctx) {
-        is FunconDefinitionContext -> ctx.aliasDefinition()
-        is TypeDefinitionContext -> ctx.aliasDefinition()
-        is DatatypeDefinitionContext -> ctx.aliasDefinition()
-        is ControlEntityDefinitionContext -> ctx.aliasDefinition()
-        is MutableEntityDefinitionContext -> ctx.aliasDefinition()
-        is ContextualEntityDefinitionContext -> ctx.aliasDefinition()
-        is FunconExpressionContext -> emptyList() // Only for funcons for AlgebraicDatatypes
-        else -> throw DetailedException("Unexpected context type: ${ctx::class.simpleName}, ${ctx.text}")
-    }
+private fun aliasNames(aliases: List<AliasDefinitionContext>): List<String> =
+    aliases.mapNotNull { it.name.text }
 
-    return aliases.mapNotNull { it.name.text }
+fun funconOf(ctx: ParseTree): Funcon = when (ctx) {
+    is FunconDefinitionContext -> Funcon(ctx.name.text, aliasNames(ctx.aliasDefinition()), paramsOf(ctx.params()))
+    is TypeDefinitionContext -> Funcon(ctx.name.text, aliasNames(ctx.aliasDefinition()), paramsOf(ctx.params()))
+    is DatatypeDefinitionContext -> Funcon(ctx.name.text, aliasNames(ctx.aliasDefinition()), paramsOf(ctx.params()))
+    is ControlEntityDefinitionContext -> Funcon(ctx.name.text, aliasNames(ctx.aliasDefinition()), paramsOf(ctx.params()))
+    is ContextualEntityDefinitionContext -> Funcon(ctx.name.text, aliasNames(ctx.aliasDefinition()), paramsOf(ctx.params()))
+
+    // A mutable entity declares its parameters in `lhs`, not in `params`.
+    is MutableEntityDefinitionContext -> Funcon(ctx.name.text, aliasNames(ctx.aliasDefinition()), paramsOf(ctx.lhs))
+
+    // A mention rather than a declaration: no aliases, and the arguments the
+    // expression was written with stand in for the declared parameters.
+    is FunconExpressionContext -> Funcon(ctx.name.text, emptyList(), argsToParams(ctx))
+    is ListExpressionContext -> Funcon("list", emptyList(), argsToParams(ctx))
+    is SetExpressionContext -> Funcon("set", emptyList(), argsToParams(ctx))
+    is LabelContext -> Funcon(ctx.name.text, emptyList(), argsToParams(ctx))
+
+    else -> throw DetailedException("Unexpected context type: ${ctx::class.simpleName}, ${ctx.text}")
 }
 
 fun makeTypeAlias(aliasName: String, targetType: String, typeParams: Set<Pair<String, String>> = emptySet()): String {
@@ -338,9 +305,6 @@ fun makeFunCall(
 }
 
 fun strStr(str: String): String = "\"${str}\""
-
-fun appendEntityStr(name: String, value: String): String =
-    makeFunCall("appendEntity", listOf("frame", strStr(name), value))
 
 fun getEntityStr(name: String): String = makeFunCall("getEntity", listOf("frame", strStr(name)))
 fun putEntityStr(name: String, value: String): String = makeFunCall("putEntity", listOf("frame", strStr(name), value))
@@ -374,22 +338,6 @@ fun makeAnnotation(
     annotationBuilder.append("var")
 
     return annotationBuilder.toString()
-}
-
-fun extractParams(obj: ParseTree): List<Param> {
-    fun paramHelper(params: ParamsContext?): List<Param> =
-        params?.param()?.mapIndexed { i, param -> Param(i, param.value, param.type) } ?: emptyList()
-
-    return when (obj) {
-        is FunconDefinitionContext -> paramHelper(obj.params())
-        is TypeDefinitionContext -> paramHelper(obj.params())
-        is DatatypeDefinitionContext -> paramHelper(obj.params())
-        is ControlEntityDefinitionContext -> paramHelper(obj.params())
-        is ContextualEntityDefinitionContext -> paramHelper(obj.params())
-        is MutableEntityDefinitionContext -> paramHelper(obj.lhs)
-
-        else -> throw DetailedException("Unexpected funcon type: ${obj::class.simpleName}, ${obj.text}")
-    }
 }
 
 fun extractArgs(expr: ParseTree): List<ExprContext> {
@@ -432,37 +380,8 @@ fun partitionArgs(args: List<ExprContext?>): Pair<List<ExprContext>, List<ExprCo
     }
 }
 
-fun getParams(definition: ParseTree) = when (definition) {
-    is FunconDefinitionContext,
-    is TypeDefinitionContext,
-    is ControlEntityDefinitionContext,
-    is ContextualEntityDefinitionContext,
-    is MutableEntityDefinitionContext,
-    is DatatypeDefinitionContext,
-        -> extractParams(definition)
-
-    is FunconExpressionContext,
-    is ListExpressionContext,
-    is SetExpressionContext,
-    is LabelContext,
-        -> argsToParams(definition)
-
-    else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
-}
-
-fun getObject(definition: ParseTree): Object {
-    val name = when (definition) {
-        is FunconDefinitionContext -> definition.name.text
-        is TypeDefinitionContext -> definition.name.text
-        is DatatypeDefinitionContext -> definition.name.text
-        is FunconExpressionContext -> definition.name.text
-        is ListExpressionContext -> "list"
-        is SetExpressionContext -> "set"
-        is LabelContext -> definition.name.text
-        else -> throw DetailedException("Unexpected definition type: ${definition::class.simpleName}, ${definition.text}")
-    }
-    return globalObjects[name]!!
-}
+/** The object the parse tree node names, resolved against the whole corpus. */
+fun getObject(registry: Registry, definition: ParseTree): Object = registry.require(funconOf(definition).name)
 
 /**
  * Widens an `isIn<T>()` condition to also accept the values of every type CBS
@@ -474,16 +393,12 @@ fun getObject(definition: ParseTree): Object {
  * was then stuck on strings: `list-append("a","b")` reduced to
  * `StuckException` where the reference gives `"ab"`.
  */
-fun withSubtypesOf(typeName: String, condition: String): String {
-    val subtypeConditions = globalObjects.values
-        .filterIsInstance<TypeObject>()
-        .filter { it.supertypeName == typeName }
-        .map { "this is ${it.nodeName}" }
-        .distinct()
+fun withSubtypesOf(registry: Registry, typeName: String, condition: String): String {
+    val subtypeConditions = registry.subtypesOf(typeName).map { "this is ${it.nodeName}" }.distinct()
     return (listOf(condition) + subtypeConditions).joinToString(" || ")
 }
 
-fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
+fun makeTypeCondition(registry: Registry, paramStr: String, typeExpr: ExprContext): String {
     val (coreExpr, isComplement) = when (typeExpr) {
         is ComplementExpressionContext -> typeExpr.expr() to true
         else -> typeExpr to false
@@ -504,8 +419,12 @@ fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
         }
     }
 
+    // No type in the corpus is a union or intersection containing a `{a, b}` set,
+    // so nothing reaches this and the corpus does not say what it should be. Note
+    // that it tests `this` where its siblings test `paramStr`, so it is only
+    // right if the set is reached with `paramStr` empty.
     fun makeSetCondition(funcon: FunconExpressionContext): String {
-        val obj = getObject(funcon)
+        val obj = getObject(registry, funcon)
         return "this.isIn${obj.camelCaseName}()"
     }
 
@@ -521,7 +440,7 @@ fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
         val exprs = extractAndOrExprs(expr)
         val conditions = exprs
             .filter { it is FunconExpressionContext }
-            .map { getObject(it) }
+            .map { getObject(registry, it) }
             .map(::makeObjCondition)
 
         val elementFuncons = exprs
@@ -539,11 +458,11 @@ fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
         val cond2 = elementFuncons.joinToString(prefix = "(", postfix = ")", separator = operator)
         listOf(cond1, cond2).filter { it != "()" }.joinToString(" || ")
     } else {
-        makeObjCondition(getObject(expr))
+        makeObjCondition(getObject(registry, expr))
     }
 }
 
-fun makeSizeCondition(pattern: ParseTree, paramStr: String = ""): Pair<String, Int>? {
+fun makeSizeCondition(registry: Registry, pattern: ParseTree, paramStr: String = ""): Pair<String, Int>? {
     fun getSizeCondition(
         sequenceArgs: List<ExprContext>,
         paramStr: String,
@@ -592,7 +511,7 @@ fun makeSizeCondition(pattern: ParseTree, paramStr: String = ""): Pair<String, I
         }
     }
 
-    val argObj = getObject(pattern)
+    val argObj = getObject(registry, pattern)
     val argArgs = extractArgs(pattern)
 
     return if (argObj.hasSequence) {
@@ -610,16 +529,6 @@ fun makeRewriteGetter(varName: String, rewrite: String): String {
         getterName(varName),
         TERMNODE,
         parameters = listOf("frame: VirtualFrame"),
-        body = body
-    )
-}
-
-fun makeRegularGetter(varName: String, rewrite: String): String {
-    val body = "$varName ?: $rewrite.also { $varName = it }"
-    return makeFunctionOneliner(
-        getterName(varName),
-        TERMNODE,
-        parameters = listOf(),
         body = body
     )
 }

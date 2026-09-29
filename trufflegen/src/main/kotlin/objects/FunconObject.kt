@@ -14,7 +14,8 @@ class FunconObject(
     val rules: List<RuleDefinitionContext> = emptyList(),
     val term: ExprContext? = null,
     metaVariables: Set<Pair<ExprContext, ExprContext>>,
-) : Object(ctx, metaVariables) {
+    registry: Registry,
+) : Object(ctx, metaVariables, registry) {
 
     inner class VariableGenerator() {
         val prefixIndices = mutableMapOf<String, Int>()
@@ -63,7 +64,7 @@ class FunconObject(
             conditions.sortedBy { it.priority }.joinToString(" && ") { it.expr }
 
         private fun patternConditions(pattern: FunconExpressionContext) {
-            val paramStrs = getParamStrs(pattern)
+            val paramStrs = getParamStrs(registry, pattern)
             (paramStrs + rewriteData).forEach { data ->
                 val (argValue, argType, paramStr) = data
 
@@ -80,12 +81,12 @@ class FunconObject(
                     is SetExpressionContext,
                     is ComplementExpressionContext,
                         -> {
-                        val typeCondition = makeTypeCondition(paramStr, argType)
+                        val typeCondition = makeTypeCondition(registry, paramStr, argType)
                         addCondition(typeCondition)
                     }
 
                     is VariableContext -> {
-                        val typeCondition = makeTypeCondition(paramStr, metaVariableMap[argType.text]!!)
+                        val typeCondition = makeTypeCondition(registry, paramStr, metaVariableMap[argType.text]!!)
                         addCondition(typeCondition)
                     }
                 }
@@ -99,7 +100,7 @@ class FunconObject(
                 }
             }
 
-            val sizeCondition = makeSizeCondition(pattern)
+            val sizeCondition = makeSizeCondition(registry, pattern)
             if (sizeCondition != null) {
                 val (condition, priority) = sizeCondition
                 addCondition(condition)
@@ -120,12 +121,17 @@ class FunconObject(
 
                 when (premise) {
                     is RewritePremiseContext -> {
-                        val rewriteLhs = rewrite(pattern, lhs, rewriteData)
+                        val rewriteLhs = rewrite(registry, pattern, lhs, rewriteData)
+                        // The two branches below build the same `rewriteRhs`, which
+                        // reads like a duplicate to hoist. It is not one:
+                        // `variables.getVar` allocates the next name, so calling it
+                        // in the datatype-value branch too would renumber every r0,
+                        // r1 in the output. Only the other two branches bind a name.
                         val newRewriteData = if (rhs is FunconExpressionContext && rhs.name.text == "datatype-value") {
                             makeDatatypeValueRewriteData(rhs, rewriteLhs)
                         } else if (rhs is FunconExpressionContext) {
                             val rewriteRhs = makeGetter(variables.getVar(rewriteLhs, "r"), frame = true)
-                            getParamStrs(rhs, rewriteRhs) + listOf(makeRewriteDataObject(rhs, rewriteRhs))
+                            getParamStrs(registry, rhs, rewriteRhs) + listOf(makeRewriteDataObject(rhs, rewriteRhs))
                         } else {
                             val rewriteRhs = makeGetter(variables.getVar(rewriteLhs, "r"), frame = true)
                             listOf(makeRewriteDataObject(rhs, rewriteRhs))
@@ -135,7 +141,7 @@ class FunconObject(
 
                     is TransitionPremiseWithMutableEntityContext,
                         -> {
-                        val rewriteLhs = rewrite(pattern, lhs, rewriteData)
+                        val rewriteLhs = rewrite(registry, pattern, lhs, rewriteData)
                         val rewriteRhs = makeGetter(variables.getVar(rewriteLhs, "m"), frame = true)
                         val newRewriteData = makeRewriteDataObject(rhs, rewriteRhs)
                         rewriteData.add(newRewriteData)
@@ -150,7 +156,7 @@ class FunconObject(
                     is TransitionPremiseWithContextualEntityContext,
                     is TransitionPremiseWithControlEntityContext,
                         -> {
-                        val rewriteLhs = rewrite(pattern, lhs, rewriteData)
+                        val rewriteLhs = rewrite(registry, pattern, lhs, rewriteData)
                         val rewriteRhs = variables.getVar(rewriteLhs, "s")
                         val newRewriteData = makeRewriteDataObject(rhs, rewriteRhs)
                         rewriteData.add(newRewriteData)
@@ -180,7 +186,7 @@ class FunconObject(
                             if (text == "true") "ValueTrueNode" else "ValueFalseNode"
 
                         fun bindVariable(expr: ExprContext): String {
-                            val exprRewrite = rewrite(pattern, expr, rewriteData)
+                            val exprRewrite = rewrite(registry, pattern, expr, rewriteData)
                             val variable = makeGetter(variables.getVar(exprRewrite, "r"), frame = true)
                             val rhsRewriteData = makeRewriteDataObject(expr, variable)
                             rewriteData.add(rhsRewriteData)
@@ -217,16 +223,16 @@ class FunconObject(
                     }
 
                     is TypePremiseContext -> {
-                        val rewriteLhs = rewrite(pattern, lhs, rewriteData)
+                        val rewriteLhs = rewrite(registry, pattern, lhs, rewriteData)
                         val condition =
                             if (rhs is VariableContext) {
-                                val rewriteRhs = rewrite(pattern, rhs, rewriteData)
+                                val rewriteRhs = rewrite(registry, pattern, rhs, rewriteData)
                                 "${rewriteLhs}.isInType($rewriteRhs)"
                             } else if (rhs is ComplementExpressionContext && rhs.operand is VariableContext) {
-                                val rewriteRhs = rewrite(pattern, rhs.operand, rewriteData)
+                                val rewriteRhs = rewrite(registry, pattern, rhs.operand, rewriteData)
                                 "!${rewriteLhs}.isInType($rewriteRhs)"
                             } else {
-                                makeTypeCondition(rewriteLhs, premise.type)
+                                makeTypeCondition(registry, rewriteLhs, premise.type)
                             }
                         addCondition(condition, priority = 2)
                     }
@@ -237,15 +243,15 @@ class FunconObject(
         fun labelToObject(label: LabelContext): EntityObject {
             return if (label.name.text == "abrupt") {
                 // TODO: Edge case due to bug in CBS code for yield-on-abrupt. Remove when fixed.
-                globalObjects["abrupted"]
+                registry.require("abrupted")
             } else {
-                getObject(label)
+                getObject(registry, label)
             } as EntityObject
         }
 
         fun rewriteEntity(label: LabelContext, labelObj: EntityObject): List<RewriteData> {
             return if (label.value is FunconExpressionContext) {
-                getParamStrs(label.value, prefix = labelObj.asVarName) + RewriteData(
+                getParamStrs(registry, label.value, prefix = labelObj.asVarName) + RewriteData(
                     null,
                     label.value,
                     labelObj.asVarName
@@ -262,7 +268,7 @@ class FunconObject(
             labelObj: EntityObject,
         ): String {
             val valueStr = if (label.value != null && label.value.text != "_?") {
-                val rewriteStr = rewrite(pattern, label.value, rewriteData)
+                val rewriteStr = rewrite(registry, pattern, label.value, rewriteData)
                 val newRewriteData = makeRewriteDataObject(label.value, rewriteStr)
                 rewriteData.add(newRewriteData)
                 rewriteStr
@@ -312,7 +318,7 @@ class FunconObject(
                         step.labels().label().forEach { label ->
                             val labelObj = labelToObject(label)
                             val valueStr = if (label.value != null) {
-                                rewrite(pattern, label.value, rewriteData)
+                                rewrite(registry, pattern, label.value, rewriteData)
                             } else "SequenceNode()"
                             val controlWrite = labelObj.putStr(valueStr)
                             controlWrites.add(controlWrite)
@@ -328,7 +334,7 @@ class FunconObject(
                     val labelRhs = conclusion.entityRhs
                     if (labelRhs.text != labelLhs.text) {
                         val labelRhsObj = labelToObject(labelRhs)
-                        val entityRewrite = rewrite(pattern, labelRhs.value, rewriteData)
+                        val entityRewrite = rewrite(registry, pattern, labelRhs.value, rewriteData)
                         val rewrite = if (labelRhs.value is FunconExpressionContext) {
                             val entityVariable = makeGetter(variables.getVar(entityRewrite, "r"), frame = true)
                             val newNewRewriteData = makeRewriteDataObject(labelRhs.value, entityVariable)
@@ -402,127 +408,200 @@ class FunconObject(
             // Add pattern matching conditions
             patternConditions(pattern)
 
-            rewriteStr = rewrite(pattern, term, rewriteData, copy = true)
+            rewriteStr = rewrite(registry, pattern, term, rewriteData, copy = true)
         }
     }
 
+    /**
+     * The pieces a generated `reduce` is assembled from.
+     *
+     * @param children `@Child` fields for the values the body binds, declared
+     * outside `reduce` so a step variable survives across calls.
+     * @param prologue the reads of those fields, which have to happen before the
+     * `return` rather than in it.
+     */
+    private class Reduction(val children: List<String>, val prologue: List<String>, val body: String)
+
     override val contentStr: String
         get() {
-            val newChildren = mutableListOf<String>()
-            val stringBuilder = StringBuilder()
+            val reduction = reduction()
 
-            val returnStr = "return " + when {
-                term != null -> rewrite(ctx, term, copy = true)
-                rules.isNotEmpty() -> {
-                    val ruleObjs = rules.map { rule ->
-                        val premises = rule.premises()?.premiseExpr()?.toList() ?: emptyList()
-                        Rule(premises, rule.conclusion, metavariableMap)
-                    }
-
-                    if (ruleObjs.map { it.conditions }.toSet().size != ruleObjs.size)
-                        throw DetailedException("rules for $name are not distinct.")
-
-                    if (ctxConclusionRead.isNotEmpty()) stringBuilder.appendLine(ctxConclusionRead)
-                    if (mutableRead.isNotEmpty()) stringBuilder.appendLine(mutableRead)
-
-                    variables.variables.forEach { (rewrite, varName) ->
-                        val prefix = varName[0]
-                        if (prefix in listOf('r', 'm')) {
-                            newChildren.add("@Child private var $varName: $TERMNODE? = null")
-                            stringBuilder.appendLine(makeRewriteGetter(varName, rewrite))
-                        }
-                    }
-
-                    val stepVariableSet = variables.variables.entries
-                        .filter { it.value[0] == 's' }
-                        .map { it.toPair() }
-                        .toMutableSet()
-
-                    val stepPairs = stepVariableSet.map { stepVar ->
-                        val (rewriteLhs, rewriteRhs) = stepVar
-                        val condition = "$rewriteLhs.isReducible()"
-                        val step = makeVariable(rewriteRhs, "$rewriteLhs.reduce(frame)")
-                        val rulesForStepVar = ruleObjs
-                            .sortedBy { rule -> rule.rulePriority }
-                            .filter { rule -> rule.stepVariable == stepVar }
-
-                        val ruleBody = if (rulesForStepVar.size == 1 && rulesForStepVar[0].conditions.isEmpty()) {
-                            rulesForStepVar[0].bodyStr
-                        } else {
-                            val innerPairs = rulesForStepVar.map { rule ->
-                                val conditions = rule.getSortedConditions()
-                                val bodyStr = listOf(
-                                    ctxConclusionWrite,
-                                    rule.bodyStr
-                                ).filter { it.isNotEmpty() }
-                                    .joinToString("\n")
-                                if (conditions.isEmpty()) "true" to bodyStr
-                                else conditions to bodyStr
-                            }
-                            makeWhenStatement(innerPairs, elseBranch = "abort()")
-                        }
-
-
-                        val body = listOf(
-                            contextualWrite,
-                            step,
-                            controlReads.joinToString("\n"),
-                            ruleBody
-                        )
-                            .filter { it.isNotEmpty() }
-                            .joinToString("\n")
-                        condition to body
-                    }
-
-                    val rulesWithoutStepVar = ruleObjs
-                        .sortedBy { rule -> rule.rulePriority }
-                        .filter { rule -> rule.stepVariable == null }
-                    var withoutPairs = rulesWithoutStepVar.map { rule ->
-                        val conditions = rule.getSortedConditions()
-                        if (conditions.isEmpty()) "true" to rule.bodyStr
-                        else conditions to rule.bodyStr
-                    }
-                    val refocusPairs: List<Pair<String, String>> = when (name) {
-                        "match", "match-loosely" -> listOf(
-                            "get(0) is AbstractionNode && get(1) is AbstractionNode" to
-                                "${toNodeName(name)}(get(0).getCopy(0), get(1).getCopy(0))"
-                        )
-                        else -> emptyList()
-                    }
-                    if (refocusPairs.isNotEmpty() && withoutPairs.size >= 2) {
-                        val last = withoutPairs.size - 1
-                        withoutPairs =
-                            withoutPairs.subList(0, last) + refocusPairs + withoutPairs.subList(last, withoutPairs.size)
-                    }
-                    /*
-                      is-equal is total in the reference: `true` exactly when both arguments are
-                      ground values and equal, `false` otherwise, never stuck. Closures are the
-                      case that needs this, since a closure is not a value at all, so neither the
-                      `~ground-values` rules nor the `isInValues` guards can match and Fun v2
-                      would otherwise abort. The reference answers false for every closure:
-                      closure(12) vs closure(12), closure(12) vs 1, and closure(abstraction 12)
-                      vs itself.
-                    */
-                    val elseBranch = if (name == "is-equal") "FalseNode()" else "abort()"
-                    makeWhenStatement(withoutPairs + stepPairs, elseBranch = elseBranch)
-                }
-
-                else -> throw DetailedException("Funcon $name does not have any associated rules.")
-            }
-
-            stringBuilder.appendLine(returnStr)
+            val body = StringBuilder()
+            reduction.prologue.forEach { line -> body.appendLine(line) }
+            body.appendLine("return ${reduction.body}")
 
             val outerStringBuilder = StringBuilder()
-            if (newChildren.isNotEmpty()) {
-                newChildren.forEach { newChild ->
-                    outerStringBuilder.appendLine(newChild)
-                }
+            if (reduction.children.isNotEmpty()) {
+                reduction.children.forEach { child -> outerStringBuilder.appendLine(child) }
                 outerStringBuilder.appendLine()
             }
-            val reduceFunc = makeReduceFunction(stringBuilder.toString(), TERMNODE)
-            outerStringBuilder.appendLine(reduceFunc)
+            outerStringBuilder.appendLine(makeReduceFunction(body.toString(), TERMNODE))
             return outerStringBuilder.toString()
         }
 
+    /**
+     * A funcon reduces in one of two ways, and the second only if it has rules.
+     *
+     * A funcon written as `funcon F = <term>` *is* that term. Otherwise it has
+     * rules, and reduces by matching its argument against them.
+     */
+    private fun reduction(): Reduction = when {
+        term != null -> Reduction(
+            emptyList(),
+            emptyList(),
+            rewrite(registry, ctx, term, copy = true)
+        )
+
+        rules.isNotEmpty() -> reductionByRules(makeRuleObjs())
+
+        else -> throw DetailedException("Funcon $name does not have any associated rules.")
+    }
+
+    private fun makeRuleObjs(): List<Rule> {
+        val ruleObjs = rules.map { rule ->
+            val premises = rule.premises()?.premiseExpr()?.toList() ?: emptyList()
+            Rule(premises, rule.conclusion, metavariableMap)
+        }
+
+        // Two rules whose conditions are equal match exactly the same values, so
+        // which one runs would be arbitrary. CBS accepts that, so it is reported.
+        if (ruleObjs.map { it.conditions }.toSet().size != ruleObjs.size)
+            throw DetailedException("rules for $name are not distinct.")
+
+        return ruleObjs
+    }
+
+    /**
+     * Reduces by rules: read the bound values, then a `when` over the rules.
+     *
+     * The `when` is the rules that bind a step variable, followed by the rules
+     * that do not, so the rules which reduce the argument further are tried
+     * before the ones that would abort on it.
+     */
+    private fun reductionByRules(ruleObjs: List<Rule>): Reduction {
+        // Built while the rules are constructed, so the rules have to be built
+        // first even though their code comes later.
+        val children = mutableListOf<String>()
+        val prologue = mutableListOf<String>()
+
+        if (ctxConclusionRead.isNotEmpty()) prologue.add(ctxConclusionRead)
+        if (mutableRead.isNotEmpty()) prologue.add(mutableRead)
+
+        variables.variables.forEach { (rewrite, varName) ->
+            val prefix = varName[0]
+            if (prefix in listOf('r', 'm')) {
+                children.add("@Child private var $varName: $TERMNODE? = null")
+                prologue.add(makeRewriteGetter(varName, rewrite))
+            }
+        }
+
+        val stepPairs = stepPairs(ruleObjs)
+        val withoutPairs = refocusPairs(ruleObjs)
+
+        return Reduction(
+            children,
+            prologue,
+            makeWhenStatement(withoutPairs + stepPairs, elseBranch = elseBranch())
+        )
+    }
+
+    /**
+     * One `when` case per step variable.
+     *
+     * A step variable is a subterm the rules reduce in place, which is how
+     * `while` and the folds work: a case guards on `isReducible`, reduces the
+     * subterm once, and matches the same variable again on the next call.
+     */
+    private fun stepPairs(ruleObjs: List<Rule>): List<Pair<String, String>> {
+        val stepVariableSet = variables.variables.entries
+            .filter { it.value[0] == 's' }
+            .map { it.toPair() }
+            .toMutableSet()
+
+        return stepVariableSet.map { stepVar ->
+            val (rewriteLhs, rewriteRhs) = stepVar
+            val condition = "$rewriteLhs.isReducible()"
+            val step = makeVariable(rewriteRhs, "$rewriteLhs.reduce(frame)")
+            val rulesForStepVar = ruleObjs
+                .sortedBy { rule -> rule.rulePriority }
+                .filter { rule -> rule.stepVariable == stepVar }
+
+            val ruleBody = if (rulesForStepVar.size == 1 && rulesForStepVar[0].conditions.isEmpty()) {
+                rulesForStepVar[0].bodyStr
+            } else {
+                val innerPairs = rulesForStepVar.map { rule ->
+                    val conditions = rule.getSortedConditions()
+                    val bodyStr = listOf(
+                        ctxConclusionWrite,
+                        rule.bodyStr
+                    ).filter { it.isNotEmpty() }
+                        .joinToString("\n")
+                    if (conditions.isEmpty()) "true" to bodyStr
+                    else conditions to bodyStr
+                }
+                makeWhenStatement(innerPairs, elseBranch = "abort()")
+            }
+
+            val body = listOf(
+                contextualWrite,
+                step,
+                controlReads.joinToString("\n"),
+                ruleBody
+            )
+                .filter { it.isNotEmpty() }
+                .joinToString("\n")
+            condition to body
+        }
+    }
+
+    /**
+     * One `when` case per rule that does not reduce a subterm, in the order CBS
+     * declares them, each guarded by its conditions.
+     */
+    private fun refocusPairs(ruleObjs: List<Rule>): List<Pair<String, String>> {
+        val pairs = ruleObjs
+            .sortedBy { rule -> rule.rulePriority }
+            .filter { rule -> rule.stepVariable == null }
+            .map { rule ->
+                val conditions = rule.getSortedConditions()
+                if (conditions.isEmpty()) "true" to rule.bodyStr
+                else conditions to rule.bodyStr
+            }
+
+        /*
+          funcons-tools matches with an optRefocus: when both sides are
+          abstractions it decomposes each into its unevaluated body and retries.
+          That is what the datatype rule of match would do if `abstraction` were
+          a datatype value, which funcons-intgen arranges by promoting the
+          body-less `abstractions` Type to a DataTypeDecl. We cannot make the
+          hand-written AbstractionNode a DatatypeValuesNode without also making
+          it ground, so the branch is emitted directly instead, after the
+          datatype and map rules and before the is-equal fallback. Both sides
+          must be abstractions: without that, `match(12, abstraction(x))` would
+          succeed where the reference fails.
+        */
+        val refocusPairs = when (name) {
+            "match", "match-loosely" -> listOf(
+                "get(0) is AbstractionNode && get(1) is AbstractionNode" to
+                    "${toNodeName(name)}(get(0).getCopy(0), get(1).getCopy(0))"
+            )
+            else -> emptyList()
+        }
+
+        if (refocusPairs.isEmpty() || pairs.size < 2) return pairs
+        val last = pairs.size - 1
+        return pairs.subList(0, last) + refocusPairs + pairs.subList(last, pairs.size)
+    }
+
+    /*
+      is-equal is total in the reference: `true` exactly when both arguments are
+      ground values and equal, `false` otherwise, never stuck. Closures are the
+      case that needs this, since a closure is not a value at all, so neither the
+      `~ground-values` rules nor the `isInValues` guards can match and Fun v2
+      would otherwise abort. The reference answers false for every closure:
+      closure(12) vs closure(12), closure(12) vs 1, and closure(abstraction 12)
+      vs itself.
+    */
+    private fun elseBranch(): String = if (name == "is-equal") "FalseNode()" else "abort()"
 }
 

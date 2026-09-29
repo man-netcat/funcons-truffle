@@ -1,6 +1,7 @@
 package objects
 
 import cbs.CBSParser
+import main.Registry
 import main.TERMNODE
 import main.makeFunCall
 import main.makeReduceFunction
@@ -12,7 +13,8 @@ class DatatypeFunconObject(
     ctx: CBSParser.FunconExpressionContext,
     internal val superclass: AlgebraicDatatypeObject,
     metaVariables: Set<Pair<CBSParser.ExprContext, CBSParser.ExprContext>>,
-) : Object(ctx, metaVariables) {
+    registry: Registry,
+) : Object(ctx, metaVariables, registry) {
     override val superClassStr: String get() = makeFunCall(TERMNODE)
 
     override val contentStr: String
