@@ -167,19 +167,39 @@ abstract class BaseTest(
 class TestFunconsBeta : BaseTest(
     testDirectories = listOf(Paths.get("../CBS-beta/Funcons-beta") to "config"),
     performTiming = false,
-    knownCrashes = KNOWN_V1_CRASHES,
+    knownCrashes = DEFECTIVE_UPSTREAM_CONFIGS,
     knownDivergences = KNOWN_V1_DIVERGENCES
 )
 
-private val KNOWN_V1_CRASHES = mapOf(
+/**
+ * The vendored corpus in `CBS-beta` is kept byte-for-byte as published, so a
+ * config that cannot pass on its own terms stays skipped in [TestFunconsBeta]
+ * with the reason recorded in [DEFECTIVE_UPSTREAM_CONFIGS]. Here it is run
+ * again, corrected, and *asserted* rather than skipped -- so the `atomic`
+ * semantics it was written to exercise are still covered.
+ */
+class TestCorrectedConfigs : BaseTest(
+    testDirectories = listOf(Paths.get("src/test/resources/corrected-config") to "config"),
+    performTiming = false
+)
+
+/**
+ * Upstream configs that cannot pass on their own terms, as opposed to a gap in
+ * this interpreter. `CBS-beta` is vendored unmodified, so these are skipped
+ * with the reason below and a corrected copy is asserted by
+ * [TestCorrectedConfigs] instead.
+ */
+private val DEFECTIVE_UPSTREAM_CONFIGS = mapOf(
     "Computations/Normal/Flowing/tests/atomic.config" to
-        "unpassable as written: its first argument `atomic(tuple())` evaluates, per the rule " +
-        "`atomic(V:T) ~> V`, to the tuple value rather than `null-value`, and `sequential`'s only " +
-        "rule for a non-final argument is `sequential(null-value, Y+) ~> sequential(Y+)`, so the " +
-        "whole term is stuck. The expected standard-out also lists `tuple()` as its first printed " +
-        "item although nothing in the term prints it. Every other argument behaves as expected; " +
-        "TestAtomic pins that the rest of the body yields [1, 2, ..., 11]. The reference reports " +
-        "`unknown funcon: atomic` and fails the same interleave sort checks, so there is no oracle."
+        "self-inconsistent config, not an interpreter gap. Its first argument `atomic(tuple())` " +
+        "evaluates, per the rule `atomic(V:T) ~> V`, to the tuple value rather than `null-value`, " +
+        "and `sequential`'s only rule for a non-final argument is " +
+        "`sequential(null-value, Y+) ~> sequential(Y+)`, so the term is stuck. Its expected " +
+        "standard-out also lists `tuple()` as the first printed item although nothing in the term " +
+        "prints it. Corrected by writing that argument as `atomic print tuple()`, which satisfies " +
+        "both and is asserted in TestCorrectedConfigs with the original tests block. The reference " +
+        "reports `unknown funcon: atomic` and fails the same interleave sort checks, so there is " +
+        "no oracle either way."
 )
 
 private val KNOWN_V1_DIVERGENCES = emptyMap<String, String>()
