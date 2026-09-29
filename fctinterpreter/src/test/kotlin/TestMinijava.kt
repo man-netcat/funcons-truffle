@@ -38,20 +38,15 @@ class TestMinijava {
      * the failure, it pins it. Any change in behaviour -- including a fix --
      * turns this test red, which is the point.
      *
-     * Every failing program uses `while-true`; the two that pass are the only
-     * two that do not. That makes loop control the suspect, but it is a
-     * correlation, not a diagnosed cause.
+     * This used to hold all eight programs, every one of which used
+     * `while-true`, which made loop control the suspect. Removing the
+     * `Node.replace` and `Node.insert` calls from the reduction path is what
+     * fixed them: a step variable is reduced in place, so the reduction has to
+     * write the reduced subterm back into the term it is walking, and those two
+     * calls were doing that by surgery on the adopted AST, which a cached AST
+     * does not survive.
      */
-    private val stopsAfterLines = mapOf(
-        "BinarySearch.minijava" to 20,
-        "BinaryTree.minijava" to 2,
-        "BubbleSort.minijava" to 11,
-        "Factorial.minijava" to 0,
-        "LinearSearch.minijava" to 11,
-        "LinkedList.minijava" to 0,
-        "QuickSort.minijava" to 11,
-        "TreeVisitor.minijava" to 2,
-    )
+    private val stopsAfterLines = mapOf<String, Int>()
 
     @TestFactory
     fun minijavaPrograms(): List<DynamicTest> {

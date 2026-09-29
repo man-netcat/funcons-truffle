@@ -61,9 +61,11 @@ name the command. If a number is unknown, say it is unknown rather than
 estimating.
 
 Note that a green suite can hide known breakage, because some tests *pin* a bug
-in order to document it. `fctinterpreter`'s `TestMinijava` asserts the exact
-truncated output of eight programs that are still wrong. Read a test's KDoc
-before quoting its result as a success.
+in order to document it. `fctinterpreter`'s `TestMinijava` has a
+`stopsAfterLines` map that asserts the exact truncated output of a program that
+stops part-way; it is currently empty because the eight programs that used to be in
+it now run to completion, but the mechanism is there to pin the next one that
+breaks. Read a test's KDoc before quoting its result as a success.
 
 ## Commands
 
@@ -87,22 +89,29 @@ changed. Measured on this machine, before any runtime work:
 
 | | total | median | p90 |
 | --- | --- | --- | --- |
-| cold, a fresh `Context` per program | 1.21s | 5.0ms | 13.5ms |
-| shared, one `Context` re-parsed per program | 505ms | 1.8ms | 5.3ms |
+| cold, a fresh `Context` per program | 1.25s | 5.1ms | 13.7ms |
+| shared, one `Context` re-parsed per program | 605ms | 2.3ms | 5.9ms |
 
-Reusing one `Context` removes 58% of the total. That is the headroom, and it is
+Reusing one `Context` removes 52% of the total. That is the headroom, and it is
 mostly engine setup rather than funcon reduction, so it is the number to beat
 before optimising anything inside the rewriter. The slowest programs are the same
 either way, and are all class and pattern work rather than I/O or `print`.
 
-The same run reports a correctness fact that the timing does not: **153 of the
-161 programs do not survive a second evaluation in the same `Context`.** Evaluating
-an identical source twice does not re-parse — polyglot caches the `CallTarget` by
+The same run reports a correctness fact that the timing does not: whether
+**every program survives a second evaluation in the same `Context`.** Evaluating an
+identical source twice does not re-parse — polyglot caches the `CallTarget` by
 source name and content — so the second run reduces an AST the first run has
-already consumed. `SequenceNode.popFirst` and `AtomicNode`'s `s0`/`s1` reassign
-`@Children`, and `SequenceNode`'s `by lazy` `init`/`tail`/`reducibleElements` caches
-are never invalidated. A sound AST is a precondition for amortizing anything
-across evaluations, so it comes before any caching work.
+already consumed. It used not to: 153 of the 161 programs diverged, because
+`SequenceNode.popFirst` and `AtomicNode`'s `s0`/`s1` reassign `@Children`,
+`TermNode.getCopy` mutates a `copyCounter` on the node it is copying, and
+`reduce`/`reduceComputations` call `Node.replace` and `Node.insert`, which do real
+surgery on the adopted AST. Reduction now returns the reduced subterm and lets the
+caller rebuild, so a cached AST is reusable and the run reports that it survives.
+
+The removal of `Node.replace` and `Node.insert` also fixed the eight `TestMinijava`
+programs that used to stop part-way through their output. A step variable is
+reduced in place, so reduction has to write the reduced subterm back into the
+term being walked, and `replace` was doing that by mutating the AST instead.
 
 The corpus has stuck programs, which is why the benchmark folds a failure into the
 result instead of aborting; the suite records those as known divergences.

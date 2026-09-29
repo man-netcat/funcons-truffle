@@ -37,7 +37,7 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
     companion object {
         const val LANGUAGE_ID = "fctlang"
         const val MIME_TYPE = "application/x-fctlang"
-        var entitiesFrameslot: Int = -1
+        const val ENTITIES_SLOT = 0
     }
 
     override fun parse(request: ParsingRequest): CallTarget {
@@ -78,10 +78,9 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
 
         val frameDescriptorBuilder = FrameDescriptor.newBuilder()
 
-        entitiesFrameslot = frameDescriptorBuilder.addSlot(FrameSlotKind.Object, null, null)
-
-        if (entitiesFrameslot == -1) {
-            throw IllegalStateException("Failed to create frame slot")
+        val entitiesSlot = frameDescriptorBuilder.addSlot(FrameSlotKind.Object, null, null)
+        check(entitiesSlot == ENTITIES_SLOT) {
+            "the entity map belongs at slot $ENTITIES_SLOT but the descriptor put it at $entitiesSlot"
         }
 
         val frameDescriptor = frameDescriptorBuilder.build()

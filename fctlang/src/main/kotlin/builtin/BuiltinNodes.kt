@@ -168,6 +168,7 @@ class ReadNode : TermNode(), ReadInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val standardIn = getEntity(frame, "standard-in") as SequenceNode
         val stdInHead = standardIn.popFirst()
+        if (standardIn.isNotEmpty()) putEntity(frame, "standard-in", standardIn.tail)
 
         return when {
             !stdInHead.isInNullType() -> stdInHead
@@ -215,24 +216,18 @@ class ToStringNode(@Eager @Child override var p0: TermNode) : TermNode(), ToStri
     }
 }
 
-class AtomicNode(override val p0: TermNode) : TermNode(), AtomicInterface {
-    @Child
-    private lateinit var s0: TermNode
-
-    @Child
-    private lateinit var s1: TermNode
-
+class AtomicNode(@Child override var p0: TermNode) : TermNode(), AtomicInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         return when {
             get(0).isReducible() -> {
-                s0 = insert(get(0)).reduce(frame)
+                val s0 = get(0).reduce(frame)
                 val yielded = getEntity(frame, "yielded")
                 when {
                     yielded.isEmpty() -> {
                         putEntity(frame, "yielded", SequenceNode())
                         when {
                             s0.isReducible() -> {
-                                s1 = insert(s0).reduce(frame)
+                                val s1 = s0.reduce(frame)
                                 val yielded2 = getEntity(frame, "yielded")
                                 when {
                                     yielded2.isEmpty() -> {

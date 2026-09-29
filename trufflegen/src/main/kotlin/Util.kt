@@ -524,7 +524,7 @@ fun makeSizeCondition(registry: Registry, pattern: ParseTree, paramStr: String =
 }
 
 fun makeRewriteGetter(varName: String, rewrite: String): String {
-    val body = "$varName ?: insert($rewrite).rewrite(frame).also { $varName = it }"
+    val body = "$rewrite.rewrite(frame)"
     return makeFunctionOneliner(
         getterName(varName),
         TERMNODE,

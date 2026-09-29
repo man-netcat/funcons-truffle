@@ -6,12 +6,11 @@ import language.StuckException
 import language.getEntities
 import language.restoreEntities
 
-class SequenceNode(@Children override vararg var elements: TermNode) : TermNode() {
-    init {
-        elements = elements.flatMap {
-            if (it is SequenceNode) it.elements.toList() else listOf(it)
-        }.toTypedArray()
-    }
+class SequenceNode(vararg val terms: TermNode) : TermNode() {
+    @Children
+    override val elements: Array<out TermNode> = terms
+        .flatMap { if (it is SequenceNode) it.elements.toList() else listOf(it) }
+        .toTypedArray()
 
     override val size: Int get() = elements.size
 
@@ -111,12 +110,8 @@ class SequenceNode(@Children override vararg var elements: TermNode) : TermNode(
         return SequenceNode(*newElements.toTypedArray())
     }
 
-    override fun popFirst(): TermNode {
-        if (elements.isEmpty()) return ValueNullValueNode()
-        val firstElement = elements[0]
-        elements = elements.sliceArray(1 until elements.size)
-        return firstElement
-    }
+    override fun popFirst(): TermNode =
+        if (elements.isEmpty()) ValueNullValueNode() else elements[0]
 
     override operator fun get(index: Int): TermNode {
         return elements.getOrNull(index) ?: FailNode()

@@ -9,9 +9,9 @@ private const val ENVIRONMENT = "environment"
 
 @Suppress("UNCHECKED_CAST")
 fun getEntities(frame: VirtualFrame): MutableMap<String, TermNode> {
-    return frame.getObject(FCTLanguage.entitiesFrameslot) as? MutableMap<String, TermNode>
+    return frame.getObject(FCTLanguage.ENTITIES_SLOT) as? MutableMap<String, TermNode>
         ?: mutableMapOf<String, TermNode>().also {
-            frame.setObject(FCTLanguage.entitiesFrameslot, it)
+            frame.setObject(FCTLanguage.ENTITIES_SLOT, it)
         }
 }
 

@@ -490,7 +490,6 @@ class FunconObject(
         variables.variables.forEach { (rewrite, varName) ->
             val prefix = varName[0]
             if (prefix in listOf('r', 'm')) {
-                children.add("@Child private var $varName: $TERMNODE? = null")
                 prologue.add(makeRewriteGetter(varName, rewrite))
             }
         }

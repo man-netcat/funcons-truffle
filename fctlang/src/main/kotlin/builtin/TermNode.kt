@@ -63,8 +63,8 @@ abstract class TermNode : Node() {
     }
 
     private fun reduceStep(frame: VirtualFrame): TermNode {
-        if (this !is DirectionalNode) reduceComputations(frame)?.let { return replace(it) }
-        reduceRules(frame).let { return replace(it) }
+        if (this !is DirectionalNode) reduceComputations(frame)?.let { return it }
+        return reduceRules(frame)
     }
 
     private val reducibleParams: List<Pair<Int, TermNode>> by lazy {
@@ -94,7 +94,7 @@ abstract class TermNode : Node() {
                     newParams[index] = reduced
                 }
 
-                return replace(meta.newInstance(newParams.toTypedArray()))
+                return meta.newInstance(newParams.toTypedArray())
 
             } catch (e: StuckException) {
                 if (DEBUG_STUCK) println("Stuck while reducing: $this with exception: ${e.message}")
@@ -307,15 +307,7 @@ abstract class TermNode : Node() {
 
     fun printWithClassName() = println("$this: ${this::class.simpleName}")
 
-    var copyCounter = 0
-    open fun getCopy(index: Int): TermNode {
-        return if (get(index).copyCounter == 0) {
-            get(index).copyCounter++
-            get(index)
-        } else {
-            get(index).deepCopy()
-        }
-    }
+    open fun getCopy(index: Int): TermNode = get(index)
 
     override fun deepCopy(): TermNode {
         if (!isReducible()) return this
