@@ -32,7 +32,7 @@ class TestStrings {
     }
 
     @Test
-    fun `a parsed string literal round-trips through to-string`() {
+    fun stringLiteralRoundTripTest() {
         // If the parser kept the quotes in the value, this printed `""1""` and
         // the comparison below failed.
         assertEquals("\"1\"", eval("to-string(1)"))
@@ -41,20 +41,21 @@ class TestStrings {
     }
 
     @Test
-    fun `a string literal prints with its delimiters and no doubled ones`() {
+    fun stringLiteralPrintingTest() {
+        // A literal keeps its delimiters when it prints, and doubles none of them.
         assertEquals("\"ab\"", eval("\"ab\""))
         assertEquals("true", eval("is-equal(\"ab\",\"ab\")"))
         assertEquals("false", eval("is-equal(\"ab\",\"cd\")"))
     }
 
     @Test
-    fun `to-string of a string returns it unchanged`() {
+    fun toStringTest() {
         // Assert to-string(S:strings) == S in Strings.cbs.
         assertEquals("true", eval("is-equal(to-string(\"ab\"),\"ab\")"))
     }
 
     @Test
-    fun `a datatype value prints its identifier unquoted`() {
+    fun datatypeValuePrintingTest() {
         // A datatype value carries an identifier, and the same `StringLiteral`
         // class is reused for string literals. If the identifier is printed
         // through the string printer, `null-value` comes out as `"null-value"`,
@@ -64,14 +65,14 @@ class TestStrings {
     }
 
     @Test
-    fun `datatype-value-id yields a string, so it is printed quoted`() {
+    fun datatypeValueIdTest() {
         // The counterpart of the above: the *identifier* is a string, so the
         // reference quotes it. Guards against "fixing" the test above too far.
         assertEquals("\"null-value\"", eval("datatype-value-id(null-value)"))
     }
 
     @Test
-    fun `a string counts as a list, which Strings cbs declares`() {
+    fun stringAsListTest() {
         // `isIn<lists>` used to recognise only `ValueListNode`, so a string was
         // not a list and every `lists` funcon was stuck on one. This is the
         // single-argument `list-append(L:lists(_)) ~> L` rule.

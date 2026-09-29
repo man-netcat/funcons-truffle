@@ -33,18 +33,18 @@ class TestAtomNaming {
     }
 
     @Test
-    fun `atom name is the string content, not its quoted token`() {
+    fun atomNameTest() {
         assertEquals("atom(ab)", eval("atom(\"ab\")"))
         assertEquals("atom(@1)", eval("atom(\"@1\")"))
     }
 
     @Test
-    fun `an atom with a space in its name keeps the space`() {
+    fun atomNameWithSpaceTest() {
         assertEquals("atom(a b)", eval("atom(\"a b\")"))
     }
 
     @Test
-    fun `fresh atoms are named the same way as atom built by name`() {
+    fun freshAtomTest() {
         // `allocate-initialised-variable` derives its variable name from
         // `element-not-in(atoms, _)`; a config then refers to it as
         // `atom("@1")`. If the two disagree the variable is unnameable.
@@ -54,7 +54,9 @@ class TestAtomNaming {
     }
 
     @Test
-    fun `two atoms with the same content are equal, different content is not`() {
+    fun atomEqualityTest() {
+        // Two atoms are equal when their content is, and the content is a string, so
+        // `atom("ab")` differs from `atom("cd")`.
         assertEquals("true", eval("is-equal(atom(\"ab\"),atom(\"ab\"))"))
         assertEquals("false", eval("is-equal(atom(\"ab\"),atom(\"cd\"))"))
     }

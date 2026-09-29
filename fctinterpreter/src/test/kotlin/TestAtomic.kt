@@ -48,7 +48,7 @@ class TestAtomic {
     }
 
     @Test
-    fun `atomic of a value is that value`() {
+    fun atomicOfValueTest() {
         // Rule `atomic(V:T) ~> V`. This is also why `atomic(tuple())` is not
         // `null-value`; see `sequential requires null-value before its last
         // argument` below.
@@ -57,13 +57,15 @@ class TestAtomic {
     }
 
     @Test
-    fun `atomic of a computation runs it and yields its value`() {
+    fun atomicOfComputationTest() {
+        // `atomic` of a computation runs it to a value; the result is null-value, not
+        // that value.
         assertEquals("null-value", run("atomic print 1").result)
         assertRun("1", "atomic print 1")
     }
 
     @Test
-    fun `yield-on-value emits yielded(signal) and the rest still runs`() {
+    fun yieldOnValueTest() {
         // The signal is what would let an enclosing atomic computation be
         // interleaved. With no interleaving to permit it is simply consumed.
         assertRun("7, 8", "atomic sequential(yield-on-value print 7, print 8)")
@@ -71,18 +73,22 @@ class TestAtomic {
     }
 
     @Test
-    fun `interleave runs an atomic argument to completion before the next`() {
+    fun interleaveTest() {
+        // With no interleaving to permit, the arguments run left to right: the
+        // degenerate scheduler the class comment describes.
         assertRun("4, 5, 6", "interleave(atomic sequential(print 4,print 5), print 6)")
         assertRun("4, 5, 6, 7", "interleave(atomic sequential(print 4,print 5), print 6, print 7)")
     }
 
     @Test
-    fun `yield-on-abrupt lets a failure escape an atomic argument`() {
+    fun yieldOnAbruptTest() {
+        // The abrupt is passed out to the enclosing `else`, which is the point of
+        // `yield-on-abrupt`.
         assertRun("10, 11", "else(atomic yield-on-abrupt sequential(print 10,fail), print 11)")
     }
 
     @Test
-    fun `an unhandled abrupt leaves the term stuck`() {
+    fun unhandledAbruptTest() {
         // `abrupt` with no enclosing `else` is stuck, and `atomic` does not
         // swallow it: `yield-on-abrupt` exists precisely to make it visible.
         val error = Assertions.assertThrows(Throwable::class.java) { run("atomic(fail)") }
@@ -93,7 +99,7 @@ class TestAtomic {
     }
 
     @Test
-    fun `the body of atomic config produces its expected output`() {
+    fun atomicConfigTest() {
         // CBS-beta/Funcons-beta/Computations/Normal/Flowing/tests/atomic.config
         // expects `[tuple(), 1, 2, ..., 11]`. Everything except its first
         // argument behaves as expected; that argument is a term whose expected
@@ -112,7 +118,7 @@ class TestAtomic {
     }
 
     @Test
-    fun `sequential requires null-value before its last argument`() {
+    fun sequentialTest() {
         // `sequential(_:(=>null-type)*, _:=>T)`: the rule that consumes a
         // non-final argument is `sequential(null-value, Y+) ~> sequential(Y+)`,
         // and the rule that steps one needs it to be reducible. A value is

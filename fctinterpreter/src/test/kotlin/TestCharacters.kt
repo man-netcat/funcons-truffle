@@ -50,7 +50,7 @@ class TestCharacters {
     }
 
     @Test
-    fun `unicode-character yields the character with that code point`() {
+    fun unicodeCharacterTest() {
         assertEquals("A", eval("unicode-character(65)"))
         assertEquals("a", eval("unicode-character(97)"))
         assertEquals("0", eval("unicode-character(48)"))
@@ -63,14 +63,14 @@ class TestCharacters {
     }
 
     @Test
-    fun `a character prints as itself`() {
+    fun characterPrintingTest() {
         // `print` returns null-value, so this has to read standard-out, not the
         // result of the term.
         assertEquals("A", evalOut("print(unicode-character(65))"))
     }
 
     @Test
-    fun `the library's character constants are defined and evaluate`() {
+    fun characterConstantsTest() {
         // Each of these is `unicode-character(<base>N"....")` in Characters.cbs.
         assertEquals("\b", eval("backspace"))
         assertEquals("\t", eval("horizontal-tab"))
@@ -87,7 +87,7 @@ class TestCharacters {
      * is still faithful, so it is still a character as far as types go.
      */
     @Test
-    fun `an astral code point is still a character`() {
+    fun astralCodePointTest() {
         assertEquals("true", eval("is-in-type(unicode-character(128512), characters)"))
         assertEquals("true", eval("is-in-type(unicode-character(1114111), characters)"))
     }
@@ -101,7 +101,7 @@ class TestCharacters {
      * which is a separate change.
      */
     @Test
-    fun `the unicode-point round trip is still missing`() {
+    fun unicodePointRoundTripTest() {
         assertTrue(eval("unicode-point(unicode-character(65))").contains("unicode-point"))
     }
 

@@ -52,13 +52,13 @@ class TestFctGrammar {
      * EOF, `1 2` parsed as `1` and silently discarded the rest.
      */
     @Test
-    fun `bare expression file rejects trailing input`() {
+    fun trailingInputTest() {
         val e = assertThrowsSyntaxError { parse("1 2") }
         assertTrue(e.contains("extraneous input") || e.contains("mismatched input"), "got: $e")
     }
 
     @Test
-    fun `bare expression file accepts a single term`() {
+    fun singleTermTest() {
         assertEquals("1", parse("1").sourceText())
 
         // Juxtaposed application `abstraction 12` must parse as an application of
@@ -79,7 +79,8 @@ class TestFctGrammar {
      * match anything and the whitespace was silently ignored anyway.
      */
     @Test
-    fun `empty set literal parses with or without inner whitespace`() {
+    fun emptySetLiteralTest() {
+        // Every spelling of an empty set literal parses, whatever the inner whitespace.
         for (source in listOf("{}", "{ }", "{\t}", "{\n}")) {
             assertTrue(parse(source).sourceText().startsWith("{"), "failed for ${source.replace("\n", "\\n")}")
         }
@@ -92,7 +93,7 @@ class TestFctGrammar {
      * unparseable, so fail loudly here instead.
      */
     @Test
-    fun `no funcon name collides with a keyword token`() {
+    fun keywordCollisionTest() {
         val cbsRoot = Paths.get("../CBS-beta/Funcons-beta")
         // Both `Funcon f` and `Type t` introduce lowercase names into the same
         // namespace that the FCT lexer has to tokenize as IDENTIFIER.
@@ -125,7 +126,9 @@ class TestFctGrammar {
      * No corpus config uses these operators; see the CBS-type note on the class.
      */
     @Test
-    fun `type operator grouping is pinned`() {
+    fun typeOperatorGroupingTest() {
+        // Pinned because CBS leaves relative priority to be specified separately, so
+        // this is our behaviour and not the corpus's.
         assertEquals("a&b|c", parse("a & b | c").sourceText())
         assertEquals("a|b&c", parse("a | b & c").sourceText())
         assertEquals("a&b=>c", parse("a & b => c").sourceText())

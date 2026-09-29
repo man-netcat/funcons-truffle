@@ -32,7 +32,7 @@ class TestIntegers {
     }
 
     @Test
-    fun `a literal beyond 64 bits is read exactly, not wrapped`() {
+    fun bigIntegerLiteralTest() {
         // 2^80. As a Long this is 0, so an unsigned-reading or a narrowing cast
         // would report 0 here.
         assertEquals("1208925819614629174706176", eval("1208925819614629174706176"))
@@ -40,13 +40,14 @@ class TestIntegers {
     }
 
     @Test
-    fun `addition and multiplication past the Long boundary stay exact`() {
+    fun bigIntegerArithmeticTest() {
+        // Past the Long boundary the result is exact rather than wrapped.
         assertEquals("18446744073709551616", eval("integer-add(9223372036854775807,9223372036854775809)"))
         assertEquals("1208925819614629174706176", eval("integer-multiply(1099511627776,1099511627776)"))
     }
 
     @Test
-    fun `integer-power is exact rather than saturating`() {
+    fun integerPowerTest() {
         // The reference prints 18446744073709551616 for 2^64.
         assertEquals("18446744073709551616", eval("integer-power(2,64)"))
         assertEquals("1267650600228229401496703205376", eval("integer-power(2,100)"))
@@ -54,13 +55,14 @@ class TestIntegers {
     }
 
     @Test
-    fun `negative arithmetic stays exact`() {
+    fun negativeArithmeticTest() {
+        // Negating past the Long boundary stays exact too.
         assertEquals("-18446744073709551616", eval("integer-negate(18446744073709551616)"))
         assertEquals("0", eval("integer-add(18446744073709551616,integer-negate(18446744073709551616))"))
     }
 
     @Test
-    fun `equality does not see a large integer as a wrapped one`() {
+    fun largeIntegerEqualityTest() {
         // 2^64 truncates to 0 in a Long, so a narrowing read makes the largest
         // representable power of two equal to zero.
         assertEquals("false", eval("is-equal(18446744073709551616,0)"))
@@ -68,7 +70,7 @@ class TestIntegers {
     }
 
     @Test
-    fun `division and modulo of large values stay exact`() {
+    fun bigIntegerDivisionTest() {
         // 2^64 is even, so the remainder is 0 and the quotient is 2^63; a
         // narrowing read would report 0 for both.
         assertEquals("0", eval("integer-modulo(18446744073709551616,2)"))
@@ -76,7 +78,8 @@ class TestIntegers {
     }
 
     @Test
-    fun `small integers still work`() {
+    fun smallIntegerTest() {
+        // Values that fit in a Long are unaffected by the unbounded representation.
         assertEquals("3", eval("integer-add(1,2)"))
         assertEquals("2", eval("integer-divide(7,3)"))
         assertEquals("1", eval("integer-modulo(7,3)"))
@@ -92,7 +95,7 @@ class TestIntegers {
      * its literals that way.
      */
     @Test
-    fun `decimal-natural reads a string of digits as a number`() {
+    fun decimalNaturalTest() {
         assertEquals("100", eval("""decimal-natural("100")"""))
         assertEquals("0", eval("""decimal-natural("0")"""))
         // Leading zeros are just digits, not octal.
@@ -107,14 +110,16 @@ class TestIntegers {
      * because the argument has to be a string.
      */
     @Test
-    fun `decimal-natural yields the empty value for input that is not digits`() {
+    fun decimalNaturalNonDigitsTest() {
+        // Input that is not all digits yields the empty value, whatever the reason.
         assertEquals("()", eval("""decimal-natural("12a")"""))
         assertEquals("()", eval("""decimal-natural("-1")"""))
         assertEquals("()", eval("decimal-natural(100)"))
     }
 
     @Test
-    fun `the other radix conversions read text too`() {
+    fun radixConversionTest() {
+        // The other bases read text as well, and reject it the same way.
         assertEquals("10", eval("""hexadecimal-natural("000a")"""))
         assertEquals("255", eval("""hexadecimal-natural("ff")"""))
         assertEquals("8", eval("""octal-natural("10")"""))
