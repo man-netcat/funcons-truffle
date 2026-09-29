@@ -48,7 +48,7 @@ class MetavariablesTest {
      * constructed, so a test that only counts them never reaches the failure.
      */
     private fun generatedCodeFor(source: String): String {
-        val collector = ObjectCollector(Registry(emptySet()))
+        val collector = ObjectCollector(RegistryBuilder(emptySet()))
         collector.collect(parseCbs(source))
 
         val id = collector.objects.filterIsInstance<FunconObject>().single()

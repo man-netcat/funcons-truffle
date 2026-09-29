@@ -18,15 +18,15 @@ import org.junit.jupiter.api.Test
  * name that is already registered cannot be silently lost.
  */
 class RegistryTest {
-    private fun funcon(registry: Registry, source: String): FunconObject =
+    private fun funcon(registry: RegistryBuilder, source: String): FunconObject =
         FunconObject(node<FunconDefinitionContext>(source), metaVariables = emptySet(), registry = registry)
 
-    private fun type(registry: Registry, source: String): TypeObject =
+    private fun type(registry: RegistryBuilder, source: String): TypeObject =
         TypeObject(node<TypeDefinitionContext>(source), emptySet(), registry)
 
     @Test
     fun aliasLookupTest() {
-        val registry = Registry(emptySet())
+        val registry = RegistryBuilder(emptySet())
         val funcon = funcon(registry, "Funcon f : value-types Alias g = f")
         registry.add(funcon)
 
@@ -40,13 +40,13 @@ class RegistryTest {
 
     @Test
     fun undeclaredTest() {
-        val registry = Registry(emptySet())
+        val registry = RegistryBuilder(emptySet())
         assertNull(registry["f"])
     }
 
     @Test
     fun builtinTest() {
-        val registry = Registry(setOf("print"))
+        val registry = RegistryBuilder(setOf("print"))
         val built = funcon(registry, "Funcon print : =>empty-type")
         val generated = funcon(registry, "Funcon list-append(X:list(T), Y:T) : list(T)")
         registry.add(built)
@@ -58,7 +58,7 @@ class RegistryTest {
 
     @Test
     fun subtypeIndexTest() {
-        val registry = Registry(emptySet())
+        val registry = RegistryBuilder(emptySet())
         val lists = type(registry, "Type lists(T) ~> value-types")
         // `strings` is declared a subtype of `lists(characters)`, as Strings.cbs
         // writes it. The index is keyed on the supertype name as written, so a

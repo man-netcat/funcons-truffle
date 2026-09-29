@@ -5,7 +5,6 @@ import cbs.CBSParser
 import fct.FCTParser
 import main.exceptions.DetailedException
 import main.objects.AlgebraicDatatypeObject
-import main.objects.EntityObject
 import main.objects.Object
 import main.objects.TypeObject
 import main.visitors.CBSDependencyVisitor
@@ -35,103 +34,146 @@ private val builtinOverride = setOf(
     "tuple-elements",                          // Must be unpacked manually
 )
 
+/** One `.cbs` file of the corpus, parsed but not yet read as definitions. */
+private data class SourceFile(val name: String, val root: CBSParser.RootContext)
+
+/**
+ * The corpus after collection: the objects, and which file declared them.
+ *
+ * @param registry every object, by name and by alias. Read-only from here on:
+ * collection is the only stage that adds to it.
+ * @param byFile the objects each file declared, in declaration order.
+ */
+private class Corpus(val registry: Registry, val byFile: Map<String, Set<Object>>)
+
+/** One file of generated Kotlin, ready to write. */
+private data class GeneratedFile(val fileName: String, val content: String)
+
+/**
+ * Generates the funcon node classes for a corpus, as a sequence of stages over
+ * explicit data: parse the files, collect their objects, verify every declared
+ * name resolves, select what to write, render the Kotlin, write it.
+ *
+ * @param cbsDir the directory of `.cbs` files to read, walked top-down.
+ * @param outputDir where the generated Kotlin is written.
+ */
 class TruffleGen(
     private val cbsDir: File,
     private val outputDir: File = File("../fctlang/src/main/kotlin/generated"),
 ) {
-    private val registry = Registry(builtinOverride)
-    private val fileObjects: MutableMap<String, MutableSet<Object>> = mutableMapOf()
-    private var cbsParseTrees = mutableMapOf<String, CBSParser.RootContext>()
+    // The dependency pass below reads these. Nothing fills them: the pass is not
+    // wired up, and until it is, they stay empty and null.
     private val fctParseTrees = mutableMapOf<String, FCTParser.RootContext>()
     private var indexParseTree: CBSParser.RootContext? = null
 
-    /**
-     * The objects reachable from the entry points, or null while the dependency
-     * pass is off.
-     *
-     * `generateDependencies` is not called, so this stays null and every object is
-     * written. It is null rather than an empty set because those are different
-     * requests: with the pass on and nothing reachable, no code should be written
-     * at all, which an empty set that also meant "everything" could not express.
-     */
-    private var generatedDependencies: Set<Object>? = null
-
     fun process() {
-        // First generate the parse trees for all .cbs files
-        generateParseTrees()
-
-        // Generate classes that hold data for all funcons, datatypes, entities, etc...
-        generateObjects()
-
-        // Verify all objects are accounted for
-        verifyObjects()
-
-        // Generate dependencies from objects
-//        generateDependencies()
-
-        // Generates a graphviz visualisation for dependencies
-//        generateGraphViz()
-
-        // Generate code from the objects
-        generateCode()
+        val sources = parseCorpus(cbsDir)
+        val corpus = collectCorpus(sources)
+        verifyCorpus(sources, corpus)
+        val included = selectObjects(corpus)
+        val generated = renderCorpus(corpus, included)
+        writeAll(outputDir, generated)
     }
 
-    private fun generateParseTrees() {
-        cbsDir.walkTopDown().filter { file -> file.isFile && file.extension == "cbs" }.forEach { file ->
-            val input = CharStreams.fromPath(file.toPath())
-            val lexer = CBSLexer(input)
-            val tokens = CommonTokenStream(lexer)
-            val parser = CBSParser(tokens)
-            val root = parser.root()
-            cbsParseTrees[file.name] = root
-        }
-    }
+    private fun parseCorpus(dir: File): List<SourceFile> =
+        dir.walkTopDown()
+            .filter { file -> file.isFile && file.extension == "cbs" }
+            .map { file ->
+                val input = CharStreams.fromPath(file.toPath())
+                val parser = CBSParser(CommonTokenStream(CBSLexer(input)))
+                SourceFile(file.name, parser.root())
+            }
+            .toList()
 
-    private fun generateObjects() {
-        cbsParseTrees.forEach { (name, root) ->
-            println("Generating objects for file $name...")
-            val collector = ObjectCollector(registry)
-            collector.collect(root)
+    private fun collectCorpus(sources: List<SourceFile>): Corpus {
+        val builder = RegistryBuilder(builtinOverride)
+        val byFile = LinkedHashMap<String, Set<Object>>()
+
+        sources.forEach { source ->
+            println("Generating objects for file ${source.name}...")
+            val collector = ObjectCollector(builder)
+            collector.collect(source.root)
             if (collector.objects.isNotEmpty()) {
-                fileObjects[name] = collector.objects
+                byFile[source.name] = collector.objects
             }
         }
+
+        return Corpus(builder, byFile)
     }
 
-    private fun verifyObjects() {
-        cbsParseTrees.forEach { (name, root) ->
-            println("Verifying all objects accounted for for file $name...")
+    private fun verifyCorpus(sources: List<SourceFile>, corpus: Corpus) {
+        sources.forEach { source ->
+            println("Verifying all objects accounted for for file ${source.name}...")
             val visitor = IndexVisitor()
-            visitor.visit(root)
-            visitor.names.forEach {
-                if (registry[it] == null) {
-                    throw DetailedException("$it does not have an object")
+            visitor.visit(source.root)
+            visitor.names.forEach { name ->
+                if (corpus.registry[name] == null) {
+                    throw DetailedException("$name does not have an object")
                 }
             }
         }
     }
 
-    private fun generateDependencies() {
+    /**
+     * The objects to generate code for, or null for all of them.
+     *
+     * The dependency pass that would compute a subset ([generateDependencies]) is
+     * retained below but not called: nothing fills `fctParseTrees` or
+     * `indexParseTree`, so it would reach nothing. Until it is wired up every
+     * object is selected — and this returns null rather than an empty set so that
+     * "select everything" cannot be confused with "select nothing".
+     */
+    @Suppress("UNUSED_PARAMETER")
+    private fun selectObjects(corpus: Corpus): Set<Object>? = null
+
+    private fun renderCorpus(corpus: Corpus, included: Set<Object>?): List<GeneratedFile> {
+        val generated = corpus.byFile.mapNotNull { (name, objects) ->
+            println("Generating code for file $name...")
+            val code = renderFile(name, objects, included) ?: return@mapNotNull null
+            GeneratedFile(name.removeSuffix(".cbs") + ".kt", code)
+        }
+
+        return generated + GeneratedFile("Aliases.kt", renderAliases(corpus.registry, included))
+    }
+
+    private fun writeAll(dir: File, generated: List<GeneratedFile>) {
+        if (!dir.exists()) {
+            dir.mkdirs()
+        }
+        generated.forEach { file ->
+            File(dir, file.fileName).bufferedWriter().use { writer -> writer.write(file.content) }
+        }
+    }
+
+    /**
+     * The objects reachable from the entry points, for [selectObjects] to use.
+     *
+     * Retained in full though it is not called: it is the only description of the
+     * dependency pass, and turning it off should not mean deleting it. It reads
+     * `fctParseTrees` and `indexParseTree`, which nothing populates yet, so wiring
+     * it up means filling those first.
+     */
+    private fun generateDependencies(corpus: Corpus): Set<Object> {
         val usedFuncons = if (indexParseTree != null) {
             val indexVisitor = IndexVisitor()
             indexVisitor.visit(indexParseTree)
             indexVisitor.names.distinct()
         } else {
-            fctParseTrees.flatMap { (name, root) ->
+            fctParseTrees.flatMap { (_, root) ->
                 val fctVisitor = FCTDependencyVisitor()
                 fctVisitor.visit(root)
                 fctVisitor.dependencies
             }.distinct()
         }
 
-        fileObjects.values.forEach { objects ->
+        corpus.byFile.values.forEach { objects ->
             objects.forEach { obj ->
                 println("Generating object dependencies for object ${obj.name}...")
                 fun visitDependencies(obj: Object) {
                     val visitor = CBSDependencyVisitor()
                     visitor.visit(obj.ctx)
                     val objDependencies = visitor.dependencies
-                        .map { objName -> registry.require(objName) }
+                        .map { objName -> corpus.registry.require(objName) }
                         .filter { dep -> dep.name != obj.name }
                         .distinct()
                     obj.dependencies.addAll(objDependencies)
@@ -139,12 +181,12 @@ class TruffleGen(
 
                 when (obj) {
                     is TypeObject -> {
-                        obj.dependencies.add(registry.require("value-types"))
+                        obj.dependencies.add(corpus.registry.require("value-types"))
                         visitDependencies(obj)
                     }
 
                     is AlgebraicDatatypeObject -> {
-                        obj.dependencies.add(registry.require("datatype-values"))
+                        obj.dependencies.add(corpus.registry.require("datatype-values"))
                         obj.definitions.forEach { dep -> obj.dependencies.add(dep) }
                     }
 
@@ -168,71 +210,10 @@ class TruffleGen(
         }
 
         usedFuncons.forEach { name ->
-            registry[name]?.let { visitObject(it) }
+            corpus.registry[name]?.let { visitObject(it) }
         }
 
-        generatedDependencies = reachable
-    }
-
-    private fun generateCode() {
-        if (!outputDir.exists()) {
-            outputDir.mkdirs()
-        }
-
-        // Generate CBS files
-        fileObjects.forEach { (name, objects) ->
-            println("Generating code for file $name...")
-            val code = renderFile(name, objects, generatedDependencies)
-            if (code != null) {
-                val fileNameWithoutExtension = name.removeSuffix(".cbs")
-                val filePath = File(outputDir, "$fileNameWithoutExtension.kt")
-                filePath.bufferedWriter().use { writer ->
-                    writer.write(code)
-                    writer.flush()
-                }
-            }
-        }
-
-        // Generate alias file
-        val aliasFilePath = File(outputDir, "Aliases.kt")
-        val stringBuilder = StringBuilder()
-
-        stringBuilder.appendLine("package generated")
-        stringBuilder.appendLine("import language.*")
-        stringBuilder.appendLine("import builtin.*")
-        stringBuilder.appendLine()
-
-        stringBuilder.appendLine("val aliasMap: Map<String, String> = mapOf(")
-        val included = generatedDependencies
-        val objectsToProcess = if (included != null) {
-            registry.objects.filter { obj -> obj in included && obj !is EntityObject }
-        } else registry.objects.filter { obj -> obj !is EntityObject }
-
-        objectsToProcess.flatMap { obj ->
-            obj.aliases
-                .asSequence()
-                .filterNot { alias -> alias == obj.name }
-                .map { alias -> "\"$alias\" to \"${obj.name}\"" }
-        }
-            .joinToString(",\n    ", prefix = "    ", postfix = "\n)")
-            .let(stringBuilder::append)
-
-        stringBuilder.appendLine()
-        objectsToProcess.flatMap { obj ->
-            obj.aliases
-                .asSequence()
-                .filterNot { alias -> alias == obj.name }
-                .map { alias ->
-                    makeTypeAlias(toNodeName(alias), obj.nodeName)
-                }
-        }
-            .joinToString("\n")
-            .let(stringBuilder::appendLine)
-
-        aliasFilePath.bufferedWriter().use { writer ->
-            writer.write(stringBuilder.toString())
-            writer.flush()
-        }
+        return reachable
     }
 
     companion object {

@@ -45,3 +45,48 @@ fun renderFile(fileName: String, objects: Collection<Object>, included: Set<Obje
 
     return stringBuilder.toString().trim()
 }
+
+/**
+ * The alias map and the type aliases for the whole corpus, as one Kotlin file.
+ *
+ * Entities are skipped: an alias names a node to construct, and an entity has no
+ * node, it is read and written by name.
+ *
+ * @param included the objects to write, or null for all of them, as in [renderFile].
+ */
+fun renderAliases(registry: Registry, included: Set<Object>?): String {
+    val stringBuilder = StringBuilder()
+
+    stringBuilder.appendLine("package generated")
+    stringBuilder.appendLine("import language.*")
+    stringBuilder.appendLine("import builtin.*")
+    stringBuilder.appendLine()
+
+    stringBuilder.appendLine("val aliasMap: Map<String, String> = mapOf(")
+    val objectsToProcess = if (included != null) {
+        registry.objects.filter { obj -> obj in included && obj !is EntityObject }
+    } else registry.objects.filter { obj -> obj !is EntityObject }
+
+    objectsToProcess.flatMap { obj ->
+        obj.aliases
+            .asSequence()
+            .filterNot { alias -> alias == obj.name }
+            .map { alias -> "\"$alias\" to \"${obj.name}\"" }
+    }
+        .joinToString(",\n    ", prefix = "    ", postfix = "\n)")
+        .let(stringBuilder::append)
+
+    stringBuilder.appendLine()
+    objectsToProcess.flatMap { obj ->
+        obj.aliases
+            .asSequence()
+            .filterNot { alias -> alias == obj.name }
+            .map { alias ->
+                makeTypeAlias(toNodeName(alias), obj.nodeName)
+            }
+    }
+        .joinToString("\n")
+        .let(stringBuilder::appendLine)
+
+    return stringBuilder.toString()
+}

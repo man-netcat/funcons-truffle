@@ -15,7 +15,7 @@ import org.antlr.v4.runtime.ParserRuleContext
  * name a funcon declared in another, and the order the files are read in is the
  * order the directory walk happens to produce.
  */
-class ObjectCollector(private val registry: Registry) : CBSBaseVisitor<Unit>() {
+class ObjectCollector(private val registry: RegistryBuilder) : CBSBaseVisitor<Unit>() {
 
     /** The objects this file declared, under their own names and their aliases. */
     val objects: MutableSet<Object> = mutableSetOf()

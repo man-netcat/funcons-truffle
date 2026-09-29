@@ -5,16 +5,45 @@ import main.objects.Object
 import main.objects.TypeObject
 
 /**
- * Every funcon, datatype, type and entity the corpus declares, looked up by name.
+ * The corpus as code generation sees it: every object by name and by alias, and
+ * the subtype index.
  *
  * CBS has no module system: a rule may name anything declared in any of the 43
  * files, and a funcon has to be generated whether or not the file that declares it
  * was read first. So the set of objects is shared rather than owned by one file,
  * and the only thing that is genuinely per-file is which of them to write out.
  *
- * A registry is built up as the files are read and then queried while code is
- * generated. Nothing is added after that, which is what lets [subtypesOf] be
- * answered from an index rather than by a scan.
+ * Read-only, so a stage that only generates code cannot add to the corpus it is
+ * reading. [RegistryBuilder] is the one thing that can.
+ */
+interface Registry {
+    /** Every object once, in the order the files declared them. */
+    val objects: List<Object>
+
+    operator fun get(name: String): Object?
+
+    /**
+     * The object named `name`.
+     *
+     * @throws DetailedException with the names that do exist, since a name that
+     * does not resolve is a missing declaration rather than a null to propagate.
+     */
+    fun require(name: String): Object
+
+    fun isBuiltin(name: String): Boolean
+
+    /**
+     * The types CBS declares a subtype of `typeName` with `Type N ~> T`.
+     *
+     * CBS reads `~>` as "N is a T", so `isIn<T>()` has to accept N's values. The
+     * index is built as types are registered, since every type is registered
+     * before any code is generated.
+     */
+    fun subtypesOf(typeName: String): List<TypeObject>
+}
+
+/**
+ * Builds a [Registry] while a file's definitions are read.
  *
  * @param builtins names the generator overrides rather than generates, because the
  * corpus declares them but Truffle implements them differently: `print` reads a
@@ -22,7 +51,7 @@ import main.objects.TypeObject
  * expressed as a reduction. They are still in the registry, so a rule that names
  * one still resolves; what changes is that no node class is written for it.
  */
-class Registry(private val builtins: Set<String>) {
+class RegistryBuilder(private val builtins: Set<String>) : Registry {
     private val byName = mutableMapOf<String, Object>()
     private val bySupertype = mutableMapOf<String, MutableList<TypeObject>>()
 
@@ -45,27 +74,14 @@ class Registry(private val builtins: Set<String>) {
         registered.add(obj)
     }
 
-    val objects: List<Object> get() = registered
+    override val objects: List<Object> get() = registered
 
-    operator fun get(name: String): Object? = byName[name]
+    override operator fun get(name: String): Object? = byName[name]
 
-    /**
-     * The object named `name`.
-     *
-     * @throws DetailedException with the names that do exist, since a name that
-     * does not resolve is a missing declaration rather than a null to propagate.
-     */
-    fun require(name: String): Object =
+    override fun require(name: String): Object =
         byName[name] ?: throw DetailedException("$name is not declared in the corpus")
 
-    fun isBuiltin(name: String): Boolean = name in builtins
+    override fun isBuiltin(name: String): Boolean = name in builtins
 
-    /**
-     * The types CBS declares a subtype of `typeName` with `Type N ~> T`.
-     *
-     * CBS reads `~>` as "N is a T", so `isIn<T>()` has to accept N's values. The
-     * index is built as types are registered, since every type is registered
-     * before any code is generated.
-     */
-    fun subtypesOf(typeName: String): List<TypeObject> = bySupertype[typeName].orEmpty()
+    override fun subtypesOf(typeName: String): List<TypeObject> = bySupertype[typeName].orEmpty()
 }
