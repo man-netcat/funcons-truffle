@@ -173,8 +173,13 @@ class TestFunconsBeta : BaseTest(
 
 private val KNOWN_V1_CRASHES = mapOf(
     "Computations/Normal/Flowing/tests/atomic.config" to
-        "StuckException: sequential - the reference reports `unknown funcon: atomic` " +
-        "and fails the same interleave sort checks, so there is no oracle for this config"
+        "unpassable as written: its first argument `atomic(tuple())` evaluates, per the rule " +
+        "`atomic(V:T) ~> V`, to the tuple value rather than `null-value`, and `sequential`'s only " +
+        "rule for a non-final argument is `sequential(null-value, Y+) ~> sequential(Y+)`, so the " +
+        "whole term is stuck. The expected standard-out also lists `tuple()` as its first printed " +
+        "item although nothing in the term prints it. Every other argument behaves as expected; " +
+        "TestAtomic pins that the rest of the body yields [1, 2, ..., 11]. The reference reports " +
+        "`unknown funcon: atomic` and fails the same interleave sort checks, so there is no oracle."
 )
 
 private val KNOWN_V1_DIVERGENCES = emptyMap<String, String>()
