@@ -130,25 +130,34 @@ class SequentialNode(
     }
 }
 
+/**
+ * `choice(Y, ...)` "selects one of its arguments" and is "associative and
+ * commutative" (Flowing.cbs), so any argument may be taken. Taking the first
+ * is one of those orders, and it makes the result reproducible: picking at
+ * random makes a program's output depend on the run, and the corpus
+ * expectations for `choice.config` are the leftmost order.
+ */
 class ChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), ChoiceInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         return when {
-            get(0).size >= 1 -> get(0).random()
+            get(0).size >= 1 -> get(0).head
             else -> abort()
         }
     }
 }
 
+/**
+ * `else-choice` executes its arguments "in any order until either some Xi does
+ * *not* fail" (Failing.cbs), so left-to-right is a valid order, and it is the
+ * one `else-choice.config` states as its expected output.
+ */
 class ElseChoiceNode(@Child override var p0: SequenceNode = SequenceNode()) : TermNode(), ElseChoiceInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         val terms = get(0)
         return when {
             terms.isEmpty() -> abort()
-            terms.size == 1 -> get(0).get(0)
-            terms.size >= 2 -> {
-                terms.elements.shuffle()
-                ElseNode(terms.head, SequenceNode(ElseChoiceNode(terms.tail)))
-            }
+            terms.size == 1 -> terms.head
+            terms.size >= 2 -> ElseNode(terms.head, SequenceNode(ElseChoiceNode(terms.tail)))
 
             else -> abort()
         }

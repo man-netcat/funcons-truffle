@@ -173,12 +173,8 @@ class TestFunconsBeta : BaseTest(
 
 private val KNOWN_V1_CRASHES = mapOf(
     "Computations/Normal/Flowing/tests/atomic.config" to
-        "StuckException: sequential - atomic/interleave scheduling is not implemented"
+        "StuckException: sequential - the reference reports `unknown funcon: atomic` " +
+        "and fails the same interleave sort checks, so there is no oracle for this config"
 )
 
-private val KNOWN_V1_DIVERGENCES = mapOf(
-    "Computations/Normal/Flowing/tests/choice.config" to
-        "nondeterministic: choice selects a different branch each run; the corpus lists the alternatives in comments",
-    "Computations/Abnormal/Failing/tests/else-choice.config" to
-        "nondeterministic: else-choice selects a different branch each run; the corpus lists the alternatives in comments"
-)
+private val KNOWN_V1_DIVERGENCES = emptyMap<String, String>()

@@ -19,7 +19,7 @@ import java.io.File
 val globalObjects: MutableMap<String, Object> = mutableMapOf()
 val builtinOverride: MutableSet<String> = mutableSetOf(
     "left-to-right", "right-to-left",          // Ambiguous semantics
-    "some-element", "choice", "else-choice",   // Utilises random
+    "some-element", "choice", "else-choice",   // Implemented leftmost, not randomly
     "sequential",                              // Param after sequence
     "stuck", "abstraction",                    // No rules, implement manually
     "read", "print",                           // Input/Output
