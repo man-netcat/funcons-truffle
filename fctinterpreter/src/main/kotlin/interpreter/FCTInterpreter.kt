@@ -46,10 +46,7 @@ object FCTInterpreter {
         val resultTerm = result.getArrayElement(0)
         val store = result.getArrayElement(1)
 
-        val standardOut = (2 until result.arraySize).map { i ->
-            val raw = result.getArrayElement(i).asString()
-            if (isFct) raw.removeSurrounding("\"").replace("\\n", "\n") else raw
-        }
+        val standardOut = standardOut(result, isFct)
 
         if (isFct) {
             print(standardOut.joinToString(""))
@@ -60,6 +57,18 @@ object FCTInterpreter {
             if (standardOut.isNotEmpty()) println("standard-out: $standardOut")
         }
     }
+
+    /**
+     * A bare `.fct` file reports each `print` argument as its own entry, still
+     * carrying the quoting and escaping the term was written with; a `.config`
+     * file reports them already decoded. Callers that check output must agree
+     * with the CLI on which reading applies, so both go through here.
+     */
+    fun standardOut(result: Value, isFct: Boolean): List<String> =
+        (2 until result.arraySize).map { i ->
+            val raw = result.getArrayElement(i).asString()
+            if (isFct) raw.removeSurrounding("\"").replace("\\n", "\n") else raw
+        }
 
     fun checkExpectations(result: Value): ExpectationOutcome {
         if (!result.hasMembers()) return ExpectationOutcome.NotChecked
