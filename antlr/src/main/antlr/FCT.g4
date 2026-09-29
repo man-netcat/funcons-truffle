@@ -5,7 +5,7 @@ grammar FCT;
 }
 
 root
-   : expr # FCTFile
+   : expr EOF # FCTFile
    | generalBlock (inputsBlock)? (testsBlock)? EOF # ConfigFile
    ;
 
@@ -53,7 +53,7 @@ expr
    | unOp operand = expr # UnopExpression
    | lhs = expr binOp rhs = expr # BinOpExpression
    | listExpr # ListExpression
-   | '{' WS* '}' # EmptySet
+   | '{' '}' # EmptySet
    | mapExpr # MapExpression
    | setExpr # SetExpression
    | tupleExpr # TupleExpression

@@ -26,6 +26,7 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation(libs.junit.jupiter)
+    testImplementation(project(":antlr"))
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
