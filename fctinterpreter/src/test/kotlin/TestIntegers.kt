@@ -83,6 +83,45 @@ class TestIntegers {
         assertEquals("3", eval("natural-successor(2)"))
     }
 
+    /**
+     * `decimal-natural(_:strings) : =>natural-numbers?` -- the argument is the
+     * *text* of the number, not the number. This was implemented in the
+     * opposite direction (number in, digits out), which no corpus config
+     * exercised, so it went unnoticed. Anything written as
+     * `decimal-natural"100"` was stuck, and so was every program that encodes
+     * its literals that way.
+     */
+    @Test
+    fun `decimal-natural reads a string of digits as a number`() {
+        assertEquals("100", eval("""decimal-natural("100")"""))
+        assertEquals("0", eval("""decimal-natural("0")"""))
+        // Leading zeros are just digits, not octal.
+        assertEquals("7", eval("""decimal-natural("007")"""))
+        assertEquals("1208925819614629174706176", eval("""decimal-natural("1208925819614629174706176")"""))
+    }
+
+    /**
+     * The `?` in `natural-numbers?` means a string that is not a run of digits
+     * for the base yields `()`. This is also what pins the direction: passing a
+     * number used to succeed by producing its digits, and must now fail,
+     * because the argument has to be a string.
+     */
+    @Test
+    fun `decimal-natural yields the empty value for input that is not digits`() {
+        assertEquals("()", eval("""decimal-natural("12a")"""))
+        assertEquals("()", eval("""decimal-natural("-1")"""))
+        assertEquals("()", eval("decimal-natural(100)"))
+    }
+
+    @Test
+    fun `the other radix conversions read text too`() {
+        assertEquals("10", eval("""hexadecimal-natural("000a")"""))
+        assertEquals("255", eval("""hexadecimal-natural("ff")"""))
+        assertEquals("8", eval("""octal-natural("10")"""))
+        assertEquals("5", eval("""binary-natural("101")"""))
+        assertEquals("()", eval("""hexadecimal-natural("00zz")"""))
+    }
+
     private fun assertEquals(expected: String, actual: String) =
         Assertions.assertEquals(expected, actual)
 }

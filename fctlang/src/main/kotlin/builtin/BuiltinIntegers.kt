@@ -151,14 +151,39 @@ class NaturalPredecessorNode(@Eager @Child override var p0: TermNode) : TermNode
     }
 }
 
+/**
+ * `binary-natural`, `octal-natural`, `decimal-natural` and
+ * `hexadecimal-natural` each read a *string of digits* and yield the number it
+ * denotes: `decimal-natural(_:strings) : =>natural-numbers?`. The argument is
+ * the text, not the value, and the `?` means a string that is not a valid run
+ * of digits for the base yields `()`.
+ *
+ * This had the direction reversed -- it took the number and produced its
+ * digits. Nothing in the corpus exercised that, so it went unnoticed, but the
+ * library's own character constants are all defined in terms of the forward
+ * direction (`line-feed` is `unicode-character(hexadecimal-natural"000a")`),
+ * so `line-feed`, `backslash`, `form-feed`, `double-quote` and `horizontal-tab`
+ * were all stuck, as was every program encoding a literal as
+ * `decimal-natural"100"`.
+ *
+ * The empty string is taken as zero. That is a judgement call: it is the
+ * natural limit of a digit sequence, but it could not be checked against the
+ * reference implementation, which is no longer available.
+ */
 abstract class BaseConversionNode(
     @Eager @Child var p0: TermNode,
     val base: Int,
 ) : TermNode() {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val numberStr = p0.asBigIntegerOrAbort().toString(base)
-        val digits = numberStr.map { intNode(BigInteger.valueOf(it.digitToInt().toLong())) }
-        return SequenceNode(*digits.toTypedArray())
+        val digits = (p0 as? StringLiteralNode)?.value ?: return SequenceNode()
+        var value = BigInteger.ZERO
+        val radix = BigInteger.valueOf(base.toLong())
+        for (c in digits) {
+            val digit = Character.digit(c, base)
+            if (digit < 0) return SequenceNode()
+            value = value.multiply(radix).add(BigInteger.valueOf(digit.toLong()))
+        }
+        return intNode(value)
     }
 }
 
