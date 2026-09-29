@@ -35,6 +35,21 @@ application {
     mainClass.set("interpreter.FCTInterpreter")
 }
 
+/*
+  A second entry point, so the benchmark does not take over `run`. The working
+  directory is the module's, which is what makes the `../CBS-beta` in the default
+  corpus path resolve: Gradle already does this for `run`, and the benchmark is
+  easier to read for it being stated.
+*/
+tasks.register<JavaExec>("benchmark") {
+    group = "application"
+    description = "Times the evaluator on the config corpus, cold and with a shared Context"
+    mainClass.set("interpreter.Benchmark")
+    classpath = sourceSets["main"].runtimeClasspath
+    workingDir = projectDir
+    jvmArgs = listOf("-Xmx2g")
+}
+
 tasks.compileKotlin {
     dependsOn(":fctlang:compileKotlin")
 }

@@ -73,10 +73,39 @@ before quoting its result as a success.
 ./gradlew :fctinterpreter:test                         # interpreter
 ./gradlew :cbslang:run --args="../CBS-beta/Languages-beta"   # survey the corpus
 ./gradlew :cbslang:run --args="--write-disambiguation out ../CBS-beta/Languages-beta"
+./gradlew :fctinterpreter:benchmark                    # time the config corpus
 ```
 
 Per-test results are in `<module>/build/test-results/test/*.xml`; the console
 output of the interpreter is noisy enough that reading the XML is faster.
+
+## What the benchmark says
+
+`interpreter.Benchmark` runs the 161 `.config` programs two ways and reports the
+best of five attempts per program, so the numbers move only when something real
+changed. Measured on this machine, before any runtime work:
+
+| | total | median | p90 |
+| --- | --- | --- | --- |
+| cold, a fresh `Context` per program | 1.21s | 5.0ms | 13.5ms |
+| shared, one `Context` re-parsed per program | 505ms | 1.8ms | 5.3ms |
+
+Reusing one `Context` removes 58% of the total. That is the headroom, and it is
+mostly engine setup rather than funcon reduction, so it is the number to beat
+before optimising anything inside the rewriter. The slowest programs are the same
+either way, and are all class and pattern work rather than I/O or `print`.
+
+The same run reports a correctness fact that the timing does not: **153 of the
+161 programs do not survive a second evaluation in the same `Context`.** Evaluating
+an identical source twice does not re-parse — polyglot caches the `CallTarget` by
+source name and content — so the second run reduces an AST the first run has
+already consumed. `SequenceNode.popFirst` and `AtomicNode`'s `s0`/`s1` reassign
+`@Children`, and `SequenceNode`'s `by lazy` `init`/`tail`/`reducibleElements` caches
+are never invalidated. A sound AST is a precondition for amortizing anything
+across evaluations, so it comes before any caching work.
+
+The corpus has stuck programs, which is why the benchmark folds a failure into the
+result instead of aborting; the suite records those as known divergences.
 
 ## Layout
 
