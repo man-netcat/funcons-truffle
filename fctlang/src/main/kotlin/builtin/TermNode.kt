@@ -142,7 +142,8 @@ abstract class TermNode : Node() {
             type::class == ComplementTypeNode::class -> !(type as ComplementTypeNode).type.let { this.isInType(it) }
             type::class == GroundValuesNode::class -> this.isInGroundValues()
             type::class == NullTypeNode::class -> this.isInNullType()
-            type::class == NaturalNumbersNode::class -> this is NaturalNumberNode || (this is IntegerNode && value >= 0)
+            type::class == NaturalNumbersNode::class ->
+                this is NaturalNumberNode || (this is IntegerNode && value.signum() >= 0)
             type::class == IntegersNode::class -> this is NaturalNumberNode || this is IntegerNode
             type::class == BooleansNode::class -> this.isInBooleans()
             type::class == MapsNode::class -> {

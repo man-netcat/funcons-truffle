@@ -190,13 +190,14 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
             }
 
             is StringContext -> {
-                val str = parseTree.STRING().text
-                strLiteralNode(str)
+                // A STRING token's text carries its own delimiters, so `"ab"`
+                // arrives as `"ab"` and the string's value is its content.
+                strLiteralNode(parseTree.STRING().text.unquoted())
             }
 
             is NumberContext -> {
-                val num = parseTree.NUMBER().text.toInt()
-                intNode(num)
+                // `integers` is unbounded, so a literal may exceed Long's range.
+                intNode(java.math.BigInteger(parseTree.NUMBER().text))
             }
 
             is TerminalExpressionContext -> buildTree(parseTree.terminalValue())

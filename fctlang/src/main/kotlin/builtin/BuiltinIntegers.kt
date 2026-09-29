@@ -3,8 +3,7 @@ package builtin
 import builtin.ValueNodeFactory.intNode
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
-import kotlin.math.abs
-import kotlin.math.pow
+import java.math.BigInteger
 
 open class IntegersNode : GroundValuesNode(), IntegersInterface
 
@@ -13,7 +12,11 @@ fun TermNode.isInIntegers(): Boolean = this is IntegersNode
 open class IntegersFromNode(@Child override var p0: TermNode) : IntegersNode(), IntegersFromInterface
 open class IntegersUpToNode(@Child override var p0: TermNode) : IntegersNode(), IntegersUpToInterface
 
-abstract class NumberNode(override val value: Long) : IntegersNode() {
+// `integers` is "the type of unbounded integers" (Integers.cbs), so the
+// representation has to be arbitrary-precision. Long overflowed silently,
+// which made integer-power(2,64) saturate at Long.MAX_VALUE and made any
+// literal above 2^63-1 fail to parse.
+abstract class NumberNode(override val value: BigInteger) : IntegersNode() {
     override fun equals(other: Any?): Boolean = when (other) {
         is NumberNode -> this.value == other.value
         else -> false
@@ -23,16 +26,19 @@ abstract class NumberNode(override val value: Long) : IntegersNode() {
     override fun toString(): String = value.toString()
 }
 
-class NaturalNumberNode(override val value: Long) : NumberNode(value)
-class IntegerNode(override val value: Long) : NumberNode(value)
+class NaturalNumberNode(override val value: BigInteger) : NumberNode(value) {
+    constructor(value: Int) : this(BigInteger.valueOf(value.toLong()))
+    constructor(value: Long) : this(BigInteger.valueOf(value))
+}
 
-private fun TermNode.asLongOrAbort(): Long {
+class IntegerNode(override val value: BigInteger) : NumberNode(value) {
+    constructor(value: Int) : this(BigInteger.valueOf(value.toLong()))
+    constructor(value: Long) : this(BigInteger.valueOf(value))
+}
+
+private fun TermNode.asBigIntegerOrAbort(): BigInteger {
     if (!isInIntegers()) abort()
-    return when (value) {
-        is Long -> value as Long
-        is Int -> (value as Int).toLong()
-        else -> abort()
-    }
+    return value as? BigInteger ?: abort()
 }
 
 private fun Array<out TermNode>.allIntegersOrAbort() {
@@ -42,7 +48,7 @@ private fun Array<out TermNode>.allIntegersOrAbort() {
 class IntegerAddNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), IntegerAddInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         p0.elements.allIntegersOrAbort()
-        val sum = p0.elements.fold(0L) { acc, node -> acc + node.asLongOrAbort() }
+        val sum = p0.elements.fold(BigInteger.ZERO) { acc, node -> acc + node.asBigIntegerOrAbort() }
         return intNode(sum)
     }
 }
@@ -51,7 +57,7 @@ class IntegerSubtractNode(@Eager @Child override var p0: TermNode, @Eager @Child
     TermNode(),
     IntegerSubtractInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        return intNode(p0.asLongOrAbort() - p1.asLongOrAbort())
+        return intNode(p0.asBigIntegerOrAbort() - p1.asBigIntegerOrAbort())
     }
 }
 
@@ -59,7 +65,7 @@ class IntegerMultiplyNode(@Eager @Child override var p0: SequenceNode = Sequence
     IntegerMultiplyInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
         p0.elements.allIntegersOrAbort()
-        val product = p0.elements.fold(1L) { acc, node -> acc * node.asLongOrAbort() }
+        val product = p0.elements.fold(BigInteger.ONE) { acc, node -> acc * node.asBigIntegerOrAbort() }
         return intNode(product)
     }
 }
@@ -67,9 +73,9 @@ class IntegerMultiplyNode(@Eager @Child override var p0: SequenceNode = Sequence
 class IntegerDivideNode(@Eager @Child override var p0: TermNode, @Eager @Child override var p1: TermNode) : TermNode(),
     IntegerDivideInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val dividend = p0.asLongOrAbort()
-        val divisor = p1.asLongOrAbort()
-        if (divisor == 0L) return SequenceNode()
+        val dividend = p0.asBigIntegerOrAbort()
+        val divisor = p1.asBigIntegerOrAbort()
+        if (divisor.signum() == 0) return SequenceNode()
         return intNode(dividend / divisor)
     }
 }
@@ -77,9 +83,9 @@ class IntegerDivideNode(@Eager @Child override var p0: TermNode, @Eager @Child o
 class IntegerModuloNode(@Eager @Child override var p0: TermNode, @Eager @Child override var p1: TermNode) : TermNode(),
     IntegerModuloInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val dividend = p0.asLongOrAbort()
-        val divisor = p1.asLongOrAbort()
-        if (divisor == 0L) return SequenceNode()
+        val dividend = p0.asBigIntegerOrAbort()
+        val divisor = p1.asBigIntegerOrAbort()
+        if (divisor.signum() == 0) return SequenceNode()
         return intNode(dividend % divisor)
     }
 }
@@ -87,23 +93,24 @@ class IntegerModuloNode(@Eager @Child override var p0: TermNode, @Eager @Child o
 class IntegerPowerNode(@Eager @Child override var p0: TermNode, @Eager @Child override var p1: TermNode) : TermNode(),
     IntegerPowerInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val base = p0.asLongOrAbort()
-        val exponent = p1.asLongOrAbort()
-        if (exponent < 0L) abort()
-        return intNode(base.toDouble().pow(exponent.toDouble()).toLong())
+        val base = p0.asBigIntegerOrAbort()
+        val exponent = p1.asBigIntegerOrAbort()
+        if (exponent.signum() < 0) abort()
+        if (exponent.bitLength() > 31) abort()
+        return intNode(base.pow(exponent.toInt()))
     }
 }
 
 class IntegerAbsoluteValueNode(@Eager @Child override var p0: TermNode) : TermNode(), IntegerAbsoluteValueInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        return intNode(abs(p0.asLongOrAbort()))
+        return intNode(p0.asBigIntegerOrAbort().abs())
     }
 }
 
 class IntegerIsLessNode(@Eager @Child override var p0: TermNode, @Eager @Child override var p1: TermNode) : TermNode(),
     IntegerIsLessInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        return if (p0.asLongOrAbort() < p1.asLongOrAbort()) TrueNode() else FalseNode()
+        return if (p0.asBigIntegerOrAbort() < p1.asBigIntegerOrAbort()) TrueNode() else FalseNode()
     }
 }
 
@@ -111,7 +118,7 @@ class IntegerIsGreaterNode(@Eager @Child override var p0: TermNode, @Eager @Chil
     TermNode(),
     IntegerIsGreaterInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        return if (p0.asLongOrAbort() > p1.asLongOrAbort()) TrueNode() else FalseNode()
+        return if (p0.asBigIntegerOrAbort() > p1.asBigIntegerOrAbort()) TrueNode() else FalseNode()
     }
 }
 
@@ -119,7 +126,7 @@ class IntegerIsLessOrEqualNode(@Eager @Child override var p0: TermNode, @Eager @
     TermNode(),
     IntegerIsLessOrEqualInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        return if (p0.asLongOrAbort() <= p1.asLongOrAbort()) TrueNode() else FalseNode()
+        return if (p0.asBigIntegerOrAbort() <= p1.asBigIntegerOrAbort()) TrueNode() else FalseNode()
     }
 }
 
@@ -127,20 +134,20 @@ class IntegerIsGreaterOrEqualNode(@Eager @Child override var p0: TermNode, @Eage
     TermNode(),
     IntegerIsGreaterOrEqualInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        return if (p0.asLongOrAbort() >= p1.asLongOrAbort()) TrueNode() else FalseNode()
+        return if (p0.asBigIntegerOrAbort() >= p1.asBigIntegerOrAbort()) TrueNode() else FalseNode()
     }
 }
 
 class NaturalSuccessorNode(@Eager @Child override var p0: TermNode) : TermNode(), NaturalSuccessorInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        return intNode(p0.asLongOrAbort() + 1L)
+        return intNode(p0.asBigIntegerOrAbort() + BigInteger.ONE)
     }
 }
 
 class NaturalPredecessorNode(@Eager @Child override var p0: TermNode) : TermNode(), NaturalPredecessorInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val value = p0.asLongOrAbort()
-        return if (value == 0L) SequenceNode() else intNode(value - 1L)
+        val value = p0.asBigIntegerOrAbort()
+        return if (value.signum() == 0) SequenceNode() else intNode(value - BigInteger.ONE)
     }
 }
 
@@ -149,8 +156,8 @@ abstract class BaseConversionNode(
     val base: Int,
 ) : TermNode() {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        val numberStr = p0.asLongOrAbort().toString(base)
-        val digits = numberStr.map { intNode(it.digitToInt().toLong()) }
+        val numberStr = p0.asBigIntegerOrAbort().toString(base)
+        val digits = numberStr.map { intNode(BigInteger.valueOf(it.digitToInt().toLong())) }
         return SequenceNode(*digits.toTypedArray())
     }
 }

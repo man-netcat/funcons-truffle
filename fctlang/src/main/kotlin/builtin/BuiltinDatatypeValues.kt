@@ -3,12 +3,13 @@ package builtin
 import builtin.ValueNodeFactory.strLiteralNode
 import com.oracle.truffle.api.frame.VirtualFrame
 import generated.*
+import java.math.BigInteger
 import language.NodeFactory.createNode
 
 object ValueNodeFactory {
     private val strCache = mutableMapOf<String, ValueListNode>()
     private val charCache = mutableMapOf<Char, CharacterNode>()
-    private val intCache = mutableMapOf<Long, TermNode>()
+    private val intCache = mutableMapOf<BigInteger, TermNode>()
     private val valueCache = mutableMapOf<Pair<String, SequenceNode>, AbstractDatatypeValueNode>()
     private val atomCache = mutableMapOf<String, AtomNode>()
     private val strLiteralCache = mutableMapOf<String, StringLiteralNode>()
@@ -21,8 +22,9 @@ object ValueNodeFactory {
         return valueCache.getOrPut(name to args, constructor)
     }
 
-    fun intNode(int: Int): TermNode = intNode(int.toLong())
-    fun intNode(long: Long): TermNode = intCache.getOrPut(long) { IntegerNode(long) }
+    fun intNode(int: Int): TermNode = intNode(BigInteger.valueOf(int.toLong()))
+    fun intNode(long: Long): TermNode = intNode(BigInteger.valueOf(long))
+    fun intNode(value: BigInteger): TermNode = intCache.getOrPut(value) { IntegerNode(value) }
     fun charNode(char: Char): CharacterNode = charCache.getOrPut(char) { CharacterNode(char) }
     fun strNode(str: String): ValueListNode = strCache.getOrPut(str) {
         val sequence = SequenceNode(*str.map { char -> charNode(char) }.toTypedArray())
@@ -34,8 +36,13 @@ object ValueNodeFactory {
     fun strLiteralNode(str: String): StringLiteralNode = strLiteralCache.getOrPut(str) { StringLiteralNode(str) }
 }
 
+/**
+ * `value` is the string's content, never its source form: `"ab"` parses to the
+ * value `ab`. Printing re-adds the delimiters, as the reference does, so that a
+ * string is distinguishable from a bare sequence of characters.
+ */
 class StringLiteralNode(override val value: String) : StringsNode() {
-    override fun toString(): String = value
+    override fun toString(): String = "\"$value\""
 
     override fun equals(other: Any?): Boolean = when (other) {
         is ValueListNode -> value == other.vp0.toStringLiteral()
@@ -75,7 +82,9 @@ class DatatypeValueNode(
     override fun reduceRules(frame: VirtualFrame): TermNode {
         if (!p0.isInIdentifiers()) abort()
         if (p1.elements.any { it !is ValuesNode }) abort()
-        val identifier = p0.toString()
+        // p0 is an identifier naming a value type, not a string, so its content
+        // is used directly rather than its now-quoted printed form.
+        val identifier = (p0 as? StringLiteralNode)?.value ?: p0.toString()
         return createNode(identifier, listOf(*p1.elements))
     }
 }
@@ -86,10 +95,12 @@ abstract class AbstractDatatypeValueNode(
     @Child override var id: StringLiteralNode,
     @Child override var args: SequenceNode
 ) : DatatypeValuesNode() {
+    // `id` names the value's type, so it prints unquoted; `id.value` is the name
+    // itself, whereas "$id" would now render as a quoted string.
     override fun toString() = when {
-        primaryCtor.parameters.isEmpty() -> "$id"
-        args.isNotEmpty() -> "${id}(${args})"
-        else -> "${id}()"
+        primaryCtor.parameters.isEmpty() -> id.value
+        args.isNotEmpty() -> "${id.value}($args)"
+        else -> "${id.value}()"
     }
 }
 
