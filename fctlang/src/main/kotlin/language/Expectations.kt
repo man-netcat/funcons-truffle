@@ -135,7 +135,23 @@ object CbsStructure {
         if (text == "set-empty") return CbsValue.Set(emptyList())
         if (text == "map-empty") return CbsValue.Apply("map", emptyList())
         if (text == "null") return CbsValue.Atom("null-value")
-        applicationOf(text)?.let { (name, args) -> return CbsValue.Apply(name, args) }
+        applicationOf(text)?.let { (name, args) ->
+            // An atom's name is its content, so the corpus writes `atom("@1")`
+            // where the value prints as `atom(@1)`. runfct's own comparator
+            // accepts both spellings; without this v2 agrees only with itself.
+            if (name == "atom" && args.size == 1) {
+                val atomText = (args[0] as? CbsValue.Atom)?.text
+                if (atomText != null && atomText.length >= 2 &&
+                    atomText.startsWith("\"") && atomText.endsWith("\"")
+                ) {
+                    return CbsValue.Apply(
+                        name,
+                        listOf(CbsValue.Atom(atomText.substring(1, atomText.length - 1)))
+                    )
+                }
+            }
+            return CbsValue.Apply(name, args)
+        }
         juxtaposedApplication(text)?.let { return it }
         return CbsValue.Atom(text)
     }

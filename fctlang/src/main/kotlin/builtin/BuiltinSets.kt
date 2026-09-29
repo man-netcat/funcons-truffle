@@ -134,7 +134,10 @@ class ElementNotInNode(
             is AtomsNode -> {
                 var i = 1
                 while (true) {
-                    val value = "\"@$i\""
+                    // An atom's name is its content, so a fresh name is `@1` and
+                    // not `"@1"`; quoting it here would make generated variable
+                    // names disagree with those built by `atom("...")` in a config.
+                    val value = "@$i"
                     if (value !in elementsInSet) return AtomNode(value)
                     i++
                     if (i < 1) break

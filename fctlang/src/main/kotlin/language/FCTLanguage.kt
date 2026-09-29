@@ -140,7 +140,7 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
                 if (funconName == "atom") {
                     val expr = (parseTree.args() as SingleArgsContext).expr()
                     val value = (expr as SequenceExpressionContext).sequenceExpr().expr()[0].text
-                    atomNode(value)
+                    atomNode(value.unquoted())
                 } else {
                     val args = parseTree.args()
                     val children = when (args) {
@@ -229,3 +229,13 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
         }
     }
 }
+
+/**
+ * A STRING token's text carries its own delimiters, so `atom("@1")` arrives as
+ * `"@1"`. The atom's name is the string's *content*, matching the reference,
+ * which prints `atom(@1)` rather than `atom("@1")`. Without this, every atom
+ * built by a config carries quotes inside its identity, and no atom without
+ * quotes can be constructed at all.
+ */
+private fun String.unquoted(): String =
+    if (length >= 2 && startsWith("\"") && endsWith("\"")) substring(1, length - 1) else this
