@@ -84,18 +84,31 @@ output of the interpreter is noisy enough that reading the XML is faster.
 ## What the benchmark says
 
 `interpreter.Benchmark` runs the 161 `.config` programs two ways and reports the
-best of five attempts per program, so the numbers move only when something real
-changed. Measured on this machine, before any runtime work:
+best of five attempts per program. That is not enough to make the *total* a
+measurement on its own: a whole run varies by around 20% here, which is wider
+than most changes being made. Take the median of at least three full runs, and
+compare medians, before believing that anything got faster.
+
+Measured on this machine after `9c1e26d`, medians of three runs each:
 
 | | total | median | p90 |
 | --- | --- | --- | --- |
-| cold, a fresh `Context` per program | 1.25s | 5.1ms | 13.7ms |
-| shared, one `Context` re-parsed per program | 605ms | 2.3ms | 5.9ms |
+| cold, a fresh `Context` per program | 1.0s | 5.0ms | 12.5ms |
+| shared, one `Context` re-parsed per program | 480ms | 1.8ms | 5.8ms |
 
-Reusing one `Context` removes 52% of the total. That is the headroom, and it is
-mostly engine setup rather than funcon reduction, so it is the number to beat
+Reusing one `Context` removes about half the total. That is the headroom, and it
+is mostly engine setup rather than funcon reduction, so it is the number to beat
 before optimising anything inside the rewriter. The slowest programs are the same
 either way, and are all class and pattern work rather than I/O or `print`.
+
+Because the spread is that wide, a change has to be worth more than a few percent
+to be visible here at all. Replacing the per-class reflection in `NodeMeta` with
+metadata `trufflegen` writes (see `NodeMetasTest`, which checks the two agree for
+every generated class) changed nothing measurable: the same three runs, medians
+1.0s cold and 474ms shared. Reflection is not what the corpus spends its time on.
+The reflection that is left is `NodeFactory`'s `Class.forName` per node at parse
+time, which is on the cold path and is the next thing worth looking at.
+
 
 The same run reports a correctness fact that the timing does not: whether
 **every program survives a second evaluation in the same `Context`.** Evaluating an
@@ -166,9 +179,12 @@ regenerates the corpus and diffs it against a snapshot:
 ./trufflegen/verify.sh /path/to/baseline
 ```
 
-The baseline is 43 files. Any refactor of `trufflegen` has to leave that diff
+The baseline is 44 files. Any refactor of `trufflegen` has to leave that diff
 empty — running the generator and seeing it succeed is not evidence of anything,
-because a generator that emits different code still emits compiling code.
+because a generator that emits different code still emits compiling code. Review
+the diff with `diff -ru` before re-cutting it, and commit first: the snapshot is
+not in git, so re-cutting it is the only record that the output changed on
+purpose.
 
 The unit tests cover the two things a refactor can quietly break: `FunconTest`
 checks that every way of naming a funcon in the grammar resolves to the same

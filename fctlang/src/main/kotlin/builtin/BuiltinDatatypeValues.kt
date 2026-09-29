@@ -102,7 +102,7 @@ abstract class AbstractDatatypeValueNode(
     // `id` names the value's type, so it prints unquoted; `id.value` is the name
     // itself, whereas "$id" would now render as a quoted string.
     override fun toString() = when {
-        primaryCtor.parameters.isEmpty() -> id.value
+        paramCount == 0 -> id.value
         args.isNotEmpty() -> "${id.value}($args)"
         else -> "${id.value}()"
     }

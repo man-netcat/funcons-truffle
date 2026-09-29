@@ -7,7 +7,6 @@ import language.StuckException
 import language.checkEntitySnapshot
 import language.getEntities
 import language.restoreEntities
-import kotlin.reflect.KFunction
 import kotlin.reflect.KCallable
 
 @Suppress("UNCHECKED_CAST")
@@ -18,7 +17,8 @@ abstract class TermNode : Node() {
     /** Class-level reflection metadata, computed once per node class rather than per node. */
     private val meta: NodeMeta = NodeMetas.of(this)
 
-    val primaryCtor: KFunction<TermNode> get() = meta.primaryCtor
+    /** How many arguments this node's primary constructor takes. */
+    val paramCount: Int get() = meta.paramCount
 
     /** Only needed by [printTree], which is debug-only: keep the hierarchy walk off the hot path. */
     private val members: Collection<KCallable<*>> by lazy { this::class.members }
@@ -71,7 +71,7 @@ abstract class TermNode : Node() {
         val ps = params
         // Iterates constructor parameters, not ps: params drops non-TermNode arguments, so the two
         // can differ in length and the resulting index must stay aligned with the constructor.
-        (0 until meta.paramCount).map { index -> index to ps[index] }
+        (0 until paramCount).map { index -> index to ps[index] }
             .filter { (index, param) ->
                 (param is TupleElementsNode || meta.isEager(index)) && param.isReducible()
             }
@@ -129,7 +129,7 @@ abstract class TermNode : Node() {
         } else paramList
 
         // Return truncated param list
-        val truncated = newParams.take(meta.paramCount).toMutableList()
+        val truncated = newParams.take(paramCount).toMutableList()
         return truncated.toMutableList()
     }
 

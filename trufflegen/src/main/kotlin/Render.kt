@@ -54,6 +54,36 @@ fun renderFile(fileName: String, objects: Collection<Object>, included: Set<Obje
  *
  * @param included the objects to write, or null for all of them, as in [renderFile].
  */
+/**
+ * The node metadata for every generated class, as one Kotlin file.
+ *
+ * `builtin.NodeMeta` used to read a node's constructor shape reflectively, once per class and then
+ * on every call that creates or reads a node. The generator already knows each constructor when it
+ * writes the class, so it writes the description here instead: keyed by binary class name, built on
+ * demand, so a node class that is never used costs nothing. The node classes Truffle implements by
+ * hand are absent and are still read reflectively.
+ *
+ * @param included the objects to write, or null for all of them, as in [renderFile].
+ */
+fun renderNodeMetas(registry: Registry, included: Set<Object>?): String {
+    val stringBuilder = StringBuilder()
+
+    stringBuilder.appendLine("package generated")
+    stringBuilder.appendLine("import builtin.*")
+    stringBuilder.appendLine()
+
+    stringBuilder.appendLine("/** Written by trufflegen: a node's constructor shape, decided here rather than by reflection. */")
+    stringBuilder.appendLine("internal val nodeMetas: Map<String, () -> NodeMeta> = mapOf(")
+    registry.objects
+        .asSequence()
+        .filter { included == null || it in included }
+        .mapNotNull { it.nodeMetaEntry }
+        .joinToString(",\n    ", prefix = "    ", postfix = "\n)")
+        .let(stringBuilder::append)
+
+    return stringBuilder.toString()
+}
+
 fun renderAliases(registry: Registry, included: Set<Object>?): String {
     val stringBuilder = StringBuilder()
 

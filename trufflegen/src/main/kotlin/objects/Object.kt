@@ -64,18 +64,29 @@ abstract class Object(
     val hasSequence: Boolean by lazy { sequenceIndex >= 0 }
     val sequenceParam: Param? by lazy { if (hasSequence) params[sequenceIndex] else null }
 
-    private val paramStrs: List<String> by lazy {
+    /**
+     * The name of each constructor parameter, in order.
+     *
+     * The constructor and the [nodeMetaEntry] written beside it both read this, so the two cannot
+     * disagree about what the parameters are called.
+     */
+    val paramNames: List<String> by lazy {
         params.map { param ->
-            val annotation = makeAnnotation(
-                isVararg = param.type.isVararg,
-                isEntity = this !is EntityObject,
-                isEager = !param.type.computes
+            if (this is TypeObject || this is AlgebraicDatatypeObject) "${asVarName}Tp${param.index}"
+            else "p${param.index}"
+        }
+    }
+
+    private val paramStrs: List<String> by lazy {
+        params.mapIndexed { index, param ->
+                val annotation = makeAnnotation(
+                    isVararg = param.type.isVararg,
+                    isEntity = this !is EntityObject,
+                    isEager = !param.type.computes
             )
                 val paramTypeStr = if (param.type.isSequence) SEQUENCE else TERMNODE
             val default = "SequenceNode()"
-            val paramName =
-                if (this is TypeObject || this is AlgebraicDatatypeObject) "${asVarName}Tp${param.index}" else "p${param.index}"
-            makeParam(paramTypeStr, paramName, annotation, default)
+            makeParam(paramTypeStr, paramNames[index], annotation, default)
         }
     }
 
@@ -97,9 +108,50 @@ abstract class Object(
     val interfaceName = toInterfaceName(name)
     val asVarName = toVariableName(name)
 
+    /** The name of the class [makeCode] writes, which is not a node class for an entity. */
+    val className: String by lazy { if (this is EntityObject) entityName else nodeName }
+
+    /**
+     * This object's entry in the generated node metadata map, or null when it writes no class.
+     *
+     * The map is what lets a generated node be created and read without reflection, so it has to
+     * describe the same constructor the class is given: the arguments in order, which of them are
+     * passed by value, and which is the sequence one. A generated constructor takes only `TermNode`s
+     * and no literals, so the children are all of its arguments, and an argument declared as a
+     * `SequenceNode` has to be cast back to one when the node is rebuilt.
+     */
+    val nodeMetaEntry: String? by lazy {
+        if (builtin || this is EntityObject) {
+            null
+        } else {
+            val count = params.size
+            val eager = params.mapIndexedNotNull { index, param ->
+                if (!param.type.computes) index else null
+            }
+            val eagerSet = if (eager.isEmpty()) "emptySet()" else eager.joinToString(", ", "setOf(", ")")
+
+            val children = if (count == 0) {
+                "emptyList()"
+            } else {
+                "val node = n as $className; listOf(${paramNames.joinToString(", ") { "node.$it" }})"
+            }
+            val build = if (count == 0) {
+                "$className()"
+            } else {
+                val args = params.mapIndexed { index, param ->
+                    val type = if (param.type.isSequence) SEQUENCE else TERMNODE
+                    "a[$index] as $type"
+                }
+                "$className(${args.joinToString(", ")})"
+            }
+
+            """"generated.$className" to { GeneratedNodeMeta($count, $sequenceIndex, $eagerSet, { n -> $children }, { a -> $build }) }"""
+        }
+    }
+
     fun makeCode(): String {
         return if (!builtin) makeClass(
-            if (this is EntityObject) entityName else nodeName,
+            className,
             content = contentStr,
             constructorArgs = paramStrs,
             superClass = superClassStr,

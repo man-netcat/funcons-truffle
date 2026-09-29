@@ -17,6 +17,7 @@ dependencies {
     implementation(libs.kotlin.reflect)
     kapt(libs.truffle.dsl.processor)
     testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 sourceSets["main"].kotlin {

@@ -133,7 +133,10 @@ class TruffleGen(
             GeneratedFile(name.removeSuffix(".cbs") + ".kt", code)
         }
 
-        return generated + GeneratedFile("Aliases.kt", renderAliases(corpus.registry, included))
+        return generated + listOf(
+            GeneratedFile("Aliases.kt", renderAliases(corpus.registry, included)),
+            GeneratedFile("NodeMetas.kt", renderNodeMetas(corpus.registry, included)),
+        )
     }
 
     private fun writeAll(dir: File, generated: List<GeneratedFile>) {
