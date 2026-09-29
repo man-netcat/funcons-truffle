@@ -100,9 +100,7 @@ abstract class Object(
     fun makeCode(): String {
         return if (!builtin) makeClass(
             if (this is EntityObject) entityName else nodeName,
-            content = listOf(
-                contentStr
-            ).joinToString("\n"),
+            content = contentStr,
             constructorArgs = paramStrs,
             superClass = superClassStr,
             keywords = keyWords,

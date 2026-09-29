@@ -42,16 +42,16 @@ class MetavariablesTest {
     }
 
     /**
-     * Builds through `CBSFile`, because the ordering being tested is the visitor's,
-     * not the parse tree's. `contentStr` is read on purpose: the rules of a
-     * funcon are built when its code is asked for, not when the object is
+     * Builds through `ObjectCollector`, because the ordering being tested is the
+     * visitor's, not the parse tree's. `contentStr` is read on purpose: the rules
+     * of a funcon are built when its code is asked for, not when the object is
      * constructed, so a test that only counts them never reaches the failure.
      */
     private fun generatedCodeFor(source: String): String {
-        val file = CBSFile("test.cbs", Registry(emptySet()))
-        file.collect(parseCbs(source))
+        val collector = ObjectCollector(Registry(emptySet()))
+        collector.collect(parseCbs(source))
 
-        val id = file.objects.filterIsInstance<FunconObject>().single()
+        val id = collector.objects.filterIsInstance<FunconObject>().single()
         assertEquals(setOf("T"), id.metavariableMap.keys)
         return id.contentStr
     }

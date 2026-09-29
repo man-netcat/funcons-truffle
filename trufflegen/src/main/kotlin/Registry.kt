@@ -26,6 +26,15 @@ class Registry(private val builtins: Set<String>) {
     private val byName = mutableMapOf<String, Object>()
     private val bySupertype = mutableMapOf<String, MutableList<TypeObject>>()
 
+    /**
+     * Every object once, in the order the files declared them.
+     *
+     * An object is looked up by each of its aliases but exists once, so this is
+     * kept alongside [byName] rather than derived from it: `byName.values` holds
+     * one entry per alias and would have to be de-duplicated on every read.
+     */
+    private val registered = mutableListOf<Object>()
+
     /** Registers an object under its own name and under each of its aliases. */
     fun add(obj: Object) {
         byName[obj.name] = obj
@@ -33,14 +42,10 @@ class Registry(private val builtins: Set<String>) {
         if (obj is TypeObject && obj.supertypeName != null) {
             bySupertype.getOrPut(obj.supertypeName!!) { mutableListOf() }.add(obj)
         }
+        registered.add(obj)
     }
 
-    /**
-     * Every distinct object registered, in registration order.
-     *
-     * An object is registered once per alias, so the values are de-duplicated.
-     */
-    val objects: Collection<Object> get() = byName.values.toSet()
+    val objects: List<Object> get() = registered
 
     operator fun get(name: String): Object? = byName[name]
 

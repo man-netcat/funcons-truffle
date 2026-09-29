@@ -8,14 +8,14 @@ import objects.FunconObject
 import org.antlr.v4.runtime.ParserRuleContext
 
 /**
- * One `.cbs` file of the corpus, and the objects it declares.
+ * Reads one `.cbs` file and adds the objects it declares to the registry.
  *
  * @param registry every object in the corpus, which this file's objects are added
  * to and resolved against. A file does not own the corpus: a rule in one file may
  * name a funcon declared in another, and the order the files are read in is the
  * order the directory walk happens to produce.
  */
-class CBSFile(private val fileName: String, private val registry: Registry) : CBSBaseVisitor<Unit>() {
+class ObjectCollector(private val registry: Registry) : CBSBaseVisitor<Unit>() {
 
     /** The objects this file declared, under their own names and their aliases. */
     val objects: MutableSet<Object> = mutableSetOf()
@@ -120,38 +120,4 @@ class CBSFile(private val fileName: String, private val registry: Registry) : CB
 
     override fun visitContextualEntityDefinition(ctx: ContextualEntityDefinitionContext) =
         processEntityDefinition(ctx)
-
-    fun generateCode(generatedDependencies: Set<Object>): String? {
-        val included = generatedDependencies.ifEmpty { registry.objects }
-        val toProcess = objects.filter { it in included }
-
-        if (toProcess.isEmpty()) return null
-
-        val stringBuilder = StringBuilder()
-
-        stringBuilder.appendLine("package generated")
-        stringBuilder.appendLine()
-
-        val imports = listOf(
-            "language.*",
-            "builtin.*",
-            "com.oracle.truffle.api.frame.VirtualFrame",
-        )
-        imports.forEach { stringBuilder.appendLine("import $it") }
-        stringBuilder.appendLine()
-
-        for (obj in toProcess) {
-            if (obj is EntityObject) continue
-            println("\nGenerating code for ${obj::class.simpleName} ${obj.name} (File $fileName)")
-            val code = obj.makeCode()
-            stringBuilder.appendLine()
-            stringBuilder.appendLine(code)
-            if (obj.elementInBody.isNotEmpty()) {
-                stringBuilder.appendLine()
-                stringBuilder.appendLine(obj.elementInBody)
-            }
-        }
-
-        return stringBuilder.toString().trim()
-    }
 }

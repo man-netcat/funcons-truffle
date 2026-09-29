@@ -35,13 +35,26 @@ private val builtinOverride = setOf(
     "tuple-elements",                          // Must be unpacked manually
 )
 
-class TruffleGen(private val cbsDir: File) {
+class TruffleGen(
+    private val cbsDir: File,
+    private val outputDir: File = File("../fctlang/src/main/kotlin/generated"),
+) {
     private val registry = Registry(builtinOverride)
-    private val cbsFiles: MutableMap<String, CBSFile> = mutableMapOf()
+    private val fileObjects: MutableMap<String, MutableSet<Object>> = mutableMapOf()
     private var cbsParseTrees = mutableMapOf<String, CBSParser.RootContext>()
     private val fctParseTrees = mutableMapOf<String, FCTParser.RootContext>()
     private var indexParseTree: CBSParser.RootContext? = null
-    private val generatedDependencies = mutableSetOf<Object>()
+
+    /**
+     * The objects reachable from the entry points, or null while the dependency
+     * pass is off.
+     *
+     * `generateDependencies` is not called, so this stays null and every object is
+     * written. It is null rather than an empty set because those are different
+     * requests: with the pass on and nothing reachable, no code should be written
+     * at all, which an empty set that also meant "everything" could not express.
+     */
+    private var generatedDependencies: Set<Object>? = null
 
     fun process() {
         // First generate the parse trees for all .cbs files
@@ -77,10 +90,10 @@ class TruffleGen(private val cbsDir: File) {
     private fun generateObjects() {
         cbsParseTrees.forEach { (name, root) ->
             println("Generating objects for file $name...")
-            val cbsFile = CBSFile(name, registry)
-            cbsFile.collect(root)
-            if (cbsFile.objects.isNotEmpty()) {
-                cbsFiles[name] = cbsFile
+            val collector = ObjectCollector(registry)
+            collector.collect(root)
+            if (collector.objects.isNotEmpty()) {
+                fileObjects[name] = collector.objects
             }
         }
     }
@@ -111,8 +124,8 @@ class TruffleGen(private val cbsDir: File) {
             }.distinct()
         }
 
-        cbsFiles.values.forEach { file ->
-            file.objects.forEach { obj ->
+        fileObjects.values.forEach { objects ->
+            objects.forEach { obj ->
                 println("Generating object dependencies for object ${obj.name}...")
                 fun visitDependencies(obj: Object) {
                     val visitor = CBSDependencyVisitor()
@@ -145,9 +158,11 @@ class TruffleGen(private val cbsDir: File) {
             }
         }
 
+        val reachable = mutableSetOf<Object>()
+
         fun visitObject(obj: Object) {
-            if (obj !in generatedDependencies) {
-                generatedDependencies.add(obj)
+            if (obj !in reachable) {
+                reachable.add(obj)
                 obj.dependencies.forEach { visitObject(it) }
             }
         }
@@ -155,21 +170,22 @@ class TruffleGen(private val cbsDir: File) {
         usedFuncons.forEach { name ->
             registry[name]?.let { visitObject(it) }
         }
+
+        generatedDependencies = reachable
     }
 
     private fun generateCode() {
-        val hardcodedOutputDir = File("../fctlang/src/main/kotlin/generated")
-        if (!hardcodedOutputDir.exists()) {
-            hardcodedOutputDir.mkdirs()
+        if (!outputDir.exists()) {
+            outputDir.mkdirs()
         }
 
         // Generate CBS files
-        cbsFiles.forEach { (name, file) ->
+        fileObjects.forEach { (name, objects) ->
             println("Generating code for file $name...")
-            val code = file.generateCode(generatedDependencies)
+            val code = renderFile(name, objects, generatedDependencies)
             if (code != null) {
                 val fileNameWithoutExtension = name.removeSuffix(".cbs")
-                val filePath = File(hardcodedOutputDir, "$fileNameWithoutExtension.kt")
+                val filePath = File(outputDir, "$fileNameWithoutExtension.kt")
                 filePath.bufferedWriter().use { writer ->
                     writer.write(code)
                     writer.flush()
@@ -178,7 +194,7 @@ class TruffleGen(private val cbsDir: File) {
         }
 
         // Generate alias file
-        val aliasFilePath = File(hardcodedOutputDir, "Aliases.kt")
+        val aliasFilePath = File(outputDir, "Aliases.kt")
         val stringBuilder = StringBuilder()
 
         stringBuilder.appendLine("package generated")
@@ -187,8 +203,9 @@ class TruffleGen(private val cbsDir: File) {
         stringBuilder.appendLine()
 
         stringBuilder.appendLine("val aliasMap: Map<String, String> = mapOf(")
-        val objectsToProcess = if (generatedDependencies.isNotEmpty()) {
-            registry.objects.filter { obj -> obj in generatedDependencies && obj !is EntityObject }
+        val included = generatedDependencies
+        val objectsToProcess = if (included != null) {
+            registry.objects.filter { obj -> obj in included && obj !is EntityObject }
         } else registry.objects.filter { obj -> obj !is EntityObject }
 
         objectsToProcess.flatMap { obj ->
