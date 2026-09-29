@@ -5,6 +5,7 @@ import cbs.CBSParser.ExprContext
 import main.makeFunCall
 import main.makeIsInTypeFunction
 import main.makeTypeCondition
+import main.withSubtypesOf
 import main.toNodeName
 import objects.DatatypeFunconObject
 
@@ -21,7 +22,7 @@ class AlgebraicDatatypeObject(
     val elementInBody: String
         get() {
             val conditionStr = makeTypeCondition("this", definitionExpr)
-            return makeIsInTypeFunction(camelCaseName, "return $conditionStr")
+            return makeIsInTypeFunction(camelCaseName, "return ${withSubtypesOf(name, conditionStr)}")
         }
 }
 

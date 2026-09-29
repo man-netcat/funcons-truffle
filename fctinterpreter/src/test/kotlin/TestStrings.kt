@@ -70,6 +70,14 @@ class TestStrings {
         assertEquals("\"null-value\"", eval("datatype-value-id(null-value)"))
     }
 
+    @Test
+    fun `a string counts as a list, which Strings cbs declares`() {
+        // `isIn<lists>` used to recognise only `ValueListNode`, so a string was
+        // not a list and every `lists` funcon was stuck on one. This is the
+        // single-argument `list-append(L:lists(_)) ~> L` rule.
+        assertEquals("\"a\"", eval("list-append(\"a\")"))
+    }
+
     private fun assertEquals(expected: String, actual: String) =
         Assertions.assertEquals(expected, actual)
 }

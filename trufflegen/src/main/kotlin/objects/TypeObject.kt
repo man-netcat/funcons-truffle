@@ -9,6 +9,13 @@ class TypeObject(
     metaVariables: Set<Pair<ExprContext, ExprContext>>,
 ) : Object(ctx, metaVariables) {
     val operator = ctx.op?.text
+    /**
+     * The type this one is declared a subtype of, for `Type N ~> T`. CBS treats
+     * that as "N is a T", so `isIn<T>()` has to accept N's values too.
+     */
+    val supertypeName: String? =
+        if (operator == "~>") (ctx.definition as? FunconExpressionContext)?.name?.text else null
+
     override val keyWords: List<String> = listOf("open")
     private val definitionExpr = ctx.definition
     override val superClassStr: String
@@ -68,6 +75,6 @@ class TypeObject(
     val elementInBody: String
         get() = if (definitionExpr != null && name !in builtinOverride) {
             val conditionStr = makeTypeCondition("this", definitionExpr)
-            makeIsInTypeFunction(camelCaseName, "return $conditionStr")
+            makeIsInTypeFunction(camelCaseName, "return ${withSubtypesOf(name, conditionStr)}")
         } else ""
 }

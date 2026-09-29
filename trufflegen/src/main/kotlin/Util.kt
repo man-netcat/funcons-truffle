@@ -464,6 +464,25 @@ fun getObject(definition: ParseTree): Object {
     return globalObjects[name]!!
 }
 
+/**
+ * Widens an `isIn<T>()` condition to also accept the values of every type CBS
+ * declares a subtype of `T` with `Type N ~> T`.
+ *
+ * A datatype's own condition only knows its constructors, so `lists` matched
+ * `ValueListNode` alone and a `StringLiteralNode` was rejected even though
+ * `Strings.cbs` declares `strings ~> lists(characters)`. Every `lists` funcon
+ * was then stuck on strings: `list-append("a","b")` reduced to
+ * `StuckException` where the reference gives `"ab"`.
+ */
+fun withSubtypesOf(typeName: String, condition: String): String {
+    val subtypeConditions = globalObjects.values
+        .filterIsInstance<TypeObject>()
+        .filter { it.supertypeName == typeName }
+        .map { "this is ${it.nodeName}" }
+        .distinct()
+    return (listOf(condition) + subtypeConditions).joinToString(" || ")
+}
+
 fun makeTypeCondition(paramStr: String, typeExpr: ExprContext): String {
     val (coreExpr, isComplement) = when (typeExpr) {
         is ComplementExpressionContext -> typeExpr.expr() to true

@@ -55,9 +55,13 @@ class StringLiteralNode(override val value: String) : StringsNode() {
 
 open class StringsNode : ListsNode(CharactersNode())
 
-fun TermNode.isInStrings(): Boolean {
-    return (this.isInLists() && this.get(0).elements.all { it.isInCharacters() }) || this is StringLiteralNode
-}
+/**
+ * A string is a list of characters, so it has to be recognised before the
+ * `lists` fallback: `StringLiteralNode`'s child 0 is the `lists` type
+ * argument, not the characters, and reading it as a sequence aborts.
+ */
+fun TermNode.isInStrings(): Boolean = this is StringLiteralNode ||
+    (this.isInLists() && this.get(0).elements.all { it.isInCharacters() })
 
 open class AtomsNode : GroundValuesNode(), AtomsInterface
 
