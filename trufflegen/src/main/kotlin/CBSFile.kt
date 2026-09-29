@@ -20,17 +20,34 @@ class CBSFile(private val fileName: String, private val registry: Registry) : CB
     /** The objects this file declared, under their own names and their aliases. */
     val objects: MutableSet<Object> = mutableSetOf()
 
-    private var fileMetavariables: Set<Pair<ExprContext, ExprContext>> = emptySet()
+    private lateinit var fileMetavariables: Set<Pair<ExprContext, ExprContext>>
 
     private fun addObjectReference(obj: Object) {
         objects.add(obj)
         registry.add(obj)
     }
 
-    override fun visitMetavariablesDefinition(ctx: MetavariablesDefinitionContext) {
-        fileMetavariables = ctx.metavarDef().flatMap { def ->
-            def.variables.expr().mapNotNull { metaVar -> metaVar to def.supertype }
-        }.filter { (varName, _) -> varName is VariableContext }.toSet()
+    /**
+     * Reads the metavariables, then the definitions.
+     *
+     * The metavariables have to be read first because a rule can use one that its
+     * own file declares further down: CBS makes a metavariable visible to its whole
+     * file, not only to what follows the block. Letting the visitor fill the map in
+     * as it walked meant the order of the two decided which rules could see a
+     * metavariable, which nothing in the types said.
+     */
+    fun collect(root: RootContext) {
+        fileMetavariables = root.children
+            .filterIsInstance<MetavariablesDefinitionContext>()
+            .flatMap { ctx ->
+                ctx.metavarDef().flatMap { def ->
+                    def.variables.expr().mapNotNull { metaVar -> metaVar to def.supertype }
+                }
+            }
+            .filter { (varName, _) -> varName is VariableContext }
+            .toSet()
+
+        visit(root)
     }
 
     override fun visitFunconDefinition(ctx: FunconDefinitionContext) {

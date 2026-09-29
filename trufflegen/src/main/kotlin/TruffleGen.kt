@@ -78,7 +78,7 @@ class TruffleGen(private val cbsDir: File) {
         cbsParseTrees.forEach { (name, root) ->
             println("Generating objects for file $name...")
             val cbsFile = CBSFile(name, registry)
-            cbsFile.visit(root)
+            cbsFile.collect(root)
             if (cbsFile.objects.isNotEmpty()) {
                 cbsFiles[name] = cbsFile
             }
