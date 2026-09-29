@@ -18,7 +18,9 @@ class UnicodeCharactersNode : CharactersNode(), UnicodeCharactersInterface
 
 class UnicodeCharacterNode(override val p0: TermNode) : TermNode(), UnicodeCharacterInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
-        TODO("Not yet implemented: $name")
+        // Not implemented yet. Degrade to stuck rather than throwing NotImplementedError,
+        // which would abort the whole context instead of just failing this term.
+        abort()
     }
 }
 

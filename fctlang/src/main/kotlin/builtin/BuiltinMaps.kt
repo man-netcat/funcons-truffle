@@ -58,6 +58,10 @@ fun TermNode.isInMaps(): Boolean = this is ValueMapNode
 
 class MapNode(@Eager @Child override var p0: SequenceNode = SequenceNode()) : TermNode(), MapInterface {
     override fun reduceRules(frame: VirtualFrame): TermNode {
+        val keys = LinkedHashSet<TermNode>()
+        for (tuple in p0.elements) {
+            if (!keys.add(tuple.extractKey())) return SequenceNode()
+        }
         return ValueMapNode(p0)
     }
 }

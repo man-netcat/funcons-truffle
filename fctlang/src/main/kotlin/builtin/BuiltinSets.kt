@@ -17,6 +17,10 @@ data class ValueSetNode(@Child var vp0: SequenceNode = SequenceNode()) : SetsNod
 
 open class SetsNode(@Child var setsTp0: TermNode) : DatatypeValuesNode(), SetsInterface
 
+class SetEmptyNode : TermNode() {
+    override fun reduceRules(frame: VirtualFrame): TermNode = ValueSetNode()
+}
+
 fun TermNode.isInSets(): Boolean {
     return this::class in setOf(ValueSetNode::class)
 }

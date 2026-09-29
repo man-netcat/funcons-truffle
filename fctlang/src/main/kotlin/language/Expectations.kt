@@ -132,6 +132,7 @@ object CbsStructure {
             return CbsValue.Seq(splitTopLevel(text.substring(1, text.length - 1)).map { parseValue(it) })
         }
         if (text == "set()") return CbsValue.Set(emptyList())
+        if (text == "set-empty") return CbsValue.Set(emptyList())
         if (text == "map-empty") return CbsValue.Apply("map", emptyList())
         if (text == "null") return CbsValue.Atom("null-value")
         applicationOf(text)?.let { (name, args) -> return CbsValue.Apply(name, args) }

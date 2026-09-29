@@ -15,11 +15,17 @@ import fct.FCTLexer
 import fct.FCTParser
 import fct.FCTParser.*
 import language.NodeFactory.createNode
+import org.antlr.v4.runtime.BaseErrorListener
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import org.antlr.v4.runtime.ParserRuleContext
+import org.antlr.v4.runtime.RecognitionException
+import org.antlr.v4.runtime.Recognizer
 import org.antlr.v4.runtime.misc.Interval
 import org.antlr.v4.runtime.tree.ParseTree
+
+class FCTSyntaxException(message: String, cause: RecognitionException?) :
+    RuntimeException(message, cause)
 
 @TruffleLanguage.Registration(
     id = FCTLanguage.LANGUAGE_ID,
@@ -36,7 +42,27 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
 
     override fun parse(request: ParsingRequest): CallTarget {
         val code = request.source.characters.toString()
-        val parser = FCTParser(CommonTokenStream(FCTLexer(CharStreams.fromString(code))))
+        val lexer = FCTLexer(CharStreams.fromString(code))
+        val parser = FCTParser(CommonTokenStream(lexer))
+        // ANTLR's default strategy recovers from syntax errors and hands back a partial
+        // tree, so malformed input like `abstraction 12 |-> 13` silently evaluated to
+        // `abstraction(12)`. Fail loudly instead of quietly evaluating something else.
+        val errorListener = object : BaseErrorListener() {
+            override fun syntaxError(
+                recognizer: Recognizer<*, *>?,
+                offendingSymbol: Any?,
+                line: Int,
+                charPositionInLine: Int,
+                msg: String,
+                e: RecognitionException?
+            ) {
+                throw FCTSyntaxException("line $line:$charPositionInLine $msg", e)
+            }
+        }
+        lexer.removeErrorListeners()
+        lexer.addErrorListener(errorListener)
+        parser.removeErrorListeners()
+        parser.addErrorListener(errorListener)
         val root = parser.root()
 
         val expectations = (root as? ConfigFileContext)?.testsBlock()
