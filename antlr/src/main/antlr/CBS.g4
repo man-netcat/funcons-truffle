@@ -28,9 +28,9 @@ metavarDef
    ;
 
 object
-   : (modifier = (BUILTIN | AUXILIARY)? FUNCON name = IDENTIFIER ('(' params ')')? COLON returnType = expr (REWRITE rewritesTo = expr)? (ALIAS aliasDefinition | RULE ruleDefinition | ASSERT assertDefinition)*) # FunconDefinition
+   : (modifier = (BUILTIN | AUXILIARY)? FUNCON name = IDENTIFIER ('(' params ')')? (COLON returnType = expr)? (REWRITE rewritesTo = expr)? (ALIAS aliasDefinition | RULE ruleDefinition | ASSERT assertDefinition)*) # FunconDefinition
    | (modifier = BUILTIN? DATATYPE name = IDENTIFIER ('(' params ')')? op = ('::=' | SUBTYPE) definition = expr (ALIAS aliasDefinition | ASSERT assertDefinition)*) # DatatypeDefinition
-   | (modifier = BUILTIN? TYPE name = IDENTIFIER ('(' params ')')? (op = (REWRITE | SUBTYPE) definition = expr)? (ALIAS aliasDefinition)*) # TypeDefinition
+   | (modifier = (BUILTIN | AUXILIARY)? TYPE name = IDENTIFIER ('(' params ')')? (op = (REWRITE | SUBTYPE) definition = expr)? (ALIAS aliasDefinition)*) # TypeDefinition
    | METAVARIABLES metavarDef+ # MetavariablesDefinition
    | ENTITY VARIABLE '--' (name = IDENTIFIER polarity = ('!' | '?')? ('(' params ')')?) '->' VARIABLE (ALIAS aliasDefinition)* # ControlEntityDefinition
    | ENTITY def = '<' VARIABLE ',' (name = IDENTIFIER ('(' lhs = params) ')')? '>' TRANSITION '<' VARIABLE ',' (IDENTIFIER ('(' rhs = params ')')?) '>' (ALIAS aliasDefinition)* # MutableEntityDefinition
@@ -188,6 +188,13 @@ COMMENT
 
 BLOCKCOMMENT
    : '/*' .*? '*/' -> skip
+   ;
+
+// A line comment. `/` is not an operator, so this cannot shadow anything, and a
+// `//` inside a string is still the longer match. Unstable-Funcons-beta uses this
+// form; the stable corpus only ever writes `#` and `/* */`.
+LINECOMMENT
+   : '//' ~ [\r\n]* -> skip
    ;
 
 STRING

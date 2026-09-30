@@ -2,6 +2,7 @@ package main
 
 import cbs.CBSParser.*
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 /**
@@ -40,6 +41,35 @@ class FunconTest {
             listOf("q", "r"),
             funconOf(node<FunconDefinitionContext>("Funcon f : value-types Alias q = f Alias r = f")).aliases
         )
+    }
+
+    @Test
+    fun funconRewriteWithoutReturnTypeTest() {
+        // A funcon written as `F ~> term` is that term, and the return type is
+        // optional there. The stable corpus always writes both, so a grammar that
+        // made `:` mandatory parsed the stable corpus and rejected this. Unstable
+        // uses the shorter form (Synchronising.cbs declares `sync-create` that way).
+        val ctx = node<FunconDefinitionContext>("Funcon f ~> g")
+        assertNull(ctx.returnType)
+        assertEquals("g", ctx.rewritesTo.text)
+    }
+
+    @Test
+    fun auxiliaryTypeModifierTest() {
+        // `Auxiliary` is a modifier of a Type as well as of a Funcon, and both
+        // appear in Unstable-Funcons-beta. Only `Built-in` was accepted before,
+        // so `Auxiliary Type rendezvous-waits ~> nats` was a syntax error.
+        val ctx = node<TypeDefinitionContext>("Auxiliary Type t ~> maps(a, b)")
+        assertEquals("Auxiliary", ctx.modifier.text)
+        assertEquals("maps(a,b)", ctx.definition.text)
+    }
+
+    @Test
+    fun typeStillRejectsReturnTypeColonTest() {
+        // The return type is a Funcon's, not a Type's. Making `COLON` optional
+        // above must not make `Type t : x` parse, or `:` would silently vanish
+        // for every declaration that follows it.
+        assertEquals(1, syntaxErrors("Type t : maps(a, b)"))
     }
 
     @Test

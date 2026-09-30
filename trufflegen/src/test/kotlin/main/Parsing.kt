@@ -17,6 +17,19 @@ import org.antlr.v4.runtime.ParserRuleContext
 internal fun parseCbs(source: String): CBSParser.RootContext =
     CBSParser(CommonTokenStream(CBSLexer(CharStreams.fromString(source)))).root()
 
+/**
+ * How many syntax errors the grammar reports for [source].
+ *
+ * A parse tree can be built from a source the grammar rejected, since ANTLR
+ * recovers and keeps going, so checking that a declaration parsed is not enough
+ * to know that it parsed the way it was written.
+ */
+internal fun syntaxErrors(source: String): Int {
+    val parser = CBSParser(CommonTokenStream(CBSLexer(CharStreams.fromString(source))))
+    parser.root()
+    return parser.numberOfSyntaxErrors
+}
+
 /** The nth declaration in [source], as the context type it actually parses as. */
 internal fun <T : ParserRuleContext> node(source: String, index: Int = 0): T {
     // `root` is a sequence of `index` and `object`, so the declarations are
