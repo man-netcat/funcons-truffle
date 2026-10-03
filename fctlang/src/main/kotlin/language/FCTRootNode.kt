@@ -11,9 +11,11 @@ class FCTRootNode(
     frameDescriptor: FrameDescriptor,
     @Child private var rootTerm: TermNode,
     val inputNodes: Array<TermNode>,
-    private val expectations: TestExpectations
+    private val expectations: TestExpectations,
+    private val refocus: Boolean = true
 ) : RootNode(language, frameDescriptor) {
     override fun execute(frame: VirtualFrame): ResultArray {
+        frame.setBoolean(FCTLanguage.REFOCUS_SLOT, refocus)
         val standardInNode = SequenceNode(*inputNodes)
         appendEntity(frame, "standard-in", standardInNode)
         val resultTerm = rootTerm.rewrite(frame)

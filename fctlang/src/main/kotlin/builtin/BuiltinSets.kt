@@ -75,6 +75,27 @@ class SetUniteNode(@Eager @Child override var p0: SequenceNode) : TermNode(), Se
     }
 }
 
+class SetIntersectNode(@Eager @Child override var p0: SequenceNode) : TermNode(), SetIntersectInterface {
+
+    override fun reduceRules(frame: VirtualFrame): TermNode {
+        val sets = get(0).elements
+
+        if (sets.isEmpty()) abort()
+        for (set in sets) {
+            if (set !is ValueSetNode) abort()
+        }
+
+        // Every element of the first set that is in all of the others, kept in the
+        // order of the first, as `set-intersect` is specified to return.
+        val resultSet = LinkedHashSet<TermNode>()
+        for (element in sets.first().get(0).elements) {
+            if (sets.all { element in it.get(0).elements }) resultSet.add(element)
+        }
+
+        return ValueSetNode(SequenceNode(*resultSet.toTypedArray()))
+    }
+}
+
 class SetSizeNode(
     @Eager @Child override var p0: TermNode
 ) : TermNode(), SetSizeInterface {

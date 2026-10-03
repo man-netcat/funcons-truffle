@@ -4,8 +4,9 @@ import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.nodes.Node
 import generated.*
 import language.StuckException
-import language.checkEntitySnapshot
 import language.getEntities
+import language.RefocusBoundary
+import language.refocusEnabled
 import language.restoreEntities
 import kotlin.reflect.KCallable
 
@@ -39,7 +40,8 @@ abstract class TermNode : Node() {
 
     open fun isReducible(): Boolean = this !is ValuesNode
 
-    internal fun rewrite(frame: VirtualFrame): TermNode {
+    // Public because generated unstable funcons live in a separate module and call these directly.
+    fun rewrite(frame: VirtualFrame): TermNode {
         var term = this
         while (term.isReducible()) {
             term = term.reduceStep(frame)
@@ -47,19 +49,47 @@ abstract class TermNode : Node() {
         return term
     }
 
-    internal fun reduce(frame: VirtualFrame): TermNode {
-        val bigStep = false
+/*
+      One step, and that is all the premises a generated step body may take.
 
-        var term = this
-        return if (bigStep) {
-            var snapshot: Map<String, TermNode>
-            while (term.isReducible()) {
-                snapshot = getEntities(frame).toMap()
-                term = term.reduceStep(frame)
-                if (!checkEntitySnapshot(frame, snapshot)) break
-            }
-            term
-        } else term.reduceStep(frame)
+      Refocussing these needs two things this runtime does not have yet. [AtomicNode] is
+      one: it hand-rolls the refocussing loop the reference gets from `premise`, stepping
+      its body once, clearing `yielded`, and stepping again, so a refocussing `reduce`
+      would step past the point where it checks for the signal and it aborts. [PostponeNode]
+      is the other: it stores the result of a premise in the `postponing` entity, and gets
+      a suspended term rather than a value only because one step cannot reach the inner
+      `postpone`. The reference gets both for free, because `premise`'s guard stops at the
+      raised control signal; here the guard has nothing to stop at until `trufflegen` emits
+      the clear-before / receive-after protocol that `withControlTerm` and `receiveSignals`
+      compile to. `TestAtomic` and the `postpone-after-effect` configs are what pin this.
+     */
+    fun reduce(frame: VirtualFrame): TermNode = reduceStep(frame)
+
+    /*
+      One step, then further steps for as long as the entities the caller still has to read
+      stay where they were. This is refocussing.
+
+      funcons-tools does it in `premise`: step, rewrite the result, step it again with the
+      result's own stepper, stopping at the boundary described on [RefocusBoundary].
+      funcons-intgen bakes the same thing into a generated step as a second premise that
+      refocuses on the first premise's result. Neither refocusses the top-level step, which
+      is why [rewrite] keeps its unguarded loop.
+
+      `StuckNode` is reducible under [isReducible] but aborts when stepped, so it is
+      excluded explicitly. `AbruptNode` is the only thing that returns one, and it raises
+      `abrupted` first, so the boundary already stops us on the way; the check keeps that
+      from depending on the order of the two.
+     */
+    fun refocus(frame: VirtualFrame): TermNode {
+        if (!refocusEnabled(frame)) return reduceStep(frame)
+
+        var term: TermNode = this
+        while (term.isReducible() && term !is StuckInterface) {
+            val boundary = RefocusBoundary.take(frame)
+            term = term.reduceStep(frame)
+            if (boundary.steppedOverBoundary(frame)) break
+        }
+        return term
     }
 
     private fun reduceStep(frame: VirtualFrame): TermNode {
@@ -86,7 +116,7 @@ abstract class TermNode : Node() {
 
         for ((index, param) in reducible) {
             try {
-                val reduced = param.reduce(frame)
+                val reduced = param.refocus(frame)
                 if (reduced is UnpackableTupleNode) {
                     // In the case this is a fully reduced tuple-elements node, we must unpack it
                     newParams = unpackTupleElements(index, reduced)
@@ -224,7 +254,18 @@ abstract class TermNode : Node() {
                     }
             }
 
-            type::class == DatatypeValuesNode::class -> this.isInDatatypeValues()
+            /*
+              A datatype name is a subclass of `DatatypeValuesNode` -- `thread-ids`
+              is a `ThreadIdsNode`, `sync-features` a `SyncFeaturesNode` -- and
+              `is-in-type` reaches here with the name, because the unstable corpus
+              allocates a variable of a datatype: `allocate-variable(thread-ids)`
+              for the holder of a mutex. Testing the class exactly left every one of
+              them at the `abort` below, and `is-in-type(thread-id(@1), thread-ids)`
+              stuck, which took out every lock that records its holder. Nothing in
+              the stable corpus got this far: a datatype name matched no branch, so
+              the `abort` was the only answer it could ever have had.
+             */
+            type is DatatypeValuesNode -> this.isInDatatypeValues()
             type::class == ValueTypesNode::class -> this.isInValueTypes()
             // TODO: Check if everything is here. May need to figure out way to automate this
             else -> abort("Unexpected type: $type")

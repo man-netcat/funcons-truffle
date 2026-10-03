@@ -14,6 +14,8 @@ import objects.DatatypeFunconObject
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import java.io.File
+import java.nio.file.FileVisitOption
+import java.nio.file.Files
 
 /**
  * Names the corpus declares but Truffle implements differently, so no node class
@@ -30,6 +32,16 @@ private val builtinOverride = setOf(
     "read", "print",                           // Input/Output
     "hole", "resume-continuation",             // Read-only control entity
     "atomic",                                  // Atomic
+    /*
+      `thread-atomic` is `atomic` under the name the thread library uses. Its rules
+      are written with `--->1 ; --->2`, which composes two transitions; the corpus
+      says so itself -- "when the CBS notation `--->1 ; --->2` ... has been
+      implemented by the interpreter generation tools, uses of `thread-atomic(X)`
+      are to be replaced by `atomic(X)`". Generated, the composition became a rule
+      whose body steps `thread-atomic(X')`, so reducing a body of any depth recursed
+      once per step and every lock built on it ended in a stuck `and`.
+     */
+    "thread-atomic",                           // Atomic, under the thread library's name
     "strings",                                 // Also using literal strings for datatype ids
     "tuple-elements",                          // Must be unpacked manually
 )
@@ -56,10 +68,20 @@ private data class GeneratedFile(val fileName: String, val content: String)
  *
  * @param cbsDir the directory of `.cbs` files to read, walked top-down.
  * @param outputDir where the generated Kotlin is written.
+ * @param renderFiles the base names of the source files to write node classes
+ *   for, or null for every parsed file. All files are still parsed and
+ *   collected, so names used in the rendered files resolve against the whole
+ *   corpus even when only a part of it is emitted.
+ * @param emitMetadata whether to write `Aliases.kt` and `NodeMetas.kt` too. A
+ *   module that emits a subset keeps those in the module that owns the whole
+ *   corpus: duplicating either file in a second module would redeclare its
+ *   top-level symbols.
  */
 class TruffleGen(
     private val cbsDir: File,
     private val outputDir: File = File("../fctlang/src/main/kotlin/generated"),
+    private val renderFiles: Collection<String>? = null,
+    private val emitMetadata: Boolean = true,
 ) {
     // The dependency pass below reads these. Nothing fills them: the pass is not
     // wired up, and until it is, they stay empty and null.
@@ -75,9 +97,23 @@ class TruffleGen(
         writeAll(outputDir, generated)
     }
 
+    /**
+     * The `.cbs` files under [dir], walked top-down.
+     *
+     * Symlinked directories are followed. `Unstable-Funcons-beta` contains a
+     * symlink back to the stable `Funcons-beta`, and the unstable rules name
+     * funcons declared there (`give`, `checked`), so the registry only resolves
+     * them if that tree is walked too. `File.walkTopDown` does not descend into
+     * symlinks and would yield 8 files where there are 51.
+     */
+    private fun cbsFiles(dir: File): List<File> =
+        Files.walk(dir.toPath(), FileVisitOption.FOLLOW_LINKS)
+            .filter { path -> Files.isRegularFile(path) && path.toString().endsWith(".cbs") }
+            .map { path -> path.toFile() }
+            .toList()
+
     private fun parseCorpus(dir: File): List<SourceFile> =
-        dir.walkTopDown()
-            .filter { file -> file.isFile && file.extension == "cbs" }
+        cbsFiles(dir)
             .map { file ->
                 val input = CharStreams.fromPath(file.toPath())
                 val parser = CBSParser(CommonTokenStream(CBSLexer(input)))
@@ -127,16 +163,20 @@ class TruffleGen(
     private fun selectObjects(corpus: Corpus): Set<Object>? = null
 
     private fun renderCorpus(corpus: Corpus, included: Set<Object>?): List<GeneratedFile> {
-        val generated = corpus.byFile.mapNotNull { (name, objects) ->
+        val generated = corpus.byFile
+            .filterKeys { renderFiles == null || it in renderFiles }
+            .mapNotNull { (name, objects) ->
             println("Generating code for file $name...")
             val code = renderFile(name, objects, included) ?: return@mapNotNull null
             GeneratedFile(name.removeSuffix(".cbs") + ".kt", code)
         }
 
-        return generated + listOf(
+        val metadata = if (emitMetadata) listOf(
             GeneratedFile("Aliases.kt", renderAliases(corpus.registry, included)),
             GeneratedFile("NodeMetas.kt", renderNodeMetas(corpus.registry, included)),
-        )
+        ) else emptyList()
+
+        return generated + metadata
     }
 
     private fun writeAll(dir: File, generated: List<GeneratedFile>) {
@@ -223,13 +263,25 @@ class TruffleGen(
         @JvmStatic
         fun main(args: Array<String>) {
             if (args.isEmpty()) {
-                println("Usage: trufflegen <cbsDir>")
+                println("Usage: trufflegen <cbsDir> [outputDir] [--render=base.kt,...] [--no-metadata]")
                 return
             }
 
             val cbsDir = File(args[0])
+            val outputDir = args.getOrNull(1)?.takeIf { !it.startsWith("--") }
+                ?: "../fctlang/src/main/kotlin/generated"
+            val renderFiles = args.getOrNull(1)?.takeIf { it.startsWith("--render=") }
+                ?.removePrefix("--render=")?.split(",")
+            val renderFilesAlt = args.getOrNull(2)?.takeIf { it.startsWith("--render=") }
+                ?.removePrefix("--render=")?.split(",")
+            val emitMetadata = !args.any { it == "--no-metadata" }
 
-            val truffleGen = TruffleGen(cbsDir)
+            val truffleGen = TruffleGen(
+                cbsDir,
+                File(outputDir),
+                renderFiles ?: renderFilesAlt,
+                emitMetadata,
+            )
 
             truffleGen.process()
         }

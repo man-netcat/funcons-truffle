@@ -163,7 +163,14 @@ fun getParamStrs(
         val obj = getObject(registry, pattern)
         val args = funconOf(pattern).params
 
-        return args.flatMapIndexed { argIndex, (arg, type) ->
+        return args.flatMapIndexed { argIndex, (declaredArg, type) ->
+            /*
+              `(thunk abstraction X)` is the same value as `thunk abstraction X`: a nested
+              expression only groups. The corpus writes both spellings of a threaded
+              abstraction, one at `thread-yield` and one at `thread-suspend`, and the
+              parameter has to be generated the same way for either of them.
+             */
+            val arg = if (declaredArg is NestedExpressionContext) declaredArg.expr() else declaredArg
             when (arg) {
                 null -> {
                     val newStr = makeParamStr(argIndex, args.size, obj, parentStr)

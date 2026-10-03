@@ -20,7 +20,7 @@ indexLine
    ;
 
 index
-   : '[' indexLine+ ']'
+   : '[' indexLine* ']'
    ;
 
 metavarDef
@@ -29,7 +29,7 @@ metavarDef
 
 object
    : (modifier = (BUILTIN | AUXILIARY)? FUNCON name = IDENTIFIER ('(' params ')')? (COLON returnType = expr)? (REWRITE rewritesTo = expr)? (ALIAS aliasDefinition | RULE ruleDefinition | ASSERT assertDefinition)*) # FunconDefinition
-   | (modifier = BUILTIN? DATATYPE name = IDENTIFIER ('(' params ')')? op = ('::=' | SUBTYPE) definition = expr (ALIAS aliasDefinition | ASSERT assertDefinition)*) # DatatypeDefinition
+   | (modifier = (BUILTIN | AUXILIARY)? DATATYPE name = IDENTIFIER ('(' params ')')? op = ('::=' | SUBTYPE) definition = expr (ALIAS aliasDefinition | ASSERT assertDefinition)*) # DatatypeDefinition
    | (modifier = (BUILTIN | AUXILIARY)? TYPE name = IDENTIFIER ('(' params ')')? (op = (REWRITE | SUBTYPE) definition = expr)? (ALIAS aliasDefinition)*) # TypeDefinition
    | METAVARIABLES metavarDef+ # MetavariablesDefinition
    | ENTITY VARIABLE '--' (name = IDENTIFIER polarity = ('!' | '?')? ('(' params ')')?) '->' VARIABLE (ALIAS aliasDefinition)* # ControlEntityDefinition
@@ -37,8 +37,14 @@ object
    | ENTITY name = IDENTIFIER ('(' params ')')? HASCONTEXT VARIABLE TRANSITION VARIABLE (ALIAS aliasDefinition)* # ContextualEntityDefinition
    ;
 
+/*
+An assertion is either an equality, which the stable corpus uses, or a rule,
+which `Unstable-Funcons-beta` uses to state a rewrite that must hold. The two
+forms are not related in the grammar; both are written `Assert`.
+*/
 assertDefinition
    : expr '==' expr
+   | ruleDefinition
    ;
 
 aliasDefinition
@@ -71,7 +77,7 @@ expr
    ;
 
 exprs
-   : expr (',' expr)*
+   : expr (',' expr)* ','?
    ;
 
 args
@@ -89,10 +95,19 @@ params
    ;
 
 label
-   : name = IDENTIFIER polarity = ('!' | '?')? '(' value = expr? ')'
+   : name = IDENTIFIER polarity = ('!' | '?')? ('(' value = exprs? ')' | '{' value = exprs? '}')?
    ;
 
 labels
+   : label (',' label)*
+   ;
+
+/*
+The entity list of a mutable-entity premise: `< X, E1, E2 > ---> < X', E1', E2' >`.
+`E1` may be written with parameters, `E1(_)`, and the parameters are only there to
+name the values the entity binds.
+*/
+mutableEntityLabels
    : label (',' label)*
    ;
 
@@ -104,9 +119,17 @@ steps
    : step (';' step)*
    ;
 
+/*
+A transition over a mutable entity. The entities are named on one side or the
+other, or on both: `< X, E > ---> < X', E' >` binds and rewrites, `X ---> < X', E' >`
+only writes, and `< X, E > ---> X'` only reads. The corpus uses all three, so
+neither side's entity list is required.
+*/
 premiseExpr
    : context_ = label HASCONTEXT lhs = expr TRANSITION rhs = expr # TransitionPremiseWithContextualEntity
-   | '<' lhs = expr ',' entityLhs = label '>' TRANSITION '<' rhs = expr ',' entityRhs = label '>' # TransitionPremiseWithMutableEntity
+   | context_ = label HASCONTEXT lhs = expr steps rhs = expr # TransitionPremiseWithContextualEntityAndSteps
+   | '<' lhs = expr ',' entityLhs = mutableEntityLabels '>' (TRANSITION | steps) (('<' rhs = expr ',' entityRhs = mutableEntityLabels '>') | rhs = expr) # TransitionPremiseWithMutableEntity
+   | lhs = expr TRANSITION '<' rhs = expr ',' entityRhs = mutableEntityLabels '>' # TransitionPremiseWithMutableEntityWriteOnly
    | lhs = expr steps rhs = expr # TransitionPremiseWithControlEntity
    | lhs = expr TRANSITION rhs = expr # TransitionPremise
    | lhs = expr REWRITE rhs = expr # RewritePremise

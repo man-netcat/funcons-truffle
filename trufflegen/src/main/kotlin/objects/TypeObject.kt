@@ -54,7 +54,19 @@ class TypeObject(
                     }
 
                     val valueArgStrs = args.map { arg -> rewriteArg(arg) }
-                    makeFunCall(defType.nodeName, args = valueArgStrs)
+                    /*
+                      A variadic type's parameters are a single sequence. `tuples(T*)` is
+                      declared with one `tuplesTp0: SequenceNode` rather than one parameter
+                      per argument, so `tuples(ground-values, thread-ids)` has to hand it
+                      one sequence holding both. Passing them as two arguments gave
+                      `TuplesNode(GroundValuesNode(), ThreadIdsNode())`, which is neither
+                      arity nor type right.
+                     */
+                    if (defType.params.size == 1 && defType.params[0].type.isSequence) {
+                        makeFunCall(defType.nodeName, args = listOf("SequenceNode(${valueArgStrs.joinToString(", ")})"))
+                    } else {
+                        makeFunCall(defType.nodeName, args = valueArgStrs)
+                    }
                 } else throw DetailedException("Unexpected definition ${definition.text}")
             }
 

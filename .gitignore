@@ -64,3 +64,4 @@ reference.cbs
 /trufflegen/dependencies.dot
 /reference.txt
 generatedbackup/*.kt
+fctlang-unstable/src/main/kotlin/generated/*.kt

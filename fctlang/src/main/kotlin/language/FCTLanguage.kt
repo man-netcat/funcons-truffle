@@ -23,6 +23,7 @@ import org.antlr.v4.runtime.RecognitionException
 import org.antlr.v4.runtime.Recognizer
 import org.antlr.v4.runtime.misc.Interval
 import org.antlr.v4.runtime.tree.ParseTree
+import org.antlr.v4.runtime.tree.TerminalNode
 
 class FCTSyntaxException(message: String, cause: RecognitionException?) :
     RuntimeException(message, cause)
@@ -38,6 +39,7 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
         const val LANGUAGE_ID = "fctlang"
         const val MIME_TYPE = "application/x-fctlang"
         const val ENTITIES_SLOT = 0
+        const val REFOCUS_SLOT = 1
     }
 
     override fun parse(request: ParsingRequest): CallTarget {
@@ -83,9 +85,30 @@ class FCTLanguage : TruffleLanguage<FCTContext>() {
             "the entity map belongs at slot $ENTITIES_SLOT but the descriptor put it at $entitiesSlot"
         }
 
+        val refocusSlot = frameDescriptorBuilder.addSlot(FrameSlotKind.Boolean, null, false)
+        check(refocusSlot == REFOCUS_SLOT) {
+            "the refocus flag belongs at slot $REFOCUS_SLOT but the descriptor put it at $refocusSlot"
+        }
+
         val frameDescriptor = frameDescriptorBuilder.build()
 
-        return FCTRootNode(this, frameDescriptor, buildTree(funconTerm), inputs, expectations).callTarget
+        val refocus = refocusOption(root as? ConfigFileContext)
+
+        return FCTRootNode(this, frameDescriptor, buildTree(funconTerm), inputs, expectations, refocus)
+            .callTarget
+    }
+
+    /*
+      `refocus: false;` in a config's `general` block turns refocussing off. The value
+      is read from the option's own tokens rather than from `ctx.text` because a string
+      option may itself contain a colon or a semicolon.
+     */
+    private fun refocusOption(root: ConfigFileContext?): Boolean {
+        val option = root?.generalBlock()?.generalOption()?.firstOrNull { it.IDENTIFIER(0).text == "refocus" }
+            ?: return true
+        val terminals = option.children?.filterIsInstance<TerminalNode>().orEmpty()
+        // IDENTIFIER ':' (STRING | NUMBER | IDENTIFIER) ';'
+        return terminals.getOrNull(2)?.text != "false"
     }
 
     private fun sourceText(ctx: ParserRuleContext?): String? {

@@ -6,6 +6,7 @@ import interpreter.FCTInterpreter.evalFile
 import interpreter.FCTInterpreter.processResult
 import interpreter.ExpectationOutcome
 import language.StuckException
+import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
@@ -16,6 +17,7 @@ import java.io.PrintStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.time.Duration
 import kotlin.io.path.extension
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.pathString
@@ -28,7 +30,8 @@ abstract class BaseTest(
     private val warmUpIterations: Int = 10,
     private val excludedFiles: List<String> = emptyList(),
     private val knownCrashes: Map<String, String> = emptyMap(),
-    private val knownDivergences: Map<String, String> = emptyMap()
+    private val knownDivergences: Map<String, String> = emptyMap(),
+    private val perTestTimeout: Duration? = null
 ) {
 
     private val originalOut: PrintStream? = System.out
@@ -43,7 +46,23 @@ abstract class BaseTest(
                 val displayName = relativePath(dir, path)
                 dynamicTest(displayName) {
                     printHeader(displayName)
-                    val outcome = runGuarded(displayName, path)
+                    /*
+                      The unstable corpus contains programs that do not terminate,
+                      which used to take the whole test task down with them: the
+                      runner was killed after four hours with no report. A timeout
+                      turns that into one reported failure per program, so the rest
+                      of the corpus still gets a verdict. JUnit runs the body on its
+                      own thread and abandons it when the time is up, so a program
+                      still spinning does not hold up the suite -- at the cost of
+                      one leaked busy thread per timeout.
+                     */
+                    val outcome = if (perTestTimeout == null) {
+                        runGuarded(displayName, path)
+                    } else {
+                        assertTimeoutPreemptively(perTestTimeout) {
+                            runGuarded(displayName, path)
+                        }
+                    }
                     when (outcome) {
                         is ExpectationOutcome.Failed -> throw AssertionError(
                             "declared expectations not met:\n${outcome.report}"

@@ -5,5 +5,6 @@ rootProject.name = "funcons-truffle"
 include("antlr")
 include("trufflegen")
 include("fctlang")
+include("fctlang-unstable")
 include("fctinterpreter")
 include("cbslang")

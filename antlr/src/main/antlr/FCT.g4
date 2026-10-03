@@ -10,7 +10,19 @@ root
    ;
 
 generalBlock
-   : GENERAL '{' funconTerm '}'
+   : GENERAL '{' funconTerm generalOption* '}'
+   ;
+
+/*
+  Options in the `general` block are carried by configs that the unstable corpora
+  ship (`refocus`, `display-mutable-entity`, `seed`, `non-deterministic`). Nothing
+  reads them: they are accepted so those configs parse, and a config that actually
+  depends on one fails on the expectation it declares. A value may be a string, a
+  number, or a bare word such as `false`, and there may be more than one, so this is
+  a repetition rather than the single optional pair it was.
+ */
+generalOption
+   : IDENTIFIER ':' (STRING | NUMBER | IDENTIFIER) ';'
    ;
 
 testsBlock

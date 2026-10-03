@@ -16,6 +16,7 @@ repositories {
 
 dependencies {
     implementation(project(":fctlang"))
+    implementation(project(":fctlang-unstable"))
     implementation(libs.graal.sdk)
     implementation(libs.truffle.api)
     implementation(libs.polyglot)

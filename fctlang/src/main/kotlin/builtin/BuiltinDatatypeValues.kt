@@ -222,4 +222,38 @@ class ValueNullValueNode :
 class ValuePointerNullNode :
     AbstractDatatypeValueNode(strLiteralNode("pointer-null"), SequenceNode())
 
+/*
+  The datatype values of the Threads and Synchronising libraries, which `trufflegen`
+  generates references to but not the classes themselves: every datatype value class
+  is written out by hand here. Their arities are the parameters of the datatype they
+  are values of, as `trufflegen` emits the constructor calls.
+ */
+
+class ValueThreadIdNode(@Child var vp0: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("thread-id"), SequenceNode(vp0))
+
+class ValueThreadNode(@Child var vp0: TermNode, @Child var vp1: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("thread"), SequenceNode(vp0, vp1))
+
+class ValueThreadCooperativeNode :
+    AbstractDatatypeValueNode(strLiteralNode("thread-cooperative"), SequenceNode())
+
+class ValueThreadPreemptibleNode :
+    AbstractDatatypeValueNode(strLiteralNode("thread-preemptible"), SequenceNode())
+
+class ValueSyncNode(@Child var vp0: TermNode) :
+    AbstractDatatypeValueNode(strLiteralNode("sync"), SequenceNode(vp0))
+
+class ValueSyncCountNode :
+    AbstractDatatypeValueNode(strLiteralNode("sync-count"), SequenceNode())
+
+class ValueSyncHeldNode :
+    AbstractDatatypeValueNode(strLiteralNode("sync-held"), SequenceNode())
+
+class ValueSyncHolderNode :
+    AbstractDatatypeValueNode(strLiteralNode("sync-holder"), SequenceNode())
+
+class ValueSyncWaitingListNode :
+    AbstractDatatypeValueNode(strLiteralNode("sync-waiting-list"), SequenceNode())
+
 // TODO: At this stage, this could probably be automated actually, but I can't be bothered to rewrite this

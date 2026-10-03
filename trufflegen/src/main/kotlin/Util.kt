@@ -345,7 +345,7 @@ fun extractArgs(expr: ParseTree): List<ExprContext> {
         is FunconExpressionContext -> makeArgList(expr.args())
         is ListExpressionContext -> expr.elements?.expr() ?: emptyList()
         is SetExpressionContext -> expr.elements?.expr() ?: emptyList()
-        is LabelContext -> if (expr.value != null) listOf(expr.value) else emptyList()
+        is LabelContext -> expr.value?.expr() ?: emptyList()
         else -> throw DetailedException("Unexpected expression type: ${expr::class.simpleName}, ${expr.text}")
     }
 }
@@ -532,6 +532,35 @@ fun makeRewriteGetter(varName: String, rewrite: String): String {
         body = body
     )
 }
+
+/**
+ * A getter for a term that a premise has matched but not yet reduced, such as
+ * the body `X` of `thread-step`'s `< X, thread-stepping(TI), thread-map(TM) >`.
+ * Nothing is rewritten: whether the premise can take a step at all is decided by
+ * the condition that asks `isReducible`, and rewriting here would answer that
+ * question by running the term to normal form.
+ */
+fun makeMatchedGetter(varName: String, expr: String): String =
+    makeFunctionOneliner(
+        getterName(varName),
+        TERMNODE,
+        parameters = listOf("frame: VirtualFrame"),
+        body = expr
+    )
+
+/**
+ * A getter for the result of a transition premise: the matched term reduced by
+ * one step. `thread-step` is named for one transition of a thread's body, so a
+ * premise that runs the body to normal form gives away the interleaving the
+ * scheduler exists to control.
+ */
+fun makeSteppingGetter(varName: String, matchedGetter: String): String =
+    makeFunctionOneliner(
+        getterName(varName),
+        TERMNODE,
+        parameters = listOf("frame: VirtualFrame"),
+        body = "$matchedGetter.reduce(frame)"
+    )
 
 fun getterName(varName: String): String = "get" + varName.replaceFirstChar { it.uppercaseChar() }
 

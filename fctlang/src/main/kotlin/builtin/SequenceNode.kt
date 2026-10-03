@@ -64,7 +64,7 @@ class SequenceNode(vararg val terms: TermNode) : TermNode() {
 
         for ((index, element) in reducible) {
             try {
-                val reduced = element.reduce(frame)
+                val reduced = element.refocus(frame)
                 if (reduced is UnpackableTupleNode) {
                     // In the case this is a fully reduced tuple-elements node, we must unpack it
                     newElements = unpackTupleElements(index, reduced)
